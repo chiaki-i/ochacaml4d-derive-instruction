@@ -11,8 +11,8 @@ $ cd eval1/
 $ make
 ```
 
-- Run the test case to check the behavior.
+- From the same directory, run the test cases.
 
 ```shell
-$ ../test-suite/check-vm eval1/interpter 0
+$ ../test-suite/check-vm ./interpter 0
 ```
