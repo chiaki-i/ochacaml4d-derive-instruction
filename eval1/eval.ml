@@ -2,7 +2,7 @@ open Syntax
 open Value
 
 (* actual calculation *)
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval1 *)
+(* Definitional interpreter for $B&K(B-calculus with 4 delimited continuation operations : eval1 *)
 
 (* initial continuation : v -> t -> m -> v *)
 let idc v t m = match t with
@@ -25,7 +25,7 @@ let apnd t0 t1 = match t0 with
 
 (* f1 : e -> string list -> v list -> c -> t -> m -> v *)
 let rec f1 e xs vs c t m = match e with
-    Num (n) -> c (VNum (n)) t m 
+    Num (n) -> c (VNum (n)) t m
   | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
     f1 e0 xs vs (fun v0 t0 m0 ->
@@ -45,16 +45,11 @@ let rec f1 e xs vs c t m = match e with
             end) t0 m0) t m
   | Fun (x, e) ->
     c (VFun (fun v c' t' m' -> f1 e (x :: xs) (v :: vs) c' t' m')) t m
-  | App (e0, e1) ->
-    f1 e0 xs vs (fun v0 t0 m0 ->
-        f1 e1 xs vs (fun v1 t1 m1 ->
-            begin match v0 with
-                VFun (f) -> f v1 c t1 m1
-              | VContS (c', t') -> c' v1 t' (MCons ((c, t1), m1))
-              | VContC (c', t') -> c' v1 (apnd t' (cons c t1)) m1
-              | _ -> failwith (to_string v0
-                               ^ " is not a function; it can not be applied.")
-            end) t0 m0) t m
+  | App (e0, e1, e2s) ->
+    f1s e2s xs vs (fun v2s t2 m2 ->
+      f1 e1 xs vs (fun v1 t1 m1 ->
+        f1 e0 xs vs (fun v0 t0 m0 ->
+          apply1 v0 v1 v2s c t0 m0) t1 m1) t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -68,6 +63,22 @@ let rec f1 e xs vs c t m = match e with
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, t), m))
+and f1s e2s xs vs c t m = match e2s with
+    [] -> c [] t m
+  | first :: rest ->
+    f1s rest xs vs (fun v2s t2 m2 ->
+      f1 first xs vs (fun v1 t1 m1 ->
+        c (v1 :: v2s) t1 m1) t2 m2) t m
+and app1 v0 v1 c t m = match v0 with
+    VFun (f) -> f v1 c t m
+  | VContS (c', t') -> c' v1 t' (MCons ((c, t), m))
+  | VContC (c', t') -> c' v1 (apnd t' (cons c t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
+and apply1 v0 v1 v2s c t m = match v2s with
+    [] -> app1 v0 v1 c t m
+  | first :: rest ->
+    app1 v0 v1 (fun f1 t1 m1 -> apply1 f1 first rest c t1 m1) t m
 
 (* f : e -> v *)
 let f expr = f1 expr [] [] idc TNil MNil
