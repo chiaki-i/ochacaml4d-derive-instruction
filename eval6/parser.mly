@@ -25,8 +25,8 @@ let make_fun vars expr =
 /* Don't omitte '%%' */
 %%
 
-/* Write grammar rules */  
-  
+/* Write grammar rules */
+
 simple_expr:
 | NUMBER
 { Syntax.Num ($1) }
@@ -49,7 +49,7 @@ expr:
 | FUN VAR vars ARROW expr
 { Syntax.Fun ($2, make_fun $3 $5) }
 | app
-{ $1 }
+{ let (e0, e1, e2s) = $1 in Syntax.App (e0, e1, List.rev e2s) }
 | SHIFT VAR ARROW expr
 { Syntax.Shift ($2, $4) }
 | CONTROL VAR ARROW expr
@@ -69,6 +69,6 @@ vars:
 
 app:
 | simple_expr simple_expr
-{ Syntax.App ($1, $2) }
+{ ($1, $2, []) }
 | app simple_expr
-{ Syntax.App ($1, $2) }
+{ let (e0, e1, e2s) = $1 in (e0, e1, $2 :: e2s) }
