@@ -11,13 +11,12 @@ type v = VNum of int
 and c = C0
       | CApp0 of v * v list * c
       | CApp1 of e * string list * v list * v list * c
-      | CAppS0 of v list * cs
+      | CApp2 of e * e * string list * v list * c
+      | CAppS0 of v list * c
+      | CAppS1 of e * string list * v list * c
       | CApply of v * v list * c
       | COp0 of e * string list * v list * op * c
       | COp1 of v * op * c
-
-and cs = CApp2 of e * e * string list * v list * c
-       | CAppS1 of e * string list * v list * cs
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
