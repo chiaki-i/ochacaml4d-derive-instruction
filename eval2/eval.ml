@@ -30,7 +30,7 @@ let rec run_c2 c v t m = match c with
   | CApp0 (v1, v2s, c) -> apply2 v v1 v2s c t m
   | CApp1 (e0, xs, vs, v2s, c) -> (* vs, v2s are dynamic data *)
     f2 e0 xs vs (CApp0 (v, v2s, c)) t m
-  | CAppS0 (v2s, c) -> runs_c2 c (v :: v2s) t m
+  | CAppS0 (v2s, cs) -> runs_c2 cs (v :: v2s) t m
   | CApply (first, rest, c) -> apply2 v first rest c t m
   | COp0 (e1, xs, vs, op, c) -> f2 e1 xs vs (COp1 (v, op, c)) t m
   | COp1 (v0, op, c) ->
@@ -46,12 +46,13 @@ let rec run_c2 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-(* runs_c2 : c -> v list -> t -> m -> v *)
-and runs_c2 c v t m = match c with
+(* runs_c2 : cs -> v list -> t -> m -> v *)
+(* cs receives v list instead of v *)
+and runs_c2 cs v2s t m = match cs with
     CApp2 (e0, e1, xs, vs, c) ->
-    f2 e1 xs vs (CApp1 (e0, xs, vs, v, c)) t m
+    f2 e1 xs vs (CApp1 (e0, xs, vs, v2s, c)) t m
   | CAppS1 (first, xs, vs, cs) ->
-    f2 first xs vs (CAppS0 (v, cs)) t m
+    f2 first xs vs (CAppS0 (v2s, cs)) t m
 
 (* f2 : e -> string list -> v list -> c -> t -> m -> v *)
 and f2 e xs vs c t m = match e with
@@ -62,11 +63,6 @@ and f2 e xs vs c t m = match e with
     run_c2 c (VFun (fun v c' t' m' -> f2 e (x :: xs) (v :: vs) c' t' m')) t m
   | App (e0, e1, e2s) ->
     f2s e2s xs vs (CApp2 (e0, e1, xs, vs, c)) t m
-    (* f2 e0 xs vs (CApp0 (e1, xs, vs, c)) t m *)
-    (* f2 e0 xs vs
-      (CApp0 (e1, xs, vs,
-        CApp1 (VFun (fun v c' t' m' -> f2s e2s xs vs c' t' m'), c))) t m *)
-    (* f2 e0 xs vs (CApp0 (e1, xs, vs, c)) t m *)
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -80,10 +76,18 @@ and f2 e xs vs c t m = match e with
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f2 e xs vs idc TNil (MCons ((c, t), m))
+(* f2s : e list -> string list -> v list -> c -> t -> m -> c *)
+(* In f2s, c receives v list *)
 and f2s e2s xs vs cs t m = match e2s with
     [] -> runs_c2 cs [] t m
   | first :: rest ->
     f2s rest xs vs (CAppS1 (first, xs, vs, cs)) t m
+(* apply2 : v -> v -> v list -> c -> t -> m -> v *)
+and apply2 v0 v1 v2s c t m = match v2s with
+    [] -> app2 v0 v1 c t m
+  | first :: rest ->
+    app2 v0 v1 (CApply (first, rest, c)) t m
+(* app2 : v -> v -> c -> t -> m -> v *)
 and app2 v0 v1 c t m = match v0 with
     VFun (f) -> f v1 c t m
   | VContS (c', t') -> run_c2 c' v1 t' (MCons ((c, t), m))
@@ -91,10 +95,6 @@ and app2 v0 v1 c t m = match v0 with
     run_c2 c' v1 (apnd t' (cons (fun v t m -> run_c2 c v t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
-(* apply2 : v -> v -> v list -> c -> t -> m -> v *)
-and apply2 v0 v1 v2s c t m = match v2s with
-    [] -> app2 v0 v1 c t m
-  | first :: rest ->
-    app2 v0 v1 (CApply (first, rest, c)) t m
+
 (* f : e -> v *)
 let f expr = f2 expr [] [] idc TNil MNil
