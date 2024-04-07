@@ -24,7 +24,7 @@ let rec run_c4 c v s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CApp0 (e1, xs) :: c, VEnv (vs) :: s) ->
+(*| (CApp0 (e1, xs) :: c, VEnv (vs) :: s) ->
     f4 e1 xs vs (CApp1 :: c) (v :: s) t m
   | (CApp1 :: c, v0 :: s) ->
     begin match v0 with
@@ -34,7 +34,15 @@ let rec run_c4 c v s t m = match (c, s) with
         run_c4 c' v s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
       | _ -> failwith (to_string v0
                        ^ " is not a function; it can not be applied.")
-    end
+    end *)
+(* | CApp0 (v1, v2s) :: c -> apply3 v v1 v2s c t m
+  | CApp1 (e0, xs, vs, v2s) :: c ->
+    f3 e0 xs vs (CApp0 (v, v2s) :: c) t m
+  | CAppS0 (v2s) :: cs -> runs_c3 cs (v :: v2s) t m
+  | CApply (first, rest) :: c -> apply3 v first rest c t m
+*)
+  | (CApp1 (e0, xs) :: c, VEnv (vs) :: s) ->
+    f4 e0 xs vs (CApp0 :: c)  (v :: VEnv (vs) :: s) t m
   | (COp0 (e1, xs, op) :: c, VEnv (vs) :: s) ->
     f4 e1 xs vs (COp1 (op) :: c) (v :: s) t m
   | (COp1 (op) :: c, v0 :: s) ->
@@ -50,19 +58,24 @@ let rec run_c4 c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | _ -> failwith "stack or cont error"
+  | _ -> failwith "run_c4: stack error or unexpected continuation"
+(* runs_c4 : c -> v -> s -> t -> m -> v *)
+and runs_c4 c v s t m = match (c, s) with
+    (CApp2 (e0, e1, xs) :: c, VEnv (vs) :: s) ->
+    f4 e1 xs vs (CApp1 (e0, xs) :: c) (VEnv (vs) :: v :: s) t m
+  | _ -> failwith "runs_c4: stack error or unexpected continuation"
 
 (* f4 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f4 e xs vs c s t m = match e with
-    Num (n) -> run_c4 c (VNum (n)) s t m 
+    Num (n) -> run_c4 c (VNum (n)) s t m
   | Var (x) -> run_c4 c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
     f4 e0 xs vs (COp0 (e1, xs, op) :: c) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
     run_c4 c
       (VFun (fun v c' s' t' m' -> f4 e (x :: xs) (v :: vs) c' s' t' m')) s t m
-  | App (e0, e1) ->
-    f4 e0 xs vs (CApp0 (e1, xs) :: c) (VEnv (vs) :: s) t m
+  | App (e0, e1, e2s) ->
+    f4 e0 xs vs (CApp2 (e0, e1, xs) :: c) (VEnv (vs) :: s) t m
   | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
   | Control (x, e) -> f4 e (x :: xs) (VContC (c, s, t) :: vs) [] [] TNil m
   | Shift0 (x, e) ->
