@@ -1,5 +1,5 @@
 open Syntax
-    
+
 (* Linearized interpreter : eval3 *)
 
 (* Value *)
@@ -8,8 +8,12 @@ type v = VNum of int
        | VContS of c * t
        | VContC of c * t
 
-and f = CApp0 of e * string list * v list
-      | CApp1 of v
+and f = CApp0 of v * v list
+      | CApp1 of e * string list * v list * v list
+      | CApp2 of e * e * string list * v list
+      | CAppS0 of v list
+      | CAppS1 of e * string list * v list
+      | CApply of v * v list
       | COp0 of e * string list * v list * op
       | COp1 of v * op
 

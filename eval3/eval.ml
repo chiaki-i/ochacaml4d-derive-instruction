@@ -24,17 +24,12 @@ let rec run_c3 c v t m = match c with
         end
       | Trail (h) -> h v TNil m
     end
-  | CApp0 (e1, xs, vs) :: c -> f3 e1 xs vs (CApp1 (v) :: c) t m
-  | CApp1 (v0) :: c ->
-    begin match v0 with
-        VFun (f) -> f v c t m
-      | VContS (c', t') -> run_c3 c' v t' (MCons ((c, t), m))
-      | VContC (c', t') ->
-        run_c3 c' v (apnd t' (cons (fun v t m -> run_c3 c v t m) t)) m
-      | _ -> failwith (to_string v0
-                       ^ " is not a function; it can not be applied.")
-    end
-  | COp0 (e1, xs, vs, op) :: c -> f3 e1 xs vs (COp1 (v, op) :: c) t m 
+  | CApp0 (v1, v2s) :: c -> apply3 v v1 v2s c t m
+  | CApp1 (e0, xs, vs, v2s) :: c ->
+    f3 e0 xs vs (CApp0 (v, v2s) :: c) t m
+  | CAppS0 (v2s) :: cs -> runs_c3 cs (v :: v2s) t m
+  | CApply (first, rest) :: c -> apply3 v first rest c t m
+  | COp0 (e1, xs, vs, op) :: c -> f3 e1 xs vs (COp1 (v, op) :: c) t m
   | COp1 (v0, op) :: c->
     begin match (v0, v) with
         (VNum (n0), VNum (n1)) ->
@@ -48,15 +43,25 @@ let rec run_c3 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
+  | _ -> failwith "run_c3: unexpected continuation"
+(* runs_c3 : cs -> v list -> t -> m -> v *)
+and runs_c3 c v t m = match c with
+    CApp2 (e0, e1, xs, vs) :: c ->
+    f3 e1 xs vs (CApp1 (e0, xs, vs, v) :: c) t m
+  | CAppS1 (first, xs, vs) :: cs ->
+    f3 first xs vs (CAppS0 (v) :: cs) t m
+  | _ -> failwith "runs_c3: unexpected continuation"
 
 (* f3 : e -> string list -> v list -> c -> t -> m -> v *)
 and f3 e xs vs c t m = match e with
-    Num (n) -> run_c3 c (VNum (n)) t m 
+    Num (n) -> run_c3 c (VNum (n)) t m
   | Var (x) -> run_c3 c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) -> f3 e0 xs vs (COp0 (e1, xs, vs, op) :: c) t m
   | Fun (x, e) ->
     run_c3 c (VFun (fun v c' t' m' -> f3 e (x :: xs) (v :: vs) c' t' m')) t m
-  | App (e0, e1) -> f3 e0 xs vs (CApp0 (e1, xs, vs) :: c) t m
+  | App (e0, e1, e2s) ->
+    f3s e2s xs vs (CApp2 (e0, e1, xs, vs) :: c) t m
+  (* | App (e0, e1, e2s) -> f3 e0 xs vs (CApp2 (e1, xs, vs) :: c) t m *)
   | Shift (x, e) -> f3 e (x :: xs) (VContS (c, t) :: vs) [] TNil m
   | Control (x, e) -> f3 e (x :: xs) (VContC (c, t) :: vs) [] TNil m
   | Shift0 (x, e) ->
@@ -70,6 +75,24 @@ and f3 e xs vs c t m = match e with
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f3 e xs vs [] TNil (MCons ((c, t), m))
+(* f3s : e list -> string list -> v list -> c -> t -> m -> v *)
+and f3s e3s xs vs cs t m = match e3s with
+    [] -> runs_c3 cs [] t m
+  | first :: rest ->
+    f3s rest xs vs (CAppS1 (first, xs, vs) :: cs) t m
+(* apply3 : v -> v -> v list -> c -> t -> m -> v *)
+and apply3 v0 v1 v2s c t m = match v2s with
+    [] -> app3 v0 v1 c t m
+  | first :: rest ->
+    app3 v0 v1 (CApply (first, rest) :: c) t m
+(* app3 : v -> v -> c -> t -> m -> v *)
+and app3 v0 v1 c t m = match v0 with
+    VFun (f) -> f v1 c t m
+  | VContS (c', t') -> run_c3 c' v1 t' (MCons ((c, t), m))
+  | VContC (c', t') ->
+    run_c3 c' v1 (apnd t' (cons (fun v t m -> run_c3 c v t m) t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
 
 (* f : e -> v *)
 let f expr = f3 expr [] [] [] TNil MNil
