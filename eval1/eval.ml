@@ -28,8 +28,8 @@ let rec f1 e xs vs c t m = match e with
     Num (n) -> c (VNum (n)) t m
   | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
-    f1 e0 xs vs (fun v0 t0 m0 ->
-        f1 e1 xs vs (fun v1 t1 m1 ->
+    f1 e1 xs vs (fun v1 t0 m0 ->
+        f1 e0 xs vs (fun v0 t1 m1 ->
             begin match (v0, v1) with
                 (VNum (n0), VNum (n1)) ->
                 begin match op with
