@@ -8,6 +8,7 @@ type v = VNum of int
        | VContS of c * t
        | VContC of c * t
 
+(* Frame: new datatype *)
 and f = CApp0 of v * v list
       | CApp1 of e * string list * v list * v list
       | CApp2 of e * e * string list * v list
@@ -17,6 +18,7 @@ and f = CApp0 of v * v list
       | COp0 of e * string list * v list * op
       | COp1 of v * op
 
+(* Continuation becomes a single list of frames *)
 and c = f list
 
 and t = TNil | Trail of (v -> t -> m -> v)

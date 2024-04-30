@@ -44,7 +44,7 @@ let rec run_c3 c v t m = match c with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | _ -> failwith "run_c3: unexpected continuation"
-(* runs_c3 : cs -> v list -> t -> m -> v *)
+(* runs_c3 : c -> v list -> t -> m -> v *)
 and runs_c3 c v t m = match c with
     CApp2 (e0, e1, xs, vs) :: c ->
     f3 e1 xs vs (CApp1 (e0, xs, vs, v) :: c) t m
@@ -61,7 +61,6 @@ and f3 e xs vs c t m = match e with
     run_c3 c (VFun (fun v c' t' m' -> f3 e (x :: xs) (v :: vs) c' t' m')) t m
   | App (e0, e1, e2s) ->
     f3s e2s xs vs (CApp2 (e0, e1, xs, vs) :: c) t m
-  (* | App (e0, e1, e2s) -> f3 e0 xs vs (CApp2 (e1, xs, vs) :: c) t m *)
   | Shift (x, e) -> f3 e (x :: xs) (VContS (c, t) :: vs) [] TNil m
   | Control (x, e) -> f3 e (x :: xs) (VContC (c, t) :: vs) [] TNil m
   | Shift0 (x, e) ->
