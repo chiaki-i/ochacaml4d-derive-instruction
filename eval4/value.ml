@@ -1,5 +1,5 @@
 open Syntax
-    
+
 (* Stack-based interpreter : eval4 *)
 
 (* Value *)
@@ -9,8 +9,12 @@ type v = VNum of int
        | VContC of c * s * t
        | VEnv of v list
 
-and f = CApp0 of e * string list
-      | CApp1
+and f = CApp0 of v * v list
+      | CApp1 of e * string list * v list
+      | CApp2 of e * e * string list
+      | CAppS0
+      | CAppS1 of e * string list
+      | CApply of v
       | COp0 of e * string list * op
       | COp1 of op
 
