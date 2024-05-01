@@ -56,7 +56,7 @@ and runs_c3 c v t m = match c with
 and f3 e xs vs c t m = match e with
     Num (n) -> run_c3 c (VNum (n)) t m
   | Var (x) -> run_c3 c (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) -> f3 e0 xs vs (COp0 (e1, xs, vs, op) :: c) t m
+  | Op (e0, op, e1) -> f3 e1 xs vs (COp0 (e0, xs, vs, op) :: c) t m
   | Fun (x, e) ->
     run_c3 c (VFun (fun v c' t' m' -> f3 e (x :: xs) (v :: vs) c' t' m')) t m
   | App (e0, e1, e2s) ->

@@ -77,7 +77,7 @@ and f4 e xs vs c s t m = match e with
     Num (n) -> run_c4 c (VNum (n)) s t m
   | Var (x) -> run_c4 c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
-    f4 e0 xs vs (COp0 (e1, xs, op) :: c) (VEnv (vs) :: s) t m
+    f4 e1 xs vs (COp0 (e0, xs, op) :: c) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
     run_c4 c
       (VFun (fun v c' s' t' m' -> f4 e (x :: xs) (v :: vs) c' s' t' m')) s t m
