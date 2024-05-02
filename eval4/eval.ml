@@ -34,10 +34,10 @@ let rec run_c4 c v s t m = match (c, s) with
     (* ここは stack 何を渡すべき？もう stack の情報なくても実行できそう… *)
   | (CApply (v0) :: c, VEnv (vs) :: s) ->
     apply4 v v0 vs c s t m
-  | (COp0 (e1, xs, op) :: c, VEnv (vs) :: s) ->
-    f4 e1 xs vs (COp1 (op) :: c) (v :: s) t m
+  | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
+    f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
   | (COp1 (op) :: c, v0 :: s) ->
-    begin match (v0, v) with
+    begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
             Plus -> run_c4 c (VNum (n0 + n1)) s t m

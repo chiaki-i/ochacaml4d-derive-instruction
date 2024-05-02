@@ -29,9 +29,9 @@ let rec run_c3 c v t m = match c with
     f3 e0 xs vs (CApp0 (v, v2s) :: c) t m
   | CAppS0 (v2s) :: cs -> runs_c3 cs (v :: v2s) t m
   | CApply (first, rest) :: c -> apply3 v first rest c t m
-  | COp0 (e1, xs, vs, op) :: c -> f3 e1 xs vs (COp1 (v, op) :: c) t m
+  | COp0 (e0, xs, vs, op) :: c -> f3 e0 xs vs (COp1 (v, op) :: c) t m
   | COp1 (v0, op) :: c->
-    begin match (v0, v) with
+    begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
             Plus -> run_c3 c (VNum (n0 + n1)) t m

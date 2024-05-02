@@ -43,10 +43,10 @@ let rec run_c5 c v s t m = match (c, s) with
     runs_c5 cs (v :: v2s) s t m
   | (CApply (v0, c), VEnv (vs) :: s) ->
     apply5 v v0 vs c s t m
-  | (COp0 (e1, xs, op, c), VEnv (vs) :: s) ->
-    f5 e1 xs vs (COp1 (op, c)) (v :: s) t m
+  | (COp0 (e0, xs, op, c), VEnv (vs) :: s) ->
+    f5 e0 xs vs (COp1 (op, c)) (v :: s) t m
   | (COp1 (op, c), v0 :: s) ->
-    begin match (v0, v) with
+    begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
             Plus -> run_c5 c (VNum (n0 + n1)) s t m
@@ -85,7 +85,7 @@ and f5 e xs vs c s t m = match e with
     Num (n) -> run_c5 c (VNum (n)) s t m
   | Var (x) -> run_c5 c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
-    f5 e0 xs vs (COp0 (e1, xs, op, c)) (VEnv (vs) :: s) t m
+    f5 e1 xs vs (COp0 (e0, xs, op, c)) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
     run_c5 c
       (VFun (fun v c' s' t' m' -> f5 e (x :: xs) (v :: vs) c' s' t' m')) s t m
