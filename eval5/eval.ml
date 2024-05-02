@@ -24,16 +24,6 @@ let rec run_c5 c v s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  (* | (CApp0 (e1, xs, c), VEnv (vs) :: s) -> f5 e1 xs vs (CApp1 (c)) (v :: s) t m
-  | (CApp1 (c), v0 :: s) ->
-    begin match v0 with
-        VFun (f) -> f v c s t m
-      | VContS (c', s', t') -> run_c5 c' v s' t' (MCons ((c, s, t), m))
-      | VContC (c', s', t') ->
-        run_c5 c' v s' (apnd t' (cons (fun v t m -> run_c5 c v s t m) t)) m
-      | _ -> failwith (to_string v0
-                       ^ " is not a function; it can not be applied.")
-    end *)
   | (CApp0 (v1, v2s, c), VEnv (vs) :: s) ->
     apply5 v v1 v2s c s t m
   | (CApp1 (e0, xs, v2s, c), VEnv (vs) :: s) ->
