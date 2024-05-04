@@ -24,15 +24,14 @@ let rec run_c5 c v s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CApp0 (v1, v2s, c), VEnv (vs) :: s) ->
+  | (CApp0 (c), VEnv (v1 :: v2s) :: s) ->
     apply5 v v1 v2s c s t m
-  | (CApp1 (e0, xs, v2s, c), VEnv (vs) :: s) ->
-    f5 e0 xs vs (CApp0 (v, v2s, c)) (VEnv (vs) :: s) t m
-    (* スタックに積むのは vs だけで良いのか？ *)
+  | (CApp1 (e0, xs, c), VEnv (v2s) :: VEnv (vs) :: s) ->
+    f5 e0 xs vs (CApp0 (c)) (VEnv (v :: v2s) :: s) t m
   | (CAppS0 (cs), VEnv (v2s) :: s) ->
     runs_c5 cs (v :: v2s) s t m
-  | (CApply (v0, c), VEnv (vs) :: s) ->
-    apply5 v v0 vs c s t m
+  | (CApply (c), VEnv (first :: rest) :: s) ->
+    apply5 v first rest c s t m
   | (COp0 (e0, xs, op, c), VEnv (vs) :: s) ->
     f5 e0 xs vs (COp1 (op, c)) (v :: s) t m
   | (COp1 (op, c), v0 :: s) ->
@@ -52,7 +51,7 @@ let rec run_c5 c v s t m = match (c, s) with
 (* runs_c5: c -> v list -> s -> t -> m -> v *)
 and runs_c5 c v s t m = match (c, s) with
     (CApp2 (e0, e1, xs, c), VEnv (vs) :: s) ->
-    f5 e1 xs vs (CApp1 (e0, xs, v, c)) (VEnv (vs) :: s) t m
+    f5 e1 xs vs (CApp1 (e0, xs, c)) (VEnv (v) :: VEnv (vs) :: s) t m
   | (CAppS1 (first, xs, cs), VEnv (vs) :: s) ->
     f5 first xs vs (CAppS0 (cs)) (VEnv (v) :: s) t m
   | _ -> failwith "runs_c4: unexpected continuation or stack"
@@ -60,7 +59,7 @@ and runs_c5 c v s t m = match (c, s) with
 and apply5 v0 v1 v2s c s t m = match v2s with
     [] -> app5 v0 v1 c s t m
   | first :: rest ->
-    app5 v0 v1 (CApply (first, c)) (VEnv (rest) :: s) t m
+    app5 v0 v1 (CApply (c)) (VEnv (first :: rest) :: s) t m
 (* app5 : v -> v -> c -> s -> t -> m -> v *)
 and app5 v0 v1 c s t m = match v0 with
       VFun (f) -> f v1 c s t m

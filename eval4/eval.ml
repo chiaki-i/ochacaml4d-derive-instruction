@@ -30,7 +30,6 @@ let rec run_c4 c v s t m = match (c, s) with
     f4 e0 xs vs (CApp0 :: c) (VEnv (v :: v2s) :: s) t m
   | (CAppS0 :: cs, VEnv (v2s) :: s) ->
     runs_c4 cs (v :: v2s) s t m
-    (* ここは stack 何を渡すべき？もう stack の情報なくても実行できそう… *)
   | (CApply :: c, VEnv (first :: rest) :: s) ->
     apply4 v first rest c s t m
   | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
