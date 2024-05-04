@@ -9,12 +9,12 @@ type v = VNum of int
        | VContC of c * s * t
        | VEnv of v list (* VEnv: new constructor *)
 
-and f = CApp0 of v * v list
-      | CApp1 of e * string list * v list
+and f = CApp0
+      | CApp1 of e * string list
       | CApp2 of e * e * string list
       | CAppS0
       | CAppS1 of e * string list
-      | CApply of v
+      | CApply
       | COp0 of e * string list * op
       | COp1 of op
 
