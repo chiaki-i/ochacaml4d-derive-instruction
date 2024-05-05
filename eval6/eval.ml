@@ -31,55 +31,31 @@ let rec f6 e xs vs c s t m = match e with
     Num (n) -> c (VNum (n)) s t m
   | Var (x) -> c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
-    f6 e0 xs vs (fun v0 s0 t0 m0 ->
-        begin match s0 with
-            VEnv (vs) :: s0 ->
-            f6 e1 xs vs (fun v1 s1 t1 m1 ->
-                begin match s1 with
-                    v0 :: s1 ->
+    f6 e1 xs vs (fun v1 s1 t1 m1 ->
+        begin match s1 with
+            VEnv (vs) :: s1 ->
+            f6 e0 xs vs (fun v0 s0 t0 m0 ->
+                begin match s0 with
+                    v1 :: s0 ->
                     begin match (v0, v1) with
                         (VNum (n0), VNum (n1)) ->
                         begin match op with
-                            Plus -> c (VNum (n0 + n1)) s1 t1 m1
-                          | Minus -> c (VNum (n0 - n1)) s1 t1 m1
-                          | Times -> c (VNum (n0 * n1)) s1 t1 m1
+                            Plus -> c (VNum (n0 + n1)) s0 t0 m0
+                          | Minus -> c (VNum (n0 - n1)) s0 t0 m0
+                          | Times -> c (VNum (n0 * n1)) s0 t0 m0
                           | Divide ->
                             if n1 = 0 then failwith "Division by zero"
-                            else c (VNum (n0 / n1)) s1 t1 m1
+                            else c (VNum (n0 / n1)) s0 t0 m0
                         end
                       | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                                        ^ " are not numbers")
                     end
                   | _ -> failwith "stack error op1"
-                end) (v0 :: s0) t0 m0
+                end) (v1 :: s1) t1 m1
           | _ -> failwith "stack error op2"
         end) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
     c (VFun (fun v c' s' t' m' -> f6 e (x :: xs) (v :: vs) c' s' t' m')) s t m
-  (* | App (e0, e1) ->
-    f6 e0 xs vs (fun v0 s0 t0 m0 ->
-        begin match s0 with
-            VEnv (vs) :: s0 ->
-            f6 e1 xs vs (fun v1 s1 t1 m1 ->
-                begin match s1 with
-                    v0 :: s1 ->
-                    begin match v0 with
-                        VFun (f) -> f v1 c s1 t1 m1
-                      | VContS (c', s', t') ->
-                        c' v1 s' t' (MCons ((c, s1, t1), m1))
-                      | VContC (c', s', t') ->
-                        c' v1 s'
-                          (apnd t' (cons (fun v t m -> c v s1 t m) t1)) m1
-                      | _ -> failwith
-                               (to_string v0
-                               ^ " is not a function; it can not be applied.")
-                    end
-                  | _ -> failwith "stack error"
-                end) (v0 :: s0) t0 m0
-          | _ -> failwith "stack error"
-        end) (VEnv (vs) :: s) t m *)
-  (* | App (e0, e1, e2s) ->
-    f6s e2s xs vs (CApp2 (e0, e1, xs, c)) (VEnv (vs) :: s) t m *)
   | App (e0, e1, e2s) ->
     f6s e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
       (fun v2s s2s t2s m2s ->
@@ -97,39 +73,6 @@ let rec f6 e xs vs c s t m = match e with
             ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
         end
       ) (VEnv (vs) :: s) t m
-    (* f6s e2s xs vs (fun v2s s2s t2s m2s -> (* expand CApp2*)
-      begin match s2s with VEnv (v2s') :: s2s' ->
-        f6 e1 xs v2s' (fun v1 s1 t1 m1 -> (* expand CApp1 *)
-          begin match s1 with VEnv (v1') :: s1' ->
-            f6 e0 xs v1' (fun v0 s0 t0 m0 -> (* expand CApp0 *)
-              begin match s0 with VEnv (v0') :: s0' ->
-                (* apply6 v0 v1 v2s c s0' t0 m0 (* expand apply6 *) *)
-                begin match v2s with
-                    [] -> (* app6 v0 v1 c s0' t0 m0 (* expand app6 *) *)
-                    begin match v0 with
-                        VFun (f) -> f v1 c s0' t0 m0
-                      | VContS (c', s', t') ->
-                        c' v1 s' t' (MCons ((c, s0', t0), m0))
-                      | VContC (c', s', t') ->
-                        c' v1 s' (apnd t' (cons (fun v' t' m' -> c v' s0' t' m') t0)) m0
-                      | _ -> failwith (to_string v0
-                                      ^ " is not a function; it can not be applied.")
-                    end
-                  | first :: rest ->
-                    (* app6 v0 v1 (apply6 v first rest c s t0 m0) (VEnv (rest) :: s0') t0 m0 (* expand app6 *) *)
-                    begin match first with
-                        VFun (f) -> f v1 c s0' t0 m0
-                      | VContS (c', s', t') ->
-                        c' v1 s' t' (MCons ((c, s0', t0), m0))
-                      | VContC (c', s', t') ->
-                        c' v1 s' (apnd t' (cons (fun v' t' m' -> c v' s0' t' m') t0)) m0
-                      | VNum (_) -> failwith "vnum"
-                      | _ -> failwith "unexpected continuation: cannot apply"
-                    end
-                end
-              end) (VEnv (v1') :: s1') t1 m1 | _ -> failwith "unexpected stack: s1"
-          end) (VEnv (v2s') :: s2s') t2s m2s | _ -> failwith "unexpected stack: s2s"
-      end) (VEnv (vs) :: s) t m *)
   | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -157,7 +100,7 @@ and f6s es xs vs c s t m = match es with
               begin match s2 with VEnv (v2s) :: s ->
                 c (v2 :: v2s) s t2 m2
               end
-            ) (VEnv (v1) :: s1) t1 m1
+            ) (VEnv (v1) :: s) t1 m1
         end
       ) (VEnv (vs) :: s) t m
 (* apply6 : v -> v -> v list -> c -> s -> t -> m -> v *)
