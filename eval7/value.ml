@@ -5,7 +5,7 @@ type v = VNum of int
        | VFun of (c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEnv of v list
+       | VEnv of v list (* Env と List は分けても良いかもしれない（未実装） *)
 
 and c = s -> t -> m -> v
 
