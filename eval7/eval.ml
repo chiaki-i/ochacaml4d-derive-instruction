@@ -100,7 +100,7 @@ let rec f7 e xs c s t m = match s with
                       ) (VEnv (vs) :: VEnv (v1 :: v2s) :: s) t1 m1 (* f7 呼び出しのために一時的に vs を積む *)
                   end
                 ) (VEnv (vs) :: VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
-              | VEnv (n) :: s -> failwith "stack underflow?"
+              | VEnv ([]) :: [] -> failwith "stack underflow?"
             end
           ) (VEnv (vs) :: VEnv (vs) :: s) t m (* f7s 呼び出しのために一時的に vs を積む *)
       | Shift (x, e) ->
