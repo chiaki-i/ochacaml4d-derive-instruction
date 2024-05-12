@@ -14,7 +14,7 @@ let idc s t m = match s with
         end
       | Trail (h) -> h v TNil m
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: idc"
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -63,35 +63,13 @@ let rec f7 e xs c s t m = match s with
               | _ -> failwith "stack error"
             end) in
         c (vfun :: s) t m
-      (* | App (e0, e1) ->
-        f7 e0 xs (fun s0 t0 m0 ->
-            begin match s0 with
-                v0 :: VEnv (vs) :: s0 ->
-                f7 e1 xs (fun s1 t1 m1 ->
-                    begin match s1 with
-                        v1 :: v0 :: s1 ->
-                        begin match v0 with
-                            VFun (f) -> f c (v1 :: s1) t1 m1
-                          | VContS (c', s', t') ->
-                            c' (v1 :: s') t' (MCons ((c, s1, t1), m1))
-                          | VContC (c', s', t') ->
-                            c' (v1 :: s')
-                              (apnd t' (cons (fun v t m -> c (v :: s1) t m) t1))
-                              m1
-                          | _ -> failwith (to_string v0
-                               ^ " is not a function; it can not be applied.")
-                        end
-                      | _ -> failwith "stack error"
-                    end) (VEnv (vs) :: v0 :: s0) t0 m0
-              | _ -> failwith "stack error"
-            end) (VEnv (vs) :: VEnv (vs) :: s) t m *)
       | App (e0, e1, e2s) ->
         f7s e2s xs (* vs *)
           (fun s2s t2s m2s ->
             begin match s2s with VEnv (v2s) :: VEnv (vs) :: s -> (* v2s : v list *)
               f7 e1 xs (* vs *)
                 (fun s1 t1 m1 ->
-                  begin match s1 with v1 :: VEnv (vs) :: s -> (* v1 : v *)
+                  begin match s1 with v1 :: VEnv (v2s) :: VEnv (vs) :: s -> (* v1 : v *)
                     f7 e0 xs (* vs *)
                       (fun s0 t0 m0 ->
                         begin match s0 with v0 :: VEnv (v1 :: v2s) :: s -> (* v0 : v *)
@@ -100,7 +78,6 @@ let rec f7 e xs c s t m = match s with
                       ) (VEnv (vs) :: VEnv (v1 :: v2s) :: s) t1 m1 (* f7 呼び出しのために一時的に vs を積む *)
                   end
                 ) (VEnv (vs) :: VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
-              | VEnv ([]) :: [] -> failwith "stack underflow?"
             end
           ) (VEnv (vs) :: VEnv (vs) :: s) t m (* f7s 呼び出しのために一時的に vs を積む *)
       | Shift (x, e) ->
@@ -126,7 +103,7 @@ let rec f7 e xs c s t m = match s with
 and f7s es xs c s t m = match s with
     VEnv (vs) :: s ->
       begin match es with
-        [] -> c s t m
+        [] -> c (VEnv ([]) :: s) t m
       | first :: rest ->
         f7s rest xs (* vs *)
           (fun s1 t1 m1 ->
