@@ -35,10 +35,10 @@ let rec f7 e xs c s t m = match s with
       | Op (e0, op, e1) ->
         f7 e1 xs (fun s1 t1 m1 ->
             begin match s1 with
-                v1 :: VEnv (vs) :: s1 -> (* vs を出すために、その手前の v1 も pop *)
+                v1 :: VEnv (vs) :: s1 -> (* VNum を Stack から取り出す *)
                 f7 e0 xs (fun s0 t0 m0 ->
                     begin match s0 with
-                        v0 :: v1 :: s0 -> (* v1 を出すために、その手前の v0 も pop *)
+                        v0 :: v1 :: s0 -> (* VNum を Stack から取り出す *)
                         begin match (v0, v1) with
                             (VNum (n0), VNum (n1)) ->
                             begin match op with
@@ -53,9 +53,9 @@ let rec f7 e xs c s t m = match s with
                                            ^ " are not numbers")
                         end
                       | _ -> failwith "stack error op1"
-                    end) (VEnv (vs) :: v1 :: s1) t1 m1
+                    end) (VEnv (vs) :: v1 :: s1) t1 m1 (* f7 呼び出しのために一時的に vs を積む *)
               | _ -> failwith "stack error"
-            end) (VEnv (vs) :: VEnv (vs) :: s) t m
+            end) (VEnv (vs) :: VEnv (vs) :: s) t m (* f7 呼び出しのために一時的に vs を積む *)
       | Fun (x, e) ->
         let vfun = VFun (fun c' s' t' m' ->
             begin match s' with
@@ -63,7 +63,7 @@ let rec f7 e xs c s t m = match s with
               | _ -> failwith "stack error"
             end) in
         c (vfun :: s) t m
-      | App (e0, e1) ->
+      (* | App (e0, e1) ->
         f7 e0 xs (fun s0 t0 m0 ->
             begin match s0 with
                 v0 :: VEnv (vs) :: s0 ->
@@ -84,7 +84,25 @@ let rec f7 e xs c s t m = match s with
                       | _ -> failwith "stack error"
                     end) (VEnv (vs) :: v0 :: s0) t0 m0
               | _ -> failwith "stack error"
-            end) (VEnv (vs) :: VEnv (vs) :: s) t m
+            end) (VEnv (vs) :: VEnv (vs) :: s) t m *)
+      | App (e0, e1, e2s) ->
+        f7s e2s xs (* vs *)
+          (fun s2s t2s m2s ->
+            begin match s2s with VEnv (v2s) :: VEnv (vs) :: s -> (* v2s : v list *)
+              f7 e1 xs (* vs *)
+                (fun s1 t1 m1 ->
+                  begin match s1 with v1 :: VEnv (vs) :: s -> (* v1 : v *)
+                    f7 e0 xs (* vs *)
+                      (fun s0 t0 m0 ->
+                        begin match s0 with v0 :: VEnv (v1 :: v2s) :: s -> (* v0 : v *)
+                          apply7 v0 v1 v2s c s t0 m0
+                        end
+                      ) (VEnv (vs) :: VEnv (v1 :: v2s) :: s) t1 m1 (* f7 呼び出しのために一時的に vs を積む *)
+                  end
+                ) (VEnv (vs) :: VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
+              | VEnv (n) :: s -> failwith "stack underflow?"
+            end
+          ) (VEnv (vs) :: VEnv (vs) :: s) t m (* f7s 呼び出しのために一時的に vs を積む *)
       | Shift (x, e) ->
         f7 e (x :: xs) idc (VEnv (VContS (c, s, t) :: vs) :: []) TNil m
       | Control (x, e) ->
@@ -103,9 +121,45 @@ let rec f7 e xs c s t m = match s with
         end
       | Reset (e) -> f7 e xs idc (VEnv (vs) :: []) TNil (MCons ((c, s, t), m))
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "f7: stack error"
 (* f7s: e list -> string list -> s -> t -> m *)
-and f7s es xs c s t m = failwith "not implemented"
+and f7s es xs c s t m = match s with
+    VEnv (vs) :: s ->
+      begin match es with
+        [] -> c s t m
+      | first :: rest ->
+        f7s rest xs (* vs *)
+          (fun s1 t1 m1 ->
+            begin match s1 with VEnv (v1) :: VEnv (vs) :: s ->
+              f7 first xs (* vs *)
+                (fun s2 t2 m2 ->
+                  begin match s2 with v2 :: VEnv (v2s) :: s ->
+                    c (VEnv (v2 :: v2s) :: s) t2 m2 (* v2 :: VEnv (v2s) :: s にしなくて良いか検証 *)
+                  end
+                ) (VEnv (vs) :: VEnv (v1) :: s) t1 m1 (* f7 呼び出しのために一時的に vs を積む *)
+            end
+          ) (VEnv (vs) :: VEnv (vs) :: s) t m (* f7s 呼び出しのために一時的に vs を積む *)
+      end
+    | _ -> failwith "f7s: stack error"
+(* apply7 : v -> v -> v list -> c -> s -> t -> m -> v *)
+and apply7 v0 v1 v2s c s t m = match v2s with
+    [] -> app7 v0 v1 c s t m
+  | first :: rest ->
+    app7 v0 v1
+      (fun s2 t2 m2 ->
+        begin match s2 with v2 :: VEnv (first :: rest) :: s' ->
+          apply7 v2 first rest c s' t2 m2
+        end
+      ) (VEnv (first :: rest) :: s) t m
+(* app7 : v -> v -> c -> s -> t -> m -> v *)
+and app7 v0 v1 c s t m = match v0 with
+      VFun (f) -> f c (v1 :: s) t m
+    | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
+    | VContC (c', s', t') ->
+      c' (v1 :: s')
+        (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
+    | _ -> failwith (to_string v0
+                      ^ " is not a function; it can not be applied.")
 
 (* f : e -> v *)
 let f expr = f7 expr [] idc (VEnv ([]) :: []) TNil MNil
