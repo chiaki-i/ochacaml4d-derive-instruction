@@ -75,10 +75,19 @@ and app1 v0 v1 c t m = match v0 with
   | VContC (c', t') -> c' v1 (apnd t' (cons c t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
-and apply1 v0 v1 v2s c t m = match v2s with
+and apply1 v0 v1 v2s c t m =
+  app1 v0 v1
+    (fun f1 t1 m1 ->
+      begin match v2s with
+          [] -> c f1 t1 m1
+        | first :: rest ->
+          apply1 f1 first rest c t1 m1
+      end
+    ) t m
+  (* match v2s with
     [] -> app1 v0 v1 c t m
   | first :: rest ->
-    app1 v0 v1 (fun f1 t1 m1 -> apply1 f1 first rest c t1 m1) t m
+    app1 v0 v1 (fun f1 t1 m1 -> apply1 f1 first rest c t1 m1) t m *)
 
 (* f : e -> v *)
 let f expr = f1 expr [] [] idc TNil MNil
