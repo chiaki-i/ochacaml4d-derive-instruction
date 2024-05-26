@@ -67,7 +67,7 @@ let pop_env = fun c s t m -> match s with
 
 (* operations : op -> i *)
 let operations op = fun c s t m -> match s with
-    v1 :: v0 :: s ->
+    v0 :: v1 :: s ->
     begin match (v0, v1) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
@@ -131,19 +131,23 @@ let reset i = fun c s t m -> match s with
     VEnv (vs) :: s -> i idc (VEnv (vs) :: []) TNil (MCons ((c, s, t), m))
   | _ -> failwith "stack error"
 
-(* f8 : e -> string list -> i *)
+(* f8 : e -> string list -> env -> i *)
 let rec f8 e xs = match e with
     Num (n) -> num n
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
-    push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> operations (op)
+    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operations (op)
   | Fun (x, e) -> push_closure ((f8 e (x :: xs)) >> return)
-  | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call   
+  (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
+  | App (e0, e1, e2s) ->
+    (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> call
   | Shift (x, e) -> shift (f8 e (x :: xs))
   | Control (x, e) -> control (f8 e (x :: xs))
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
   | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs) 
-           
+  | Reset (e) -> reset (f8 e xs)
+(* f8s : e -> string list -> env -> i *)
+and f8s e xs vs = failwith "not implemented"
+
 (* f : e -> v *)
 let f expr = f8 expr [] idc (VEnv ([]) :: []) TNil MNil

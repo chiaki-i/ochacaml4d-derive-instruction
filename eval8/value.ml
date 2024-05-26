@@ -10,6 +10,9 @@ type v = VNum of int
 
 and c = s -> t -> m -> v
 
+(* Environment *)
+and env = v list
+
 and s = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
@@ -17,7 +20,7 @@ and t = TNil | Trail of (v -> t -> m -> v)
 and m = MNil
       | MCons of (c * s * t) * m
 
-type i = c -> s -> t -> m -> v
+type i = c -> env -> s -> t -> m -> v
 
 
 (* to_string : v -> string *)
