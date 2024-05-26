@@ -85,10 +85,19 @@ and f2s e2s xs vs cs t m = match e2s with
   | first :: rest ->
     f2s rest xs vs (CAppS1 (first, xs, vs, cs)) t m
 (* apply2 : v -> v -> v list -> c -> t -> m -> v *)
-and apply2 v0 v1 v2s c t m = match v2s with
+and apply2 v0 v1 v2s c t m =
+  app2 v0 v1
+    (fun v2 t2 m2 ->
+      begin match v2s with
+          [] -> run_c2 c v2 t2 m2
+        | first :: rest ->
+          run_c2 (CApply (first, rest, c)) v2 t2 m2
+      end
+    ) t m
+  (* match v2s with
     [] -> app2 v0 v1 c t m
   | first :: rest ->
-    app2 v0 v1 (CApply (first, rest, c)) t m
+    app2 v0 v1 (CApply (first, rest, c)) t m *)
 (* app2 : v -> v -> c -> t -> m -> v *)
 and app2 v0 v1 c t m = match v0 with
     VFun (f) -> f v1 c t m
