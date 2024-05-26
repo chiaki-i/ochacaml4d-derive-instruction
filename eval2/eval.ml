@@ -32,6 +32,11 @@ let rec run_c2 c v t m = match c with
     f2 e0 xs vs (CApp0 (v, v2s, c)) t m
   | CAppS0 (v2s, cs) -> runs_c2 cs (v :: v2s) t m
   | CApply (first, rest, c) -> apply2 v first rest c t m
+  | CRet (v0, v2s, c) ->
+    begin match v2s with
+        [] -> run_c2 c v t m
+      | first :: rest -> apply2 v first rest c t m
+    end
   | COp0 (e0, xs, vs, op, c) -> f2 e0 xs vs (COp1 (v, op, c)) t m
   | COp1 (v0, op, c) ->
     begin match (v, v0) with
@@ -86,18 +91,7 @@ and f2s e2s xs vs cs t m = match e2s with
     f2s rest xs vs (CAppS1 (first, xs, vs, cs)) t m
 (* apply2 : v -> v -> v list -> c -> t -> m -> v *)
 and apply2 v0 v1 v2s c t m =
-  app2 v0 v1
-    (fun v2 t2 m2 ->
-      begin match v2s with
-          [] -> run_c2 c v2 t2 m2
-        | first :: rest ->
-          run_c2 (CApply (first, rest, c)) v2 t2 m2
-      end
-    ) t m
-  (* match v2s with
-    [] -> app2 v0 v1 c t m
-  | first :: rest ->
-    app2 v0 v1 (CApply (first, rest, c)) t m *)
+  app2 v0 v1 (CRet (v0, v2s, c)) t m
 (* app2 : v -> v -> c -> t -> m -> v *)
 and app2 v0 v1 c t m = match v0 with
     VFun (f) -> f v1 c t m
