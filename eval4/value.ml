@@ -14,7 +14,7 @@ and f = CApp0
       | CApp2 of e * e * string list
       | CAppS0
       | CAppS1 of e * string list
-      | CApply
+      | CRet
       | COp0 of e * string list * op
       | COp1 of op
 

@@ -30,8 +30,11 @@ let rec run_c4 c v s t m = match (c, s) with
     f4 e0 xs vs (CApp0 :: c) (VEnv (v :: v2s) :: s) t m
   | (CAppS0 :: cs, VEnv (v2s) :: s) ->
     runs_c4 cs (v :: v2s) s t m
-  | (CApply :: c, VEnv (first :: rest) :: s) ->
-    apply4 v first rest c s t m
+  | (CRet :: c, VEnv (v2s) :: s) ->
+    begin match v2s with
+        [] -> run_c4 c v s t m
+      | first :: rest -> apply4 v first rest c s t m
+    end
   | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
     f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
   | (COp1 (op) :: c, v0 :: s) ->
@@ -57,10 +60,8 @@ and runs_c4 c v s t m = match (c, s) with
     f4 first xs vs (CAppS0 :: cs) (VEnv (v) :: s) t m
   | _ -> failwith "runs_c4: unexpected continuation or stack"
 (* apply4 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply4 v0 v1 v2s c s t m = match v2s with
-    [] -> app4 v0 v1 c s t m
-  | first :: rest -> (* ここでの first は v0 の実行結果を表す *)
-    app4 v0 v1 (CApply :: c) (VEnv (first :: rest) :: s) t m
+and apply4 v0 v1 v2s c s t m =
+  app4 v0 v1 (CRet :: c) (VEnv (v2s) :: s) t m
 and app4 v0 v1 c s t m = match v0 with
     VFun (f) -> f v1 c s t m
   | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
@@ -78,8 +79,6 @@ and f4 e xs vs c s t m = match e with
   | Fun (x, e) ->
     run_c4 c
       (VFun (fun v c' s' t' m' -> f4 e (x :: xs) (v :: vs) c' s' t' m')) s t m
-  (* | App (e0, e1) ->
-    f4 e0 xs vs (CApp0 (e1, xs) :: c) (VEnv (vs) :: s) t m *)
   | App (e0, e1, e2s) ->
     f4s e2s xs vs (CApp2 (e0, e1, xs) :: c) (VEnv (vs) :: s) t m
   | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
