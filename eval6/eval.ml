@@ -104,31 +104,14 @@ and f6s es xs vs c s t m = match es with
         end
       ) (VEnv (vs) :: s) t m
 (* apply6 : v -> v -> v list -> c -> s -> t -> m -> v *)
-(* ZINC の return を意識した実装にする。v2s を分解する前に app6 v0 v1 をまず実行する *)
+(* Implement more like ZINC's return instruction *)
 and apply6 v0 v1 v2s c s t m =
-  let stack = match v2s with
-      [] -> s
-    | first :: rest -> VEnv (first :: rest) :: s
-  in
-  app6 v0 v1
-    (fun v2 s2 t2 m2 ->
-      begin match v2s with
-          [] -> c v2 s t m (* arg stack = ε.s *)
-        | first :: rest -> (* arg stack = v.s *)
-          begin match s2 with VEnv (first :: rest) :: s' ->
-            apply6 v2 first rest c s' t2 m2
-          end
-      end
-    ) stack t m
-  (* match v2s with
-    [] -> app6 v0 v1 c s t m
-  | first :: rest ->
-    app6 v0 v1 (* expanding CApply (c) *)
-      (fun v2 s2 t2 m2 ->
-        begin match s2 with VEnv (first :: rest) :: s' ->
-          apply6 v2 first rest c s' t2 m2
-        end
-      ) (VEnv (first :: rest) :: s) t m *)
+  app6 v0 v1 (fun v2 s2 t2 m2 ->
+    begin match v2s with (* expanding CRet (c) *)
+        [] -> c v2 s t2 m2
+      | first :: rest -> apply6 v2 first rest c s t2 m2
+    end
+    ) (VEnv (v2s) :: s) t m
 (* app6 : v -> v -> c -> s -> t -> m -> v *)
 and app6 v0 v1 c s t m = match v0 with
       VFun (f) -> f v1 c s t m

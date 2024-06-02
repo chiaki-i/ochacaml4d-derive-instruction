@@ -30,8 +30,11 @@ let rec run_c5 c v s t m = match (c, s) with
     f5 e0 xs vs (CApp0 (c)) (VEnv (v :: v2s) :: s) t m
   | (CAppS0 (cs), VEnv (v2s) :: s) ->
     runs_c5 cs (v :: v2s) s t m
-  | (CApply (c), VEnv (first :: rest) :: s) ->
-    apply5 v first rest c s t m
+  | (CRet (c), VEnv (v2s) :: s) ->
+    begin match v2s with
+        [] -> run_c5 c v s t m
+      | first :: rest -> apply5 v first rest c s t m
+    end
   | (COp0 (e0, xs, op, c), VEnv (vs) :: s) ->
     f5 e0 xs vs (COp1 (op, c)) (v :: s) t m
   | (COp1 (op, c), v0 :: s) ->
@@ -56,10 +59,8 @@ and runs_c5 c v s t m = match (c, s) with
     f5 first xs vs (CAppS0 (cs)) (VEnv (v) :: s) t m
   | _ -> failwith "runs_c4: unexpected continuation or stack"
 (* apply5 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply5 v0 v1 v2s c s t m = match v2s with
-    [] -> app5 v0 v1 c s t m
-  | first :: rest ->
-    app5 v0 v1 (CApply (c)) (VEnv (first :: rest) :: s) t m
+and apply5 v0 v1 v2s c s t m =
+  app5 v0 v1 (CRet (c)) (VEnv (v2s) :: s) t m
 (* app5 : v -> v -> c -> s -> t -> m -> v *)
 and app5 v0 v1 c s t m = match v0 with
       VFun (f) -> f v1 c s t m

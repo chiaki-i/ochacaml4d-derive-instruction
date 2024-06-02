@@ -15,7 +15,7 @@ and c = C0
       | CApp2 of e * e * string list * c
       | CAppS0 of c
       | CAppS1 of e * string list * c
-      | CApply of c
+      | CRet of c
       | COp0 of e * string list * op * c
       | COp1 of op * c
 
