@@ -100,7 +100,7 @@ let rec f7 e xs vs c s t m =
 (* f7s: e list -> string list -> v list -> s -> t -> m *)
 and f7s es xs vs c s t m =
     begin match es with
-      [] -> c (VEnv ([]) :: s) t m (* [] を返す *)
+      [] -> c (VEnv ([]) :: s) t m (* [] = Pushmark の ε に相当 *)
     | first :: rest ->
       f7s rest xs vs
         (fun s1 t1 m1 ->
