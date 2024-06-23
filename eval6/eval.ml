@@ -28,7 +28,7 @@ let apnd t0 t1 = match t0 with
 
 (* f6 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f6 e xs vs c s t m = match e with
-    Num (n) -> c (VNum (n)) s t m
+    Num (n) -> c (VNum (n)) s t m (* s の先頭に VNUM を積むのを eval7 で実装 *)
   | Var (x) -> c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
     f6 e1 xs vs (fun v1 s1 t1 m1 ->
@@ -106,10 +106,10 @@ and f6s es xs vs c s t m = match es with
 (* apply6 : v -> v -> v list -> c -> s -> t -> m -> v *)
 (* Implement more like ZINC's return instruction *)
 and apply6 v0 v1 v2s c s t m =
-  app6 v0 v1 (fun v2 s2 t2 m2 ->
+  app6 v0 v1 (fun v2 (VEnv (v2s) :: s2) t2 m2 ->
     begin match v2s with (* expanding CRet (c) *)
-        [] -> c v2 s t2 m2
-      | first :: rest -> apply6 v2 first rest c s t2 m2
+        [] -> c v2 s2 t2 m2
+      | first :: rest -> apply6 v2 first rest c s2 t2 m2
     end
     ) (VEnv (v2s) :: s) t m
 (* app6 : v -> v -> c -> s -> t -> m -> v *)
