@@ -119,7 +119,14 @@ and f7s es xs c s t m = match s with
       end
     | _ -> failwith "f7s: stack error"
 (* apply7 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply7 v0 v1 v2s c s t m = match v2s with
+and apply7 v0 v1 v2s c s t m =
+  app7 v0 v1 (fun (v2 :: VEnv (v2s) :: s2) t2 m2 ->
+    begin match v2s with
+        [] -> c (v2 :: s2) t2 m2
+      | first :: rest -> apply7 v2 first rest c s2 t2 m2
+    end
+    ) (VEnv (v2s) :: s) t m
+  (* match v2s with
     [] -> app7 v0 v1 c s t m
   | first :: rest ->
     app7 v0 v1
@@ -127,7 +134,7 @@ and apply7 v0 v1 v2s c s t m = match v2s with
         begin match s2 with v2 :: VEnv (first :: rest) :: s' ->
           apply7 v2 first rest c s' t2 m2
         end
-      ) (VEnv (first :: rest) :: s) t m
+      ) (VEnv (first :: rest) :: s) t m *)
 (* app7 : v -> v -> c -> s -> t -> m -> v *)
 and app7 v0 v1 c s t m = match v0 with
       VFun (f) -> f c (v1 :: s) t m
