@@ -10,9 +10,6 @@ type v = VNum of int
 
 and c = s -> t -> m -> v
 
-(* Environment *)
-and env = v list
-
 and s = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)

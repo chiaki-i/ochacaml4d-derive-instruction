@@ -2,6 +2,7 @@ open Syntax
 open Value
 
 (* Interpreter using combinators factored as instructions : eval8 *)
+(* 見た目は ZINC instruction、インライン展開すると Eval7 になれば良い *)
 
 (* initial continuation : s -> t -> m -> v *)
 let idc s t m = match s with
@@ -27,18 +28,16 @@ let apnd t0 t1 = match t0 with
   | Trail (h) -> cons h t1
 
 (* (>>) : i -> i -> i *)
-let (>>) i0 i1 = fun c vs s t m -> i0 (fun s' t' m' -> i1 c vs s' t' m') vs s t m
+let (>>) i0 i1 = fun c s t m -> i0 (fun s' t' m' -> i1 c s' t' m') s t m
 
-(* num : int -> env -> i *)
-let num n env = fun c s t m -> match s with
-    VNum (n) :: s -> c (VNum (n) :: s) t m (* 1 + 2 はここにくる *)
-  | VEnv (vs) :: s -> c (VNum (n) :: s) t m (* 数字単体のプログラムはここにくる *)
-  | _ -> failwith "stack error: num"
+(* num : int -> i *)
+let num n = fun vs c s t m -> c (VNum (n) :: s) t m
 
 (* access : int -> i *)
-let access n = fun c s t m -> match s with
+let access n = fun vs c s t m -> c ((List.nth vs n) :: s) t m
+  (* match s with
     VEnv (vs) :: s -> c ((List.nth vs n) :: s) t m
-  | _ -> failwith "stack error: access"
+  | _ -> failwith "stack error: access" *)
 
 (* push_closure : i -> i *)
 let push_closure i = fun c s t m -> match s with
@@ -52,6 +51,8 @@ let push_closure i = fun c s t m -> match s with
   | _ -> failwith "stack error: push_closure_1"
 
 (* return : i *)
+(* スタックの先頭に積まれたリストが空だったら Pushmark に相当すると考える *)
+(* apply7 でうまく実装されているのではないか？ *)
 let return = fun _ s t m -> match s with
     v :: VK (c) :: s -> c (v :: s) t m
   | _ -> failwith "stack error: return"
@@ -66,8 +67,8 @@ let pop_env = fun c s t m -> match s with
     v :: VEnv (vs) :: s -> c (VEnv (vs) :: v :: s) t m
   | _ -> failwith "stack error: pop_env"
 
-(* operations : op -> env -> i *)
-let operations op vs = fun c s t m -> match s with
+(* operation : op -> i *)
+let operation op = fun vs c s t m -> match s with
     v0 :: v1 :: s ->
     begin match (v0, v1) with
         (VNum (n0), VNum (n1)) ->
@@ -86,7 +87,7 @@ let operations op vs = fun c s t m -> match s with
 
 (* call : i *)
 let call = fun c s t m -> match s with
-    v1 :: v0 :: s ->
+    v1 :: v0 :: s -> (* 関数が v0、引数の v1 が複数になりうる *)
     begin match v0 with
         VFun (f) -> f idc (v1 :: VK (c) :: s) t m
       | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
@@ -134,14 +135,16 @@ let reset i = fun c s t m -> match s with
 
 (* f8 : e -> string list -> env -> i *)
 let rec f8 e xs vs = match e with
-    Num (n) -> num n vs
+    Num (n) -> num n
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
-    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operations (op) vs
-  | Fun (x, e) -> push_closure ((f8 e (x :: xs) vs) >> return) (* vs ? *)
+    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operation (op)
+  | Fun (x, e) -> push_closure ((f8 e (x :: xs) vs) >> return)
   (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
   | App (e0, e1, e2s) ->
     (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> call
+    (* (f8s (e2s @ e1) xs vs) >> (f8 e0 xs vs) >> call とすれば、f8s で何もしない instruction を防げる *)
+    (* が、これまでの流れに逆行している気もする… *)
   | Shift (x, e) -> shift (f8 e (x :: xs) vs)
   | Control (x, e) -> control (f8 e (x :: xs) vs)
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs) vs)
@@ -150,10 +153,11 @@ let rec f8 e xs vs = match e with
 (* f8s : e -> string list -> env -> i *)
 and f8s es xs vs = match es with
     [] -> failwith "not implemented"
+    (* 何もしない no-op instruction (Pushmark) を作成するのも一つの手かもしれない… *)
     (* c に直接渡す c s t m と書きたいが c を持っていない*)
   | first :: rest ->
-    (f8s rest xs vs) >> (f8 first xs vs) >> call
+    (f8s rest xs vs) >> (f8 first xs vs)
   (* failwith "not implemented" *)
 
 (* f : e -> v *)
-let f expr = f8 expr [] [] idc (VEnv ([]) :: []) TNil MNil
+let f expr = f8 expr [] [] idc [] TNil MNil
