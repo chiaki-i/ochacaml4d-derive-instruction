@@ -14,7 +14,7 @@ let idc s t m = match s with
         end
       | Trail (h) -> h v TNil m
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: idc"
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -27,17 +27,18 @@ let apnd t0 t1 = match t0 with
   | Trail (h) -> cons h t1
 
 (* (>>) : i -> i -> i *)
-let (>>) i0 i1 = fun c s t m -> i0 (fun s' t' m' -> i1 c s' t' m') s t m
+let (>>) i0 i1 = fun c vs s t m -> i0 (fun s' t' m' -> i1 c vs s' t' m') vs s t m
 
-(* num : int -> i *)
-let num n = fun c s t m -> match s with
-    VEnv (vs) :: s -> c (VNum (n) :: s) t m
-  | _ -> failwith "stack error"
+(* num : int -> env -> i *)
+let num n env = fun c s t m -> match s with
+    VNum (n) :: s -> c (VNum (n) :: s) t m (* 1 + 2 はここにくる *)
+  | VEnv (vs) :: s -> c (VNum (n) :: s) t m (* 数字単体のプログラムはここにくる *)
+  | _ -> failwith "stack error: num"
 
 (* access : int -> i *)
 let access n = fun c s t m -> match s with
     VEnv (vs) :: s -> c ((List.nth vs n) :: s) t m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: access"
 
 (* push_closure : i -> i *)
 let push_closure i = fun c s t m -> match s with
@@ -45,28 +46,28 @@ let push_closure i = fun c s t m -> match s with
     let vfun = VFun (fun c' s' t' m' ->
         begin match s' with
             v :: s' -> i c' (VEnv (v :: vs) :: s') t' m'
-          | _ -> failwith "stack error"
+          | _ -> failwith "stack error: push_closure_2"
         end) in
     c (vfun :: s) t m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: push_closure_1"
 
 (* return : i *)
 let return = fun _ s t m -> match s with
     v :: VK (c) :: s -> c (v :: s) t m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: return"
 
 (* push_env : i *)
 let push_env = fun c s t m -> match s with
     VEnv (vs) :: s -> c (VEnv (vs) :: VEnv (vs) :: s) t m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: push_env"
 
 (* pop_env : i *)
 let pop_env = fun c s t m -> match s with
     v :: VEnv (vs) :: s -> c (VEnv (vs) :: v :: s) t m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: pop_env"
 
-(* operations : op -> i *)
-let operations op = fun c s t m -> match s with
+(* operations : op -> env -> i *)
+let operations op vs = fun c s t m -> match s with
     v0 :: v1 :: s ->
     begin match (v0, v1) with
         (VNum (n0), VNum (n1)) ->
@@ -81,7 +82,7 @@ let operations op = fun c s t m -> match s with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                        ^ " are not numbers")
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: op"
 
 (* call : i *)
 let call = fun c s t m -> match s with
@@ -94,17 +95,17 @@ let call = fun c s t m -> match s with
       | _ -> failwith (to_string v0
                        ^ " is not a function; it can not be applied.")
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: call"
 
 (* shift : i -> i *)
 let shift i = fun c s t m -> match s with
     VEnv (vs) :: s -> i idc (VEnv (VContS (c, s, t) :: vs) :: []) TNil m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: shift"
 
 (* control : i -> i *)
 let control i = fun c s t m -> match s with
     VEnv (vs) :: s -> i idc (VEnv (VContC (c, s, t) :: vs) :: []) TNil m
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: control"
 
 (* shift0 : i -> i *)
 let shift0 i = fun c s t m -> match s with
@@ -114,7 +115,7 @@ let shift0 i = fun c s t m -> match s with
         i c0 (VEnv (VContS (c, s, t) :: vs) :: s0) t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: shift0"
 
 (* control0 : i -> i *)
 let control0 i = fun c s t m -> match s with
@@ -124,30 +125,35 @@ let control0 i = fun c s t m -> match s with
         i c0 (VEnv (VContC (c, s, t) :: vs) :: s0) t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: control0"
 
 (* reset : i -> i *)
 let reset i = fun c s t m -> match s with
     VEnv (vs) :: s -> i idc (VEnv (vs) :: []) TNil (MCons ((c, s, t), m))
-  | _ -> failwith "stack error"
+  | _ -> failwith "stack error: reset"
 
 (* f8 : e -> string list -> env -> i *)
-let rec f8 e xs = match e with
-    Num (n) -> num n
+let rec f8 e xs vs = match e with
+    Num (n) -> num n vs
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
-    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operations (op)
-  | Fun (x, e) -> push_closure ((f8 e (x :: xs)) >> return)
+    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operations (op) vs
+  | Fun (x, e) -> push_closure ((f8 e (x :: xs) vs) >> return) (* vs ? *)
   (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
   | App (e0, e1, e2s) ->
     (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> call
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+  | Shift (x, e) -> shift (f8 e (x :: xs) vs)
+  | Control (x, e) -> control (f8 e (x :: xs) vs)
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs) vs)
+  | Control0 (x, e) -> control0 (f8 e (x :: xs) vs)
+  | Reset (e) -> reset (f8 e xs vs)
 (* f8s : e -> string list -> env -> i *)
-and f8s e xs vs = failwith "not implemented"
+and f8s es xs vs = match es with
+    [] -> failwith "not implemented"
+    (* c に直接渡す c s t m と書きたいが c を持っていない*)
+  | first :: rest ->
+    (f8s rest xs vs) >> (f8 first xs vs) >> call
+  (* failwith "not implemented" *)
 
 (* f : e -> v *)
-let f expr = f8 expr [] idc (VEnv ([]) :: []) TNil MNil
+let f expr = f8 expr [] [] idc (VEnv ([]) :: []) TNil MNil
