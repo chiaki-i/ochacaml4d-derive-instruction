@@ -1,10 +1,10 @@
 open Syntax
-    
+
 (* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval1 *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> c -> t -> m -> v)
+       | VFun of (v -> v list -> c -> t -> m -> v)
        | VContS of c * t
        | VContC of c * t
 
