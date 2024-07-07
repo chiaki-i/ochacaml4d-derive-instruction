@@ -70,24 +70,28 @@ and f1s e2s xs vs c t m = match e2s with
     f1s rest xs vs (fun v2s t2 m2 ->
       f1 first xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
-and app1 v0 v1 c t m = match v0 with
-    VFun (f) -> failwith "Cannot happen"
-  | VContS (c', t') -> c' v1 t' (MCons ((c, t), m))
-  | VContC (c', t') -> c' v1 (apnd t' (cons c t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
 and apply1 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
-  | _ ->
-  (* VContS/C の場合は古いまま。ここも VFun のように変更していきたい *)
-  app1 v0 v1
-    (fun f1 t1 m1 ->
+  | VContS (c', t') -> (* app1 をインライン展開しただけ *)
+    let c =
+      (fun f1 t1 m1 ->
       begin match v2s with
           [] -> c f1 t1 m1
         | first :: rest ->
           apply1 f1 first rest c t1 m1
-      end
-    ) t m
+      end)
+    in c' v1 t' (MCons ((c, t), m))
+  | VContC (c', t') ->
+    let c = (fun f1 t1 m1 ->
+      begin match v2s with
+          [] -> c f1 t1 m1
+        | first :: rest ->
+          apply1 f1 first rest c t1 m1
+      end)
+    in
+    c' v1 (apnd t' (cons c t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
 
 (* f1t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f1t e xs vs v2s c t m =
@@ -116,11 +120,11 @@ and f1t e xs vs v2s c t m =
   | Fun (x, e) ->
     begin match v2s with
         [] -> c (VFun (fun v1 v2s c' t' m' ->
-                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m (* Grab *)
       | v1 :: v2s -> f1t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e1, e2s) ->
-    f1st e2s xs vs v2s (fun v2s t2 m2 ->
+    f1st e2s xs vs v2s (fun v2s t2 m2 -> (* Appterm *)
       f1 e1 xs vs (fun v1 t1 m1 ->
         f1 e0 xs vs (fun v0 t0 m0 ->
           apply1 v0 v1 v2s c t0 m0) t1 m1) t2 m2) t m
