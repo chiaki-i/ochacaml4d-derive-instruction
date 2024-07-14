@@ -66,7 +66,8 @@ and f2 e xs vs c t m = match e with
   | Var (x) -> run_c2 c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) -> f2 e1 xs vs (COp0 (e0, xs, vs, op, c)) t m
   | Fun (x, e) ->
-    run_c2 c (VFun (fun v c' t' m' -> f2 e (x :: xs) (v :: vs) c' t' m')) t m
+    run_c2 c (VFun (fun v1 v2s c' t' m' -> (* adding v2s *)
+      f2t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m (* change f2 to f2t *)
   | App (e0, e1, e2s) ->
     f2s e2s xs vs (CApp2 (e0, e1, xs, vs, c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
@@ -89,16 +90,28 @@ and f2s e2s xs vs cs t m = match e2s with
   | first :: rest ->
     f2s rest xs vs (CAppS1 (first, xs, vs, cs)) t m
 (* apply2 : v -> v -> v list -> c -> t -> m -> v *)
-and apply2 v0 v1 v2s c t m =
-  app2 v0 v1 (CRet (v2s, c)) t m
+and apply2 v0 v1 v2s c t m = match v0 with
+    VFun (f) -> f v1 v2s c t m
+  | _ -> (* VcontS/C の場合は古いまま一旦残しておく *)
+    app2 v0 v1 (CRet (v2s, c)) t m
 (* app2 : v -> v -> c -> t -> m -> v *)
 and app2 v0 v1 c t m = match v0 with
-    VFun (f) -> f v1 c t m
+    VFun (f) -> failwith "Cannot happen"
   | VContS (c', t') -> run_c2 c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     run_c2 c' v1 (apnd t' (cons (fun v t m -> run_c2 c v t m) t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it cannot be applied.")
+
+(* f2t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
+and f2t e xs vs v2s c t m =
+  let ret v t m = match v2s with (* これを Return として別個の Instruction にできるか？ *)
+      [] -> run_c2 c v t m
+    | v1 :: v2s -> apply2 v v1 v2s c t m in
+  match e with
+    Num (n) -> ret (VNum (n)) t m (* run_c2 の代わりっていうこと？ *)
+  | _ -> failwith "not implemented"
+and f1st e2s xs vs v2s c t m = failwith "not implemented"
 
 (* f : e -> v *)
 let f expr = f2 expr [] [] idc TNil MNil
