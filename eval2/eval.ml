@@ -55,7 +55,7 @@ let rec run_c2 c v t m = match c with
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
-            Plus -> run_c2 (CRet ([], c)) (VNum (n0 + n1)) t m
+            Plus -> run_c2 (CRet ([], c)) (VNum (n0 + n1)) t m (* CRet に空のものを渡して良いのか *)
           | Minus -> run_c2 (CRet ([], c)) (VNum (n0 - n1)) t m
           | Times -> run_c2 (CRet ([], c)) (VNum (n0 * n1)) t m
           | Divide ->
@@ -120,12 +120,13 @@ and app2 v0 v1 c t m = match v0 with
 
 (* f2t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f2t e xs vs v2s c t m =
-  let ret v t m = match v2s with (* ret の代わりに CRet を使う *)
+  (* この ret は使われず、代わりに CRet を使う *)
+  (* let ret v t m = match v2s with
       [] -> run_c2 c v t m
-    | v1 :: v2s -> apply2 v v1 v2s c t m in
+    | v1 :: v2s -> apply2 v v1 v2s c t m in *)
   match e with
-    Num (n) -> run_c2 (CRet ([], c)) (VNum (n)) t m
-  | Var (x) -> run_c2 (CRet ([], c)) (List.nth vs (Env.offset x xs)) t m
+    Num (n) -> run_c2 (CRet (v2s, c)) (VNum (n)) t m
+  | Var (x) -> run_c2 (CRet (v2s, c)) (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) -> f2 e1 xs vs (COp2 (e0, xs, vs, op, c)) t m
   | Fun (x, e) ->
     begin match v2s with
@@ -134,7 +135,7 @@ and f2t e xs vs v2s c t m =
       | v1 :: v2s -> f2t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e1, e2s) ->
-    f2st e2s xs vs v2s (CApp2 (e0, e1, xs, vs, c)) t m
+    f2st e2s xs vs v2s (CApp2 (e0, e1, xs, vs, c)) t m (* CApp2 = Appterm ? f2 でも CApp2 を使いまわせている *)
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
