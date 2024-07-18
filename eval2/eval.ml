@@ -50,17 +50,17 @@ let rec run_c2 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | COp2 (e0, xs, vs, op, c) -> f2 e0 xs vs (COp3 (v, op, c)) t m (* tail version *)
-  | COp3 (v0, op, c) -> (* tail version *)
+  | COp2 (e0, xs, vs, v2s, op, c) -> f2 e0 xs vs (COp3 (v, v2s, op, c)) t m (* tail version *)
+  | COp3 (v0, v2s, op, c) -> (* tail version *)
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
-            Plus -> run_c2 (CRet ([], c)) (VNum (n0 + n1)) t m (* CRet に空のものを渡して良いのか *)
-          | Minus -> run_c2 (CRet ([], c)) (VNum (n0 - n1)) t m
-          | Times -> run_c2 (CRet ([], c)) (VNum (n0 * n1)) t m
+            Plus -> run_c2 (CRet (v2s, c)) (VNum (n0 + n1)) t m (* CRet に空のものを渡して良いのか *)
+          | Minus -> run_c2 (CRet (v2s, c)) (VNum (n0 - n1)) t m
+          | Times -> run_c2 (CRet (v2s, c)) (VNum (n0 * n1)) t m
           | Divide ->
             if n1 = 0 then failwith "Division by zero"
-            else run_c2 (CRet ([], c)) (VNum (n0 / n1)) t m
+            else run_c2 (CRet (v2s, c)) (VNum (n0 / n1)) t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
@@ -127,7 +127,7 @@ and f2t e xs vs v2s c t m =
   match e with
     Num (n) -> run_c2 (CRet (v2s, c)) (VNum (n)) t m
   | Var (x) -> run_c2 (CRet (v2s, c)) (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) -> f2 e1 xs vs (COp2 (e0, xs, vs, op, c)) t m
+  | Op (e0, op, e1) -> f2 e1 xs vs (COp2 (e0, xs, vs, v2s, op, c)) t m
   | Fun (x, e) ->
     begin match v2s with
         [] -> run_c2 c (VFun (fun v1 v2s c' t' m' ->
