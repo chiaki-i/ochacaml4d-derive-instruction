@@ -101,10 +101,6 @@ and f3s e3s xs vs cs t m = match e3s with
 (* apply3 : v -> v -> v list -> c -> t -> m -> v *)
 and apply3 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
-  | _ -> app3 v0 v1 (CRet (v2s) :: c) t m (* TODO: VContS/C の場合は一旦残しておく *)
-(* app3 : v -> v -> c -> t -> m -> v *)
-and app3 v0 v1 c t m = match v0 with
-    VFun (f) -> failwith "cannot happen"
   | VContS (c', t') -> run_c3 c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     run_c3 c' v1 (apnd t' (cons (fun v t m -> run_c3 c v t m) t)) m
