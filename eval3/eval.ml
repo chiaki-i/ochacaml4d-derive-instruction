@@ -34,7 +34,7 @@ let rec run_c3 c v t m = match c with
       | first :: rest -> apply3 v first rest c t m
     end
   | COp0 (e0, xs, vs, op) :: c -> f3 e0 xs vs (COp1 (v, op) :: c) t m
-  | COp1 (v0, op) :: c->
+  | COp1 (v0, op) :: c ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
@@ -44,6 +44,20 @@ let rec run_c3 c v t m = match c with
           | Divide ->
             if n1 = 0 then failwith "Division by zero"
             else run_c3 c (VNum (n0 / n1)) t m
+        end
+      | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
+    end
+  | COp2 (e0, xs, vs, v2s, op) :: c -> f3 e0 xs vs (COp3 (v, v2s, op) :: c) t m (* tail version *)
+  | COp3 (v0, v2s, op) :: c -> (* tail version *)
+    begin match (v, v0) with
+        (VNum (n0), VNum (n1)) ->
+        begin match op with
+            Plus -> run_c3 (CRet (v2s) :: c) (VNum (n0 + n1)) t m
+          | Minus -> run_c3 (CRet (v2s) :: c) (VNum (n0 - n1)) t m
+          | Times -> run_c3 (CRet (v2s) :: c) (VNum (n0 * n1)) t m
+          | Divide ->
+            if n1 = 0 then failwith "Division by zero"
+            else run_c3 (CRet (v2s) :: c) (VNum (n0 / n1)) t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
@@ -62,7 +76,8 @@ and f3 e xs vs c t m = match e with
   | Var (x) -> run_c3 c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) -> f3 e1 xs vs (COp0 (e0, xs, vs, op) :: c) t m
   | Fun (x, e) ->
-    run_c3 c (VFun (fun v c' t' m' -> f3 e (x :: xs) (v :: vs) c' t' m')) t m
+    run_c3 c (VFun (fun v v2s c' t' m' -> (* adding v2s *)
+      f3t e (x :: xs) (v :: vs) v2s c' t' m')) t m (* change f3 to f3t *)
   | App (e0, e1, e2s) ->
     f3s e2s xs vs (CApp2 (e0, e1, xs, vs) :: c) t m
   | Shift (x, e) -> f3 e (x :: xs) (VContS (c, t) :: vs) [] TNil m
@@ -84,16 +99,53 @@ and f3s e3s xs vs cs t m = match e3s with
   | first :: rest ->
     f3s rest xs vs (CAppS1 (first, xs, vs) :: cs) t m
 (* apply3 : v -> v -> v list -> c -> t -> m -> v *)
-and apply3 v0 v1 v2s c t m =
-  app3 v0 v1 (CRet (v2s) :: c) t m
+and apply3 v0 v1 v2s c t m = match v0 with
+    VFun (f) -> f v1 v2s c t m
+  | _ -> app3 v0 v1 (CRet (v2s) :: c) t m (* TODO: VContS/C の場合は一旦残しておく *)
 (* app3 : v -> v -> c -> t -> m -> v *)
 and app3 v0 v1 c t m = match v0 with
-    VFun (f) -> f v1 c t m
+    VFun (f) -> failwith "cannot happen"
   | VContS (c', t') -> run_c3 c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     run_c3 c' v1 (apnd t' (cons (fun v t m -> run_c3 c v t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
+
+(* f3t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
+and f3t e xs vs v2s c t m =
+  (* この ret は使われず、代わりに CRet を使う *)
+  (* let ret v t m = match v2s with
+      [] -> run_c3 c v t m
+    | v1 :: v2s -> apply2 v v1 v2s c t m in *)
+  match e with
+    Num (n) -> run_c3 (CRet (v2s) :: c) (VNum (n)) t m
+  | Var (x) -> run_c3 (CRet (v2s) :: c) (List.nth vs (Env.offset x xs)) t m
+  | Op (e0, op, e1) -> f3 e1 xs vs (COp2 (e0, xs, vs, v2s, op) :: c) t m
+  | Fun (x, e) ->
+    begin match v2s with
+        [] -> run_c3 c (VFun (fun v1 v2s c' t' m' ->
+                f3t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+      | v1 :: v2s -> f3t e (x :: xs) (v1 :: vs) v2s c t m
+    end
+  | App (e0, e1, e2s) ->
+    f3st e2s xs vs v2s (CApp2 (e0, e1, xs, vs) :: c) t m
+  | Shift (x, e) -> f3 e (x :: xs) (VContS (c, t) :: vs) [] TNil m
+  | Control (x, e) -> f3 e (x :: xs) (VContC (c, t) :: vs) [] TNil m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, t0), m0) -> f3 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, t0), m0) -> f3 e (x :: xs) (VContC (c, t) :: vs) c0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f3 e xs vs [] TNil (MCons ((c, t), m))
+and f3st e2s xs vs v2s cs t m = match e2s with
+    [] -> runs_c3 cs v2s t m
+  | first :: rest ->
+    f3st rest xs vs v2s (CAppS1 (first, xs, vs) :: cs) t m
 
 (* f : e -> v *)
 let f expr = f3 expr [] [] [] TNil MNil
