@@ -55,7 +55,7 @@ let rec run_c2 c v t m = match c with
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
-            Plus -> run_c2 (CRet (v2s, c)) (VNum (n0 + n1)) t m (* CRet に空のものを渡して良いのか *)
+            Plus -> run_c2 (CRet (v2s, c)) (VNum (n0 + n1)) t m
           | Minus -> run_c2 (CRet (v2s, c)) (VNum (n0 - n1)) t m
           | Times -> run_c2 (CRet (v2s, c)) (VNum (n0 * n1)) t m
           | Divide ->
@@ -107,11 +107,6 @@ and f2s e2s xs vs cs t m = match e2s with
 (* apply2 : v -> v -> v list -> c -> t -> m -> v *)
 and apply2 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
-  | _ -> (* VcontS/C の場合は古いまま一旦残しておく *)
-    app2 v0 v1 (CRet (v2s, c)) t m
-(* app2 : v -> v -> c -> t -> m -> v *)
-and app2 v0 v1 c t m = match v0 with
-    VFun (f) -> failwith "Cannot happen"
   | VContS (c', t') -> run_c2 c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     run_c2 c' v1 (apnd t' (cons (fun v t m -> run_c2 c v t m) t)) m
