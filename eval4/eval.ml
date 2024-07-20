@@ -49,6 +49,20 @@ let rec run_c4 c v s t m = match (c, s) with
             else run_c4 c (VNum (n0 / n1)) s t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
+  | (COp2 (e0, xs, op) :: c, VEnv (v2s) :: VEnv (vs) :: s) -> (* tail version *)
+    f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
+  | (COp3 (op) :: c, VEnv (v2s) :: v0 :: s) -> (* tail version *)
+    begin match (v, v0) with
+        (VNum (n0), VNum (n1)) ->
+        begin match op with
+            Plus -> run_c4 c (VNum (n0 + n1)) s t m
+          | Minus -> run_c4 c (VNum (n0 - n1)) s t m
+          | Times -> run_c4 c (VNum (n0 * n1)) s t m
+          | Divide ->
+            if n1 = 0 then failwith "Division by zero"
+            else run_c4 c (VNum (n0 / n1)) s t m
+        end
+      | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | _ -> failwith "stack or cont error"
 (* runs_c4: c -> v list -> s -> t -> m -> v *)
@@ -60,8 +74,14 @@ and runs_c4 c v s t m = match (c, s) with
     f4 first xs vs (CAppS0 :: cs) (VEnv (v) :: s) t m
   | _ -> failwith "runs_c4: unexpected continuation or stack"
 (* apply4 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply4 v0 v1 v2s c s t m =
-  app4 v0 v1 (CRet :: c) (VEnv (v2s) :: s) t m
+and apply4 v0 v1 v2s c s t m = match v0 with
+    VFun (f) -> f v1 c s t m
+  | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
+  | VContC (c', s', t') ->
+    run_c4 c' v1 s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
+  (* app4 v0 v1 (CRet :: c) (VEnv (v2s) :: s) t m *)
 and app4 v0 v1 c s t m = match v0 with
     VFun (f) -> f v1 c s t m
   | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
@@ -77,8 +97,8 @@ and f4 e xs vs c s t m = match e with
   | Op (e0, op, e1) ->
     f4 e1 xs vs (COp0 (e0, xs, op) :: c) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
-    run_c4 c
-      (VFun (fun v c' s' t' m' -> f4 e (x :: xs) (v :: vs) c' s' t' m')) s t m
+    run_c4 c (VFun (fun v v2s c' s' t' m' ->
+      f4t e (x :: xs) (v :: vs) v2s c' s' t' m')) s t m (* adding v2s, change f4 to f4t *)
   | App (e0, e1, e2s) ->
     f4s e2s xs vs (CApp2 (e0, e1, xs) :: c) (VEnv (vs) :: s) t m
   | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
@@ -102,5 +122,32 @@ and f4s es xs vs c s t m = match es with
   | first :: rest ->
     f4s rest xs vs (CAppS1 (first, xs) :: c) (VEnv (vs) :: s) t m
 
-(* f : e -> v *)
+and and f4t e xs vs v2s c s t m = match e with
+    Num (n) -> run_c4 c (VNum (n)) s t m
+  | Var (x) -> run_c4 c (List.nth vs (Env.offset x xs)) s t m
+  | Op (e0, op, e1) ->
+    f4 e1 xs vs (COp0 (e0, xs, op) :: c) (VEnv (vs) :: s) t m
+  | Fun (x, e) ->
+    run_c4 c (VFun (fun v v2s c' s' t' m' ->
+      f4t e (x :: xs) (v :: vs) v2s c' s' t' m')) s t m (* adding v2s, change f4 to f4t *)
+  | App (e0, e1, e2s) ->
+    f4s e2s xs vs (CApp2 (e0, e1, xs) :: c) (VEnv (vs) :: s) t m
+  | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
+  | Control (x, e) -> f4 e (x :: xs) (VContC (c, s, t) :: vs) [] [] TNil m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+        f4 e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+        f4 e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
+
+
+    (* f : e -> v *)
 let f expr = f4 expr [] [] [] [] TNil MNil
