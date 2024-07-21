@@ -50,9 +50,9 @@ let rec run_c4 c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (COp2 (e0, xs, op) :: c, VEnv (v2s) :: VEnv (vs) :: s) -> (* tail version *)
-    f4 e0 xs vs (COp3 (op) :: c) (VEnv (v2s) :: v :: s) t m
-  | (COp3 (op) :: c, VEnv (v2s) :: v0 :: s) -> (* tail version *)
+  | (COp2 (e0, xs, op) :: c, VEnv (vs) :: VEnv (v2s) :: s) -> (* tail version *)
+    f4 e0 xs vs (COp3 (op) :: c) (v :: VEnv (v2s) :: s) t m
+  | (COp3 (op) :: c, v0 :: VEnv (v2s) :: s) -> (* tail version *)
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
@@ -119,7 +119,7 @@ and f4t e xs vs v2s c s t m = match e with
     Num (n) -> run_c4 (CRet :: c) (VNum (n)) (VEnv (v2s) :: s) t m
   | Var (x) -> run_c4 (CRet :: c) (List.nth vs (Env.offset x xs)) (VEnv (v2s) :: s) t m
   | Op (e0, op, e1) ->
-    f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VEnv (v2s) :: VEnv (vs) :: s) t m
+    f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VEnv (vs) :: VEnv (v2s) :: s) t m
   | Fun (x, e) ->
     begin match v2s with
         [] -> run_c4 c (VFun (fun v v2s c' s' t' m' ->

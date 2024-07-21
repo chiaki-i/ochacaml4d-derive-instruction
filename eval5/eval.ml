@@ -50,12 +50,14 @@ let rec run_c5 c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (COp2 (e0, xs, op, c), VEnv (v2s) :: VEnv (vs) :: s) -> (* tail version *)
-    f5 e0 xs vs (COp3 (op, c)) (VEnv (v2s) :: v :: s) t m
-  | (COp3 (op, c), VEnv (v2s) :: v0 :: s) -> (* tail version *)
+  | (COp2 (e0, xs, op, c), VEnv (vs) :: VEnv (v2s) :: s) -> (* tail version *)
+    f5 e0 xs vs (COp3 (op, c)) (v :: VEnv (v2s) :: s) t m
+  | (COp3 (op, c), v0 :: VEnv (v2s) :: s) -> (* tail version *)
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
+          (* スタックの先頭には、CRet で使えるように 必ず VEnv (v2s) が乗っていることを明示している *)
+          (* この v2s は「Closure の外側の引数情報」を指す *)
             Plus -> run_c5 (CRet (c)) (VNum (n0 + n1)) (VEnv (v2s) :: s) t m
           | Minus -> run_c5 (CRet (c)) (VNum (n0 - n1)) (VEnv (v2s) :: s) t m
           | Times -> run_c5 (CRet (c)) (VNum (n0 * n1)) (VEnv (v2s) :: s) t m
@@ -118,15 +120,15 @@ and f5t e xs vs v2s c s t m = match e with
     Num (n) -> run_c5 (CRet (c)) (VNum (n)) (VEnv (v2s) :: s) t m
   | Var (x) -> run_c5 (CRet (c)) (List.nth vs (Env.offset x xs)) (VEnv (v2s) :: s) t m
   | Op (e0, op, e1) ->
-    f5 e1 xs vs (COp2 (e0, xs, op, c)) (VEnv (v2s) :: VEnv (vs) :: s) t m
+    f5 e1 xs vs (COp2 (e0, xs, op, c)) (VEnv (vs) :: VEnv (v2s) :: s) t m
   | Fun (x, e) ->
     begin match v2s with
         [] -> run_c5 c (VFun (fun v v2s c' s' t' m' ->
-                f5t e (x :: xs) (v :: vs) v2s c' s' t' m')) s t m (* adding v2s, change f5 to f5t *)
+                f5t e (x :: xs) (v :: vs) v2s c' s' t' m')) s t m (* add v2s, change f5 to f5t *)
       | v1 :: v2s -> f5t e (x :: xs) (v1 :: vs) v2s c s t m
     end
   | App (e0, e1, e2s) ->
-    f5st e2s xs vs v2s (CApp2 (e0, e1, xs, c)) (VEnv (vs) :: s) t m
+    f5st e2s xs vs v2s (CApp2 (e0, e1, xs, c)) (VEnv (vs) :: s) t m (* change f5s to f5st *)
   | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->

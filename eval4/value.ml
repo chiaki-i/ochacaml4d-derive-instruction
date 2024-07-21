@@ -17,7 +17,7 @@ and f = CApp0
       | CRet
       | COp0 of e * string list * op
       | COp1 of op
-      | COp2 of e * string list * op (* v list 情報を消して良いか*)
+      | COp2 of e * string list * op
       | COp3 of op
 
 and c = f list

@@ -28,7 +28,7 @@ let apnd t0 t1 = match t0 with
 
 (* f6 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f6 e xs vs c s t m = match e with
-    Num (n) -> c (VNum (n)) s t m (* s の先頭に VNUM を積むのを eval7 で実装 *)
+    Num (n) -> c (VNum (n)) s t m
   | Var (x) -> c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
     f6 e1 xs vs (fun v1 s1 t1 m1 ->
@@ -116,10 +116,10 @@ and f6t e xs vs v2s c s t m =
   | Op (e0, op, e1) ->
     f6 e1 xs vs (fun v1 s1 t1 m1 ->
         begin match s1 with
-            VEnv (v2s) :: VEnv (vs) :: s1 ->
+            VEnv (vs) :: VEnv (v2s) :: s1 ->
             f6 e0 xs vs (fun v0 s0 t0 m0 ->
                 begin match s0 with
-                    VEnv (v2s) :: v1 :: s0 ->
+                    v1 :: VEnv (v2s) :: s0 ->
                     begin match (v0, v1) with
                         (VNum (n0), VNum (n1)) ->
                         begin match op with
@@ -134,19 +134,17 @@ and f6t e xs vs v2s c s t m =
                                        ^ " are not numbers")
                     end
                   | _ -> failwith "stack error op1"
-                end) (VEnv (v2s) :: v1 :: s1) t1 m1
+                end) (v1 :: VEnv (v2s) :: s1) t1 m1
           | _ -> failwith "stack error op2"
-        end) (VEnv (v2s) :: VEnv (vs) :: s) t m
+        end) (VEnv (vs) :: VEnv (v2s) :: s) t m
   | Fun (x, e) ->
     begin match v2s with
         [] -> c (VFun (fun v v2s c' s' t' m' ->
                 f6t e (x :: xs) (v :: vs) v2s c' s' t' m')) s t m (* adding v2s, change f5 to f5t *)
       | v1 :: v2s -> f6t e (x :: xs) (v1 :: vs) v2s c s t m
     end
-    (* c (VFun (fun v v2s c' s' t' m' ->
-      f6t e (x :: xs) (v :: vs) v2s c' s' t' m')) s t m *)
   | App (e0, e1, e2s) ->
-    f6s e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
+    f6st e2s xs vs v2s (* expanding CApp2 (e0, e1, xs, c) *)
       (fun v2s s2s t2s m2s ->
         begin match s2s with VEnv (vs) :: s ->
           f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
@@ -185,8 +183,8 @@ and f6st e2s xs vs v2s cs s t m = match e2s with
         begin match s1 with VEnv (vs) :: s ->
           f6 first xs vs (* expanding CAppS0 (cs) *)
             (fun v2 s2 t2 m2 ->
-              begin match s2 with VEnv (v2s) :: s ->
-                cs (v2 :: v2s) s t2 m2
+              begin match s2 with VEnv (v2s') :: s ->
+                cs (v2 :: v2s') s t2 m2
               end
             ) (VEnv (v1) :: s) t1 m1
         end
