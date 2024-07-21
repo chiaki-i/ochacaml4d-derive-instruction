@@ -44,7 +44,7 @@ let rec f1 e xs vs c t m = match e with
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    c (VFun (fun v1 v2s c' t' m' -> f1t e (x :: xs) (v1 :: vs) v2s c' t' m'))
+    c (VFun (fun v1 vs_out c' t' m' -> f1t e (x :: xs) (v1 :: vs) vs_out c' t' m'))
       t m
   | App (e0, e1, e2s) ->
     f1s e2s xs vs (fun v2s t2 m2 ->
@@ -70,12 +70,12 @@ and f1s e2s xs vs c t m = match e2s with
     f1s rest xs vs (fun v2s t2 m2 ->
       f1 first xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
-and apply1 v0 v1 v2s c t m = match v0 with
-    VFun (f) -> f v1 v2s c t m
+and apply1 v0 v1 vs_out c t m = match v0 with
+    VFun (f) -> f v1 vs_out c t m
   | VContS (c', t') -> (* app1 をインライン展開しただけ *)
     let c =
       (fun f1 t1 m1 ->
-      begin match v2s with
+      begin match vs_out with
           [] -> c f1 t1 m1
         | first :: rest ->
           apply1 f1 first rest c t1 m1
@@ -83,7 +83,7 @@ and apply1 v0 v1 v2s c t m = match v0 with
     in c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     let c = (fun f1 t1 m1 ->
-      begin match v2s with
+      begin match vs_out with
           [] -> c f1 t1 m1
         | first :: rest ->
           apply1 f1 first rest c t1 m1
@@ -94,10 +94,10 @@ and apply1 v0 v1 v2s c t m = match v0 with
                    ^ " is not a function; it can not be applied.")
 
 (* f1t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
-and f1t e xs vs v2s c t m =
-  let ret v t m = match v2s with
+and f1t e xs vs vs_out c t m =
+  let ret v t m = match vs_out with
       [] -> c v t m
-    | v1 :: v2s -> apply1 v v1 v2s c t m in
+    | first :: rest -> apply1 v first rest c t m in
   match e with
     Num (n) -> ret (VNum (n)) t m
   | Var (x) -> ret (List.nth vs (Env.offset x xs)) t m
@@ -118,13 +118,13 @@ and f1t e xs vs v2s c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    begin match v2s with
-        [] -> c (VFun (fun v1 v2s c' t' m' ->
-                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m (* Grab *)
-      | v1 :: v2s -> f1t e (x :: xs) (v1 :: vs) v2s c t m
+    begin match vs_out with
+        [] -> c (VFun (fun v1 vs_out c' t' m' ->
+                        f1t e (x :: xs) (v1 :: vs) vs_out c' t' m')) t m (* Grab *)
+      | first :: rest -> f1t e (x :: xs) (first :: vs) rest c t m
     end
   | App (e0, e1, e2s) ->
-    f1st e2s xs vs v2s (fun v2s t2 m2 -> (* Appterm *)
+    f1st e2s xs vs vs_out (fun v2s t2 m2 -> (* Appterm *)
       f1 e1 xs vs (fun v1 t1 m1 ->
         f1 e0 xs vs (fun v0 t0 m0 ->
           apply1 v0 v1 v2s c t0 m0) t1 m1) t2 m2) t m
@@ -141,10 +141,10 @@ and f1t e xs vs v2s c t m =
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((ret, t), m))
-and f1st e2s xs vs v2s c t m = match e2s with
-    [] -> c v2s t m
+and f1st e2s xs vs vs_out c t m = match e2s with
+    [] -> c vs_out t m
   | first :: rest ->
-    f1st rest xs vs v2s (fun v2s t2 m2 ->
+    f1st rest xs vs vs_out (fun v2s t2 m2 ->
       f1 first xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
 
