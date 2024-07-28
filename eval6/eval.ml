@@ -91,20 +91,23 @@ let rec f6 e xs vs c s t m = match e with
   | Reset (e) -> f6 e xs vs idc [] TNil (MCons ((c, s, t), m))
 
 (* f6s: e list -> string list -> v list -> s -> t -> m *)
-and f6s es xs vs c s t m = match es with
-    [] -> c [] s t m
-  | first :: rest ->
-    f6s rest xs vs (* expanding CAppS1 (first, xs, c) *)
-      (fun v1 s1 t1 m1 ->
-        begin match s1 with VEnv (vs) :: s ->
-          f6 first xs vs (* expanding CAppS0 (cs) *)
-            (fun v2 s2 t2 m2 ->
-              begin match s2 with VEnv (v2s) :: s ->
-                c (v2 :: v2s) s t2 m2
-              end
-            ) (VEnv (v1) :: s) t1 m1
-        end
-      ) (VEnv (vs) :: s) t m
+and f6s es xs vs vs_out c s t m = match vs_out with [] -> (* vs_out は空でなければならない *)
+  begin match es with
+      [] -> c [] s t m (* c に渡すのが 空かどうかで Appterm / Apply を区別できる *)
+    | first :: rest ->
+      f6s rest xs vs (* expanding CAppS1 (first, xs, c) *)
+        (fun v1 s1 t1 m1 ->
+          begin match s1 with VEnv (vs) :: s ->
+            f6 first xs vs (* expanding CAppS0 (cs) *)
+              (fun v2 s2 t2 m2 ->
+                begin match s2 with VEnv (v2s) :: s ->
+                  c (v2 :: v2s) s t2 m2
+                end
+              ) (VEnv (v1) :: s) t1 m1
+          end
+        ) (VEnv (vs) :: s) t m
+  end
+  | _ -> faiwith "f6s: v2_out should be empty"
 
 and f6t e xs vs vs_out c s t m =
   let ret v (VEnv (vs_out) :: s) t m = match vs_out with (* expanding CRet (c) *)
