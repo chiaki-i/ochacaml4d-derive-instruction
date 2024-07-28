@@ -2,7 +2,7 @@ open Syntax
 open Value
 
 (* Interpreter using combinators factored as instructions : eval8 *)
-(* 見た目は ZINC instruction、インライン展開すると Eval7 になれば良い *)
+(* 見た目は ZINC instruction、インライン展開して eval7 になれば良い。>> が肝。*)
 
 (* initial continuation : s -> t -> m -> v *)
 let idc s t m = match s with
@@ -31,31 +31,40 @@ let apnd t0 t1 = match t0 with
 let (>>) i0 i1 = fun c s t m -> i0 (fun s' t' m' -> i1 c s' t' m') s t m
 
 (* num : int -> i *)
-let num n = fun vs c s t m -> c (VNum (n) :: s) t m
+let num n = fun c s t m -> c (VNum (n) :: s) t m
 
 (* access : int -> i *)
-let access n = fun vs c s t m -> c ((List.nth vs n) :: s) t m
-  (* match s with
-    VEnv (vs) :: s -> c ((List.nth vs n) :: s) t m
-  | _ -> failwith "stack error: access" *)
+let access n = fun c s t m -> match s with VEnv (vs) :: s ->
+    c ((List.nth vs n) :: s) t m
+  | _ -> failwith "stack error: access"
 
-(* push_closure : i -> i *)
-let push_closure i = fun c s t m -> match s with
+(* cur : i -> i *)
+let cur i = fun c s t m -> match s with
     VEnv (vs) :: s ->
-    let vfun = VFun (fun c' s' t' m' ->
+    let vfun = VFun (fun vs_out c' s' t' m' ->
         begin match s' with
-            v :: s' -> i c' (VEnv (v :: vs) :: s') t' m'
-          | _ -> failwith "stack error: push_closure_2"
+            v :: s' -> i c' (VEnv (v :: vs) :: s') t' m' (* TODO: vs_out を入れる *)
+          | _ -> failwith "stack error: cur_2"
         end) in
     c (vfun :: s) t m
-  | _ -> failwith "stack error: push_closure_1"
+  | _ -> failwith "stack error: cur_1"
+
+(* let cur i = fun c s t m -> match s with *)
+
 
 (* return : i *)
 (* スタックの先頭に積まれたリストが空だったら Pushmark に相当すると考える *)
 (* apply7 でうまく実装されているのではないか？ *)
-let return = fun _ s t m -> match s with
+(* VK は返り番地を積んでいるが、ZINC に合わせるためには、無くしてもいいかも？ *)
+let return v = fun c s t m -> failwith "not implemented"
+(*   match s with
+      (VEnv (vs_out) :: s) -> match vs_out with
+          [] -> c v s t m
+        | first :: rest -> apply6 v first rest c s t m (* TODO: apply6 相当の instruction *)
+    | _ -> failwith "stack error: return: missing vs_out" *)
+(* let return = fun _ s t m -> match s with
     v :: VK (c) :: s -> c (v :: s) t m
-  | _ -> failwith "stack error: return"
+  | _ -> failwith "stack error: return" *)
 
 (* push_env : i *)
 let push_env = fun c s t m -> match s with
@@ -63,12 +72,13 @@ let push_env = fun c s t m -> match s with
   | _ -> failwith "stack error: push_env"
 
 (* pop_env : i *)
+(* 先頭に来ていない env を1番目に持ってくることで、次の instruction で Pop できるようにする *)
 let pop_env = fun c s t m -> match s with
     v :: VEnv (vs) :: s -> c (VEnv (vs) :: v :: s) t m
   | _ -> failwith "stack error: pop_env"
 
 (* operation : op -> i *)
-let operation op = fun vs c s t m -> match s with
+let operation op = fun c s t m -> match s with
     v0 :: v1 :: s ->
     begin match (v0, v1) with
         (VNum (n0), VNum (n1)) ->
@@ -86,10 +96,11 @@ let operation op = fun vs c s t m -> match s with
   | _ -> failwith "stack error: op"
 
 (* call : i *)
-let call = fun c s t m -> match s with
+(* apply7 に相当する *)
+let call = fun vs_out c s t m -> match s with
     v1 :: v0 :: s -> (* 関数が v0、引数の v1 が複数になりうる *)
     begin match v0 with
-        VFun (f) -> f idc (v1 :: VK (c) :: s) t m
+        VFun (f) -> f vs_out idc (v1 :: s) t m
       | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
       | VContC (c', s', t') ->
         c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
@@ -133,31 +144,62 @@ let reset i = fun c s t m -> match s with
     VEnv (vs) :: s -> i idc (VEnv (vs) :: []) TNil (MCons ((c, s, t), m))
   | _ -> failwith "stack error: reset"
 
+(* pushmark: (特に f8 において) vs_out が空であるという情報を積む *)
+(* ここで、vs_out のことを指す *)
+let pushmark i = fun c s t m ->
+  let vs_out = [] in
+  c vs_out s t m (* vs_out が空であると決め打ちにする *)
+
 (* f8 : e -> string list -> env -> i *)
 let rec f8 e xs vs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
+  | Var (x) -> push_env >> access (Env.offset x xs)
   | Op (e0, op, e1) ->
     (f8 e1 xs vs) >> (f8 e0 xs vs) >> operation (op)
-  | Fun (x, e) -> push_closure ((f8 e (x :: xs) vs) >> return)
+  | Fun (x, e) -> push_env >> cur (f8 e (x :: xs) vs) (* TODO: あとで f8 を f8t に直す *)
+  | _ -> failwith "not implemented"
   (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
-  | App (e0, e1, e2s) ->
-    (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> call
+  (* | App (e0, e1, e2s) -> *)
+    (* vs_out をこの式の中で使うとして、>> の前後で変数の中身はどのように変化するのだろうか *)
+    (* pushmark >> (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> apply *)
     (* (f8s (e2s @ e1) xs vs) >> (f8 e0 xs vs) >> call とすれば、f8s で何もしない instruction を防げる *)
     (* が、これまでの流れに逆行している気もする… *)
+    (*
   | Shift (x, e) -> shift (f8 e (x :: xs) vs)
   | Control (x, e) -> control (f8 e (x :: xs) vs)
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs) vs)
   | Control0 (x, e) -> control0 (f8 e (x :: xs) vs)
   | Reset (e) -> reset (f8 e xs vs)
+ *)
 (* f8s : e -> string list -> env -> i *)
-and f8s es xs vs = match es with
+(* and f8s es xs vs = match es with
     [] -> failwith "not implemented"
     (* 何もしない no-op instruction (Pushmark) を作成するのも一つの手かもしれない… *)
     (* c に直接渡す c s t m と書きたいが c を持っていない*)
   | first :: rest ->
     (f8s rest xs vs) >> (f8 first xs vs)
   (* failwith "not implemented" *)
+
+and f8t e xs vs = match e with
+    Num (n) -> num n
+  | Var (x) -> access (Env.offset x xs)
+  | Op (e0, op, e1) -> (* コンパイラ規則の prim に相当する *)
+    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operation (op) >> return (* op は1つのバージョンで、後ろに return をつけるかどうかで区別したい *)
+  | Fun (x, e) -> grab ((f8 e (x :: xs) vs) >> return)
+  (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
+  | App (e0, e1, e2s) ->
+    (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> appterm
+  | Shift (x, e) -> shift (f8 e (x :: xs) vs)
+  | Control (x, e) -> control (f8 e (x :: xs) vs)
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs) vs)
+  | Control0 (x, e) -> control0 (f8 e (x :: xs) vs)
+  | Reset (e) -> reset (f8 e xs vs)
+
+and f8st e xs vs vs_out = fun c s t m -> match e with
+    [] -> cs vs_out s t m
+  | first :: rest -> (f8st rest xs vs vs_out) >> (f8 first xs vs)
+    (* TODO: call 的なものとして、CAppS0 に相当するものが必要 *)
+*)
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] idc [] TNil MNil

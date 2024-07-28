@@ -2,11 +2,11 @@
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> t -> m -> v)
+       | VFun of (v list -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
-       | VK of c
+       (* | VK of c *)
 
 and c = s -> t -> m -> v
 
@@ -17,7 +17,7 @@ and t = TNil | Trail of (v -> t -> m -> v)
 and m = MNil
       | MCons of (c * s * t) * m
 
-type i = c -> env -> s -> t -> m -> v
+type i = c -> v list -> s -> t -> m -> v
 
 
 (* to_string : v -> string *)
@@ -27,7 +27,7 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
-  | VK (_) -> "<VK>"
+(*   | VK (_) -> "<VK>" *)
 
 (* Value.print : v -> unit *)
 let print exp =
