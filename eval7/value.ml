@@ -1,8 +1,8 @@
-(* Interpreter with combining arguments : eval7 *)
+(* Interpreter with values passed via stack : eval7 *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> t -> m -> v)
+       | VFun of (v list -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
