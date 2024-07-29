@@ -65,16 +65,16 @@ let rec f7 e xs vs c s t m =
     | App (e0, e1, e2s) ->
       f7s e2s xs vs
         (fun s2s t2s m2s ->
-          begin match s2s with VEnv (v2s) :: VEnv (vs) :: s -> (* v2s : v list *)
+          begin match s2s with VEnv (v2s) :: VEnv (vs) :: s ->
             f7 e1 xs vs
               (fun s1 t1 m1 ->
-                begin match s1 with v1 :: VEnv (v2s) :: VEnv (vs) :: s -> (* v1 : v *)
+                begin match s1 with v1 :: VEnv (v2s) :: VEnv (vs) :: s ->
                   f7 e0 xs vs
                     (fun s0 t0 m0 ->
-                      begin match s0 with v0 :: VEnv (v1 :: v2s) :: s -> (* v0 : v *)
+                      begin match s0 with v0 :: v1 :: VEnv (v2s) :: s ->
                         apply7 v0 v1 v2s c s t0 m0
                       end
-                    ) (VEnv (v1 :: v2s) :: s) t1 m1
+                    ) (v1 :: VEnv (v2s) :: s) t1 m1 (* Eval8 に向けて、実行した結果を素直に先頭に配置する *)
                 end
               ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
           end
@@ -167,10 +167,10 @@ and f7t e xs vs vs_out c s t m =
               begin match s1 with v1 :: VEnv (v2s) :: VEnv (vs) :: s ->
                 f7 e0 xs vs (* expanding CApp0 (c) *)
                   (fun s0 t0 m0 ->
-                    begin match s0 with v0 :: VEnv (v1 :: v2s) :: s ->
+                    begin match s0 with v0 :: v1 :: VEnv (v2s) :: s ->
                       apply7 v0 v1 v2s c s t0 m0
                     end
-                  ) (VEnv (v1 :: v2s) :: s) t1 m1
+                  ) (v1 :: VEnv (v2s) :: s) t1 m1
               end
             ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
         end
