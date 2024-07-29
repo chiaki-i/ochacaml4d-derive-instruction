@@ -24,10 +24,10 @@ let rec run_c5 c v s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CApp0 (c), VEnv (v1 :: v2s) :: s) ->
+  | (CApp0 (c), v1 :: VEnv (v2s) :: s) ->
     apply5 v v1 v2s c s t m
   | (CApp1 (e0, xs, c), VEnv (v2s) :: VEnv (vs) :: s) ->
-    f5 e0 xs vs (CApp0 (c)) (VEnv (v :: v2s) :: s) t m
+    f5 e0 xs vs (CApp0 (c)) (v :: VEnv (v2s) :: s) t m
   | (CAppS0 (cs), VEnv (v2s) :: s) ->
     runs_c5 cs (v :: v2s) s t m
   | (CRet (c), VEnv (vs_out) :: s) ->

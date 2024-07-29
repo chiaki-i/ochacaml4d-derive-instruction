@@ -66,10 +66,10 @@ let rec f6 e xs vs c s t m = match e with
               begin match s1 with VEnv (v2s) :: VEnv (vs) :: s ->
                 f6 e0 xs vs (* expanding CApp0 (c) *)
                   (fun v0 s0 t0 m0 ->
-                    begin match s0 with VEnv (v1 :: v2s) :: s ->
+                    begin match s0 with v1 :: VEnv (v2s) :: s ->
                       apply6 v0 v1 v2s c s t0 m0
                     end
-                  ) (VEnv (v1 :: v2s) :: s) t1 m1
+                  ) (v1 :: VEnv (v2s) :: s) t1 m1
               end
             ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
         end
@@ -152,10 +152,10 @@ and f6t e xs vs vs_out c s t m =
               begin match s1 with VEnv (v2s) :: VEnv (vs) :: s ->
                 f6 e0 xs vs (* expanding CApp0 (c) *)
                   (fun v0 s0 t0 m0 ->
-                    begin match s0 with VEnv (v1 :: v2s) :: s ->
+                    begin match s0 with v1 :: VEnv (v2s) :: s ->
                       apply6 v0 v1 v2s c s t0 m0
                     end
-                  ) (VEnv (v1 :: v2s) :: s) t1 m1
+                  ) (v1 :: VEnv (v2s) :: s) t1 m1
               end
             ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
         end
