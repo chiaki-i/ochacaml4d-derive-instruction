@@ -125,7 +125,8 @@ and f6t e xs vs vs_out c s t m =
                         (VNum (n0), VNum (n1)) ->
                         begin match op with
                             Plus -> ret c (VNum (n0 + n1)) (VEnv (vs_out) :: s0) t0 m0
-                          | Minus -> ret c (VNum (n0 - n1)) (VEnv (vs_out) :: s0) t0 m0                          | Times -> ret c (VNum (n0 * n1)) (VEnv (vs_out) :: s0) t0 m0
+                          | Minus -> ret c (VNum (n0 - n1)) (VEnv (vs_out) :: s0) t0 m0
+                          | Times -> ret c (VNum (n0 * n1)) (VEnv (vs_out) :: s0) t0 m0
                           | Divide ->
                             if n1 = 0 then failwith "Division by zero"
                             else ret c (VNum (n0 / n1)) (VEnv (vs_out) :: s0) t0 m0
