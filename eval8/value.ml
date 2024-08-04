@@ -2,13 +2,13 @@
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v list -> c -> s -> t -> m -> v)
+       | VFun of (v -> v list -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
        (* | VK of c *)
 
-and c = s -> t -> m -> v
+and c = v -> s -> t -> m -> v
 
 and s = v list
 
@@ -17,7 +17,7 @@ and t = TNil | Trail of (v -> t -> m -> v)
 and m = MNil
       | MCons of (c * s * t) * m
 
-type i = c -> v list -> s -> t -> m -> v
+type i = v list -> c -> v -> s -> t -> m -> v
 
 
 (* to_string : v -> string *)

@@ -5,13 +5,13 @@ open Value
 (* 見た目は ZINC instruction、インライン展開して eval7 になれば良い。>> が肝。*)
 
 (* initial continuation : s -> t -> m -> v *)
-let idc s t m = match s with
-    v :: [] ->
+let idc v s t m = match s with
+    [] ->
     begin match t with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> c (v :: s) t m
+          | MCons ((c, s, t), m) -> c v s t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -28,28 +28,28 @@ let apnd t0 t1 = match t0 with
   | Trail (h) -> cons h t1
 
 (* (>>) : i -> i -> i *)
-let (>>) i0 i1 = fun c s t m -> i0 (fun s' t' m' -> i1 c s' t' m') s t m
+let (>>) i0 i1 =
+  fun vs c a s t m -> i0 vs (fun v' s' t' m' -> i1 vs c v' s' t' m') a s t m
+
+(* push : i *)
+let push = fun vs c a s t m -> c a (a :: s) t m
 
 (* num : int -> i *)
-let num n = fun c s t m -> c (VNum (n) :: s) t m
+let num n = fun vs c a s t m -> c (VNum (n)) s t m
 
 (* access : int -> i *)
-let access n = fun c s t m -> match s with VEnv (vs) :: s ->
-    c ((List.nth vs n) :: s) t m
-  | _ -> failwith "stack error: access"
+let access n = fun vs c a s t m -> c (List.nth vs n) s t m
 
 (* cur : i -> i *)
-let cur i = fun c s t m -> match s with
-    VEnv (vs) :: s ->
-    let vfun = VFun (fun vs_out c' s' t' m' ->
-        begin match s' with
-            v :: s' -> i c' (VEnv (v :: vs) :: s') t' m' (* TODO: vs_out を入れる *)
-          | _ -> failwith "stack error: cur_2"
-        end) in
-    c (vfun :: s) t m
-  | _ -> failwith "stack error: cur_1"
+let cur i = fun vs c a s t m ->
+    let vfun = VFun (fun v vs_out c' s' t' m' ->
+            i (v :: vs) (* vs_out *) c' v s' t' m' (* TODO: vs_out を入れる *)
+        ) in
+    c vfun s t m
 
 (* let cur i = fun c s t m -> match s with *)
+
+(*
 
 
 (* return : i *)
@@ -76,25 +76,27 @@ let push_env = fun c s t m -> match s with
 let pop_env = fun c s t m -> match s with
     v :: VEnv (vs) :: s -> c (VEnv (vs) :: v :: s) t m
   | _ -> failwith "stack error: pop_env"
+*)
 
 (* operation : op -> i *)
-let operation op = fun c s t m -> match s with
-    v0 :: v1 :: s ->
+let operation op = fun vs c v0 s t m -> match s with
+    v1 :: s ->
     begin match (v0, v1) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
-            Plus -> c (VNum (n0 + n1) :: s) t m
-          | Minus -> c (VNum (n0 - n1) :: s) t m
-          | Times -> c (VNum (n0 * n1) :: s) t m
+            Plus -> c (VNum (n0 + n1)) s t m
+          | Minus -> c (VNum (n0 - n1)) s t m
+          | Times -> c (VNum (n0 * n1)) s t m
           | Divide ->
             if n1 = 0 then failwith "Division by zero"
-            else c (VNum (n0 / n1) :: s) t m
+            else c (VNum (n0 / n1)) s t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                        ^ " are not numbers")
     end
   | _ -> failwith "stack error: op"
 
+(*
 (* call : i *)
 (* apply7 に相当する *)
 let call = fun vs_out c s t m -> match s with
@@ -149,14 +151,15 @@ let reset i = fun c s t m -> match s with
 let pushmark i = fun c s t m ->
   let vs_out = [] in
   c vs_out s t m (* vs_out が空であると決め打ちにする *)
+*)
 
-(* f8 : e -> string list -> env -> i *)
-let rec f8 e xs vs = match e with
+(* f8 : e -> string list -> i *)
+let rec f8 e xs = match e with
     Num (n) -> num n
-  | Var (x) -> push_env >> access (Env.offset x xs)
+  | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
-    (f8 e1 xs vs) >> (f8 e0 xs vs) >> operation (op)
-  | Fun (x, e) -> push_env >> cur (f8 e (x :: xs) vs) (* TODO: あとで f8 を f8t に直す *)
+    f8 e1 xs >> push >> f8 e0 xs >> operation (op)
+  | Fun (x, e) -> cur (f8 e (x :: xs)) (* TODO: あとで f8 を f8t に直す *)
   | _ -> failwith "not implemented"
   (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
   (* | App (e0, e1, e2s) -> *)
@@ -202,4 +205,4 @@ and f8st e xs vs vs_out = fun c s t m -> match e with
 *)
 
 (* f : e -> v *)
-let f expr = f8 expr [] [] idc [] TNil MNil
+let f expr = f8 expr [] [] idc (VNum 7) [] TNil MNil
