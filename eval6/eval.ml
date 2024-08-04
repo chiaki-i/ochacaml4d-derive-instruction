@@ -32,8 +32,6 @@ let rec f6 e xs vs c s t m = match e with
   | Var (x) -> c (List.nth vs (Env.offset x xs)) s t m
   | Op (e0, op, e1) ->
     f6 e1 xs vs (fun v1 s1 t1 m1 ->
-        begin match s1 with
-            VEnv (vs) :: s1 ->
             f6 e0 xs vs (fun v0 s0 t0 m0 ->
                 begin match s0 with
                     v1 :: s0 ->
@@ -52,18 +50,16 @@ let rec f6 e xs vs c s t m = match e with
                     end
                   | _ -> failwith "stack error op1"
                 end) (v1 :: s1) t1 m1
-          | _ -> failwith "stack error op2"
-        end) (VEnv (vs) :: s) t m
+        ) s t m
   | Fun (x, e) ->
     c (VFun (fun v vs_out c' s' t' m' -> (* add vs_out *)
       f6t e (x :: xs) (v :: vs) vs_out c' s' t' m')) s t m (* change f6 to f6t *)
   | App (e0, e1, e2s) ->
     f6s e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
       (fun v2s s2s t2s m2s ->
-        begin match s2s with VEnv (vs) :: s ->
           f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
             (fun v1 s1 t1 m1 ->
-              begin match s1 with VEnv (v2s) :: VEnv (vs) :: s ->
+              begin match s1 with VEnv (v2s) :: s ->
                 f6 e0 xs vs (* expanding CApp0 (c) *)
                   (fun v0 s0 t0 m0 ->
                     begin match s0 with v1 :: VEnv (v2s) :: s ->
@@ -71,9 +67,8 @@ let rec f6 e xs vs c s t m = match e with
                     end
                   ) (v1 :: VEnv (v2s) :: s) t1 m1
               end
-            ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
-        end
-      ) (VEnv (vs) :: s) t m
+            ) (VEnv (v2s) :: s2s) t2s m2s
+      ) s t m
   | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -96,15 +91,13 @@ and f6s es xs vs c s t m = match es with
   | first :: rest ->
     f6s rest xs vs (* expanding CAppS1 (first, xs, c) *)
       (fun v1 s1 t1 m1 ->
-        begin match s1 with VEnv (vs) :: s ->
           f6 first xs vs (* expanding CAppS0 (cs) *)
             (fun v2 s2 t2 m2 ->
               begin match s2 with VEnv (v2s) :: s ->
                 c (v2 :: v2s) s t2 m2
               end
-            ) (VEnv (v1) :: s) t1 m1
-        end
-      ) (VEnv (vs) :: s) t m
+            ) (VEnv (v1) :: s1) t1 m1
+      ) s t m
 
 and ret c v (VEnv (vs_out) :: s) t m = match vs_out with (* expanding CRet (c) *)
     [] -> c v s t m
@@ -116,28 +109,25 @@ and f6t e xs vs vs_out c s t m =
   | Var (x) -> ret c (List.nth vs (Env.offset x xs)) (VEnv (vs_out) :: s) t m
   | Op (e0, op, e1) ->
     f6 e1 xs vs (fun v1 s1 t1 m1 ->
-        begin match s1 with
-            VEnv (vs) :: VEnv (vs_out) :: s1 ->
-            f6 e0 xs vs (fun v0 s0 t0 m0 ->
-                begin match s0 with
-                    v1 :: VEnv (vs_out) :: s0 ->
-                    begin match (v0, v1) with
-                        (VNum (n0), VNum (n1)) ->
-                        begin match op with
-                            Plus -> ret c (VNum (n0 + n1)) (VEnv (vs_out) :: s0) t0 m0
-                          | Minus -> ret c (VNum (n0 - n1)) (VEnv (vs_out) :: s0) t0 m0
-                          | Times -> ret c (VNum (n0 * n1)) (VEnv (vs_out) :: s0) t0 m0
-                          | Divide ->
-                            if n1 = 0 then failwith "Division by zero"
-                            else ret c (VNum (n0 / n1)) (VEnv (vs_out) :: s0) t0 m0
-                        end
-                      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
-                                       ^ " are not numbers")
+        f6 e0 xs vs (fun v0 s0 t0 m0 ->
+            begin match s0 with
+                v1 :: s0 ->
+                begin match (v0, v1) with
+                    (VNum (n0), VNum (n1)) ->
+                    begin match op with
+                        Plus -> ret c (VNum (n0 + n1)) (VEnv (vs_out) :: s0) t0 m0
+                      | Minus -> ret c (VNum (n0 - n1)) (VEnv (vs_out) :: s0) t0 m0
+                      | Times -> ret c (VNum (n0 * n1)) (VEnv (vs_out) :: s0) t0 m0
+                      | Divide ->
+                        if n1 = 0 then failwith "Division by zero"
+                        else ret c (VNum (n0 / n1)) (VEnv (vs_out) :: s0) t0 m0
                     end
-                  | _ -> failwith "stack error op1"
-                end) (v1 :: VEnv (vs_out) :: s1) t1 m1
-          | _ -> failwith "stack error op2"
-        end) (VEnv (vs) :: VEnv (vs_out) :: s) t m
+                  | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                                    ^ " are not numbers")
+                end
+              | _ -> failwith "stack error op1"
+            end) (v1 :: s1) t1 m1
+        ) s t m
   | Fun (x, e) ->
     begin match vs_out with
         [] -> c (VFun (fun v vs_out c' s' t' m' ->
@@ -147,10 +137,9 @@ and f6t e xs vs vs_out c s t m =
   | App (e0, e1, e2s) ->
     f6st e2s xs vs vs_out (* expanding CApp2 (e0, e1, xs, c) *)
       (fun v2s s2s t2s m2s ->
-        begin match s2s with VEnv (vs) :: s ->
           f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
             (fun v1 s1 t1 m1 ->
-              begin match s1 with VEnv (v2s) :: VEnv (vs) :: s ->
+              begin match s1 with VEnv (v2s) :: s ->
                 f6 e0 xs vs (* expanding CApp0 (c) *)
                   (fun v0 s0 t0 m0 ->
                     begin match s0 with v1 :: VEnv (v2s) :: s ->
@@ -158,9 +147,8 @@ and f6t e xs vs vs_out c s t m =
                     end
                   ) (v1 :: VEnv (v2s) :: s) t1 m1
               end
-            ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
-        end
-      ) (VEnv (vs) :: s) t m
+            ) (VEnv (v2s) :: s2s) t2s m2s
+      ) s t m
   | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -181,15 +169,13 @@ and f6st e2s xs vs vs_out cs s t m = match e2s with
   | first :: rest ->
     f6st rest xs vs vs_out (* expanding CAppS1 (first, xs, c) *)
       (fun v1 s1 t1 m1 ->
-        begin match s1 with VEnv (vs) :: s ->
           f6 first xs vs (* expanding CAppS0 (cs) *)
             (fun v2 s2 t2 m2 ->
               begin match s2 with VEnv (v2s) :: s ->
                 cs (v2 :: v2s) s t2 m2
               end
-            ) (VEnv (v1) :: s) t1 m1
-        end
-      ) (VEnv (vs) :: s) t m
+            ) (VEnv (v1) :: s1) t1 m1
+      ) s t m
 
 (* apply6 : v -> v -> v list -> c -> s -> t -> m -> v *)
   and apply6 v0 v1 vs_out c s t m = match v0 with
