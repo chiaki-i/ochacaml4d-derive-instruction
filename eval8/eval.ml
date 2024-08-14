@@ -47,11 +47,55 @@ let cur i = fun vs c a s t m ->
         ) in
     c vfun s t m
 
-(* let cur i = fun c s t m -> match s with *)
+(* operation : op -> i *)
+let operation op = fun vs c v0 s t m -> match s with
+    v1 :: s ->
+    begin match (v0, v1) with
+        (VNum (n0), VNum (n1)) ->
+        begin match op with
+            Plus -> c (VNum (n0 + n1)) s t m
+          | Minus -> c (VNum (n0 - n1)) s t m
+          | Times -> c (VNum (n0 * n1)) s t m
+          | Divide ->
+            if n1 = 0 then failwith "Division by zero"
+            else c (VNum (n0 / n1)) s t m
+        end
+      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                       ^ " are not numbers")
+    end
+  | _ -> failwith "stack error: op"
+
+(* pushmark : i *)
+(* (特に f8 において) vs_out が空であるという情報を積む *)
+(* ここで、vs_out のことを指す *)
+let pushmark = fun vs c a s t m ->
+  let vs_out = [] in
+  c (VEnv vs_out) s t m (* vs_out が空であると決め打ちにする *)
+
+(* apply8 : v -> v -> v list -> c -> s -> t -> m -> v *)
+let apply8 v0 v1 vs_out c s t m = match v0 with
+    VFun (f) -> f v1 vs_out c s t m
+  | VContS (c', s', t') -> c' v1 s' t' (MCons ((c, s, t), m))
+  | VContC (c', s', t') ->
+    c' v1 s' (apnd t' (cons (fun v t m -> c v s t m) t)) m
+  | _ -> failwith (to_string v0
+                    ^ " is not a function; it can not be applied.")
+
+(* apply: i *)
+(* Accumulator に v1 が積まれた状態で実行される *)
+let apply = fun vs c v0 s t m ->
+  match s with v1 :: VEnv (v2s) :: s ->
+    apply8 v0 v1 v2s c s t m
+
+(* appterm : i *)
+let appterm = fun vs c v s t m ->
+  match s with VEnv (v2s) :: s ->
+    c (VEnv (v :: v2s)) s t m
+(* ↑ ここで c に直接 v :: v2s を渡せない問題 *)
+(* eval6b では v list を受け取る継続 cs を定義できていたが、
+   >> で compose しようとすると型が合わなくなるっぽい。 *)
 
 (*
-
-
 (* return : i *)
 (* スタックの先頭に積まれたリストが空だったら Pushmark に相当すると考える *)
 (* apply7 でうまく実装されているのではないか？ *)
@@ -77,24 +121,6 @@ let pop_env = fun c s t m -> match s with
     v :: VEnv (vs) :: s -> c (VEnv (vs) :: v :: s) t m
   | _ -> failwith "stack error: pop_env"
 *)
-
-(* operation : op -> i *)
-let operation op = fun vs c v0 s t m -> match s with
-    v1 :: s ->
-    begin match (v0, v1) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> c (VNum (n0 + n1)) s t m
-          | Minus -> c (VNum (n0 - n1)) s t m
-          | Times -> c (VNum (n0 * n1)) s t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else c (VNum (n0 / n1)) s t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
-                       ^ " are not numbers")
-    end
-  | _ -> failwith "stack error: op"
 
 (*
 (* call : i *)
@@ -145,12 +171,6 @@ let control0 i = fun c s t m -> match s with
 let reset i = fun c s t m -> match s with
     VEnv (vs) :: s -> i idc (VEnv (vs) :: []) TNil (MCons ((c, s, t), m))
   | _ -> failwith "stack error: reset"
-
-(* pushmark: (特に f8 において) vs_out が空であるという情報を積む *)
-(* ここで、vs_out のことを指す *)
-let pushmark i = fun c s t m ->
-  let vs_out = [] in
-  c vs_out s t m (* vs_out が空であると決め打ちにする *)
 *)
 
 (* f8 : e -> string list -> i *)
@@ -159,14 +179,14 @@ let rec f8 e xs = match e with
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
     f8 e1 xs >> push >> f8 e0 xs >> operation (op)
-  | Fun (x, e) -> cur (f8 e (x :: xs)) (* TODO: あとで f8 を f8t に直す *)
-  | _ -> failwith "not implemented"
+  | Fun (x, e) -> cur (f8 e (x :: xs)) (* TODO: あとで f8 を f8t に直す、vs_out を考慮する *)
   (* | App (e0, e1) -> push_env >> (f8 e0 xs) >> pop_env >> (f8 e1 xs) >> call *)
-  (* | App (e0, e1, e2s) -> *)
+  | App (e0, e1, e2s) ->
     (* vs_out をこの式の中で使うとして、>> の前後で変数の中身はどのように変化するのだろうか *)
-    (* pushmark >> (f8s e2s xs vs) >> (f8 e1 xs vs) >> (f8 e0 xs vs) >> apply *)
+    pushmark >> (f8s e2s xs) >> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >> apply
     (* (f8s (e2s @ e1) xs vs) >> (f8 e0 xs vs) >> call とすれば、f8s で何もしない instruction を防げる *)
     (* が、これまでの流れに逆行している気もする… *)
+  | _ -> failwith "not implemented"
     (*
   | Shift (x, e) -> shift (f8 e (x :: xs) vs)
   | Control (x, e) -> control (f8 e (x :: xs) vs)
@@ -175,6 +195,11 @@ let rec f8 e xs = match e with
   | Reset (e) -> reset (f8 e xs vs)
  *)
 (* f8s : e -> string list -> env -> i *)
+and f8s es xs = match es with
+    [] -> pushmark
+  | first :: rest ->
+    (f8s rest xs) >> push >> (f8 first xs) >> appterm
+
 (* and f8s es xs vs = match es with
     [] -> failwith "not implemented"
     (* 何もしない no-op instruction (Pushmark) を作成するのも一つの手かもしれない… *)
