@@ -53,7 +53,7 @@ let rec f6 e xs vs c s t m = match e with
         ) s t m
   | Fun (x, e) ->
     c (VFun (fun v vs_out c' s' t' m' -> (* add vs_out *)
-      f6 e (x :: xs) (v :: vs) (* vs_out *) c' s' t' m')) s t m (* change f6 to f6t *)
+      f6t e (x :: xs) (v :: vs) vs_out c' s' t' m')) s t m (* change f6 to f6t *)
   | App (e0, e1, e2s) ->
     f6s e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
       (fun (VEnv (v2s)) s2s t2s m2s -> (* v2s = VEnv (_) の形 *)
@@ -86,20 +86,20 @@ let rec f6 e xs vs c s t m = match e with
   | Reset (e) -> f6 e xs vs idc [] TNil (MCons ((c, s, t), m))
 
 (* f6s: e list -> string list -> v list -> s -> t -> m *)
-and f6s es xs vs cs s t m =
+and f6s es xs vs c s t m =
   (* let rec runs_c6 c vs acc s t m = match vs with
       [] -> acc
     | first :: rest -> c (runs_c6 c rest acc s t m) s t m
   in *)
   match es with
-    [] -> cs (VEnv ([])) s t m (* pushmark *)
+    [] -> c (VEnv ([])) s t m (* pushmark *)
   | first :: rest ->
     f6s rest xs vs (* expanding CAppS1 (first, xs, c) *)
       (fun (VEnv (v2s)) s2 t2 m2 ->
           f6 first xs vs (* expanding CAppS0 (cs) *)
             (fun v1 s1 t1 m1 ->
               begin match s1 with VEnv (v2s) :: s ->
-                cs (VEnv (v1 :: v2s)) s t1 m1 (* VEnv を渡せば、c が value を受け取る型になる *)
+                c (VEnv (v1 :: v2s)) s t1 m1 (* VEnv を渡せば、c が value を受け取る型になる *)
               end
             ) (VEnv (v2s) :: s2) t2 m2
       ) s t m
@@ -141,7 +141,7 @@ and f6t e xs vs vs_out c s t m =
     end
   | App (e0, e1, e2s) ->
     f6st e2s xs vs vs_out (* expanding CApp2 (e0, e1, xs, c) *)
-      (fun v2s s2s t2s m2s ->
+      (fun (VEnv v2s) s2s t2s m2s ->
           f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
             (fun v1 s1 t1 m1 ->
               begin match s1 with VEnv (v2s) :: s ->
@@ -169,17 +169,17 @@ and f6t e xs vs vs_out c s t m =
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f6 e xs vs idc [] TNil (MCons ((c, s, t), m))
-and f6st e2s xs vs vs_out cs s t m = match e2s with
-    [] -> cs vs_out s t m
+and f6st e2s xs vs vs_out c s t m = match e2s with
+    [] -> c (VEnv ([])) s t m
   | first :: rest ->
     f6st rest xs vs vs_out (* expanding CAppS1 (first, xs, c) *)
-      (fun v1 s1 t1 m1 ->
-          f6 first xs vs (* expanding CAppS0 (cs) *)
-            (fun v2 s2 t2 m2 ->
-              begin match s2 with VEnv (v2s) :: s ->
-                cs (v2 :: v2s) s t2 m2
+      (fun (VEnv v2s) s2 t2 m2 ->
+          f6 first xs vs (* expanding CAppS0 (c) *)
+            (fun v1 s1 t1 m1 ->
+              begin match s1 with VEnv (v2s) :: s ->
+                c (VEnv (v1 :: v2s)) s t1 m1
               end
-            ) (VEnv (v1) :: s1) t1 m1
+            ) (VEnv (v2s) :: s2) t2 m2
       ) s t m
 
 (* apply6 : v -> v -> v list -> c -> s -> t -> m -> v *)
