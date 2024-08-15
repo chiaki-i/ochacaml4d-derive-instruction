@@ -87,10 +87,6 @@ let rec f6 e xs vs c s t m = match e with
 
 (* f6s: e list -> string list -> v list -> s -> t -> m *)
 and f6s es xs vs c s t m =
-  (* let rec runs_c6 c vs acc s t m = match vs with
-      [] -> acc
-    | first :: rest -> c (runs_c6 c rest acc s t m) s t m
-  in *)
   match es with
     [] -> c (VEnv ([])) s t m (* pushmark *)
   | first :: rest ->
