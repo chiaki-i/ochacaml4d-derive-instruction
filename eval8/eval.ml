@@ -48,27 +48,19 @@ let apply8 v0 v1 v2s c s t m = match v0 with
   | VContC (c', s', t') ->
     c' v1 s' (apnd t' (cons (fun v t m -> c v s t m) t)) m
   | _ -> failwith (to_string v0
-                    ^ " is not a function; it can not be applied.")
+                    ^ " is not a function; it cannot be applied.")
 
-(* return : c -> v -> s -> t -> m -> v *)
-(* TODO: >>> で接続する *)
-let ret c v (VEnv (vs_out) :: s) t m = match vs_out with
-    [] -> c v s t m
-  | first :: rest -> apply8 v first rest c s t m
+(* return : i -> i' *)
+let return i = fun vs vs_out c a s t m ->
+  match vs_out with
+      [] -> i vs c a s t m
+    | first :: rest -> apply8 a first rest c s t m
 
 (* num : int -> i *)
 let num n = fun vs c a s t m -> c (VNum (n)) s t m
 
-(* num' : int -> i' *)
-let num' n = fun vs vs_out c a s t m ->
-  ret c (VNum (n)) (VEnv (vs_out) :: s) t m
-
 (* access : int -> i *)
 let access n = fun vs c a s t m -> c (List.nth vs n) s t m
-
-(* access' : int -> i' *)
-let access' n = fun vs vs_out c a s t m ->
-  ret c (List.nth vs n) (VEnv (vs_out) :: s) t m
 
 (* cur : i -> i *)
 let cur i = fun vs c a s t m ->
@@ -97,24 +89,6 @@ let operation op = fun vs c v0 s t m -> match s with
           | Divide ->
             if n1 = 0 then failwith "Division by zero"
             else c (VNum (n0 / n1)) s t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
-                       ^ " are not numbers")
-    end
-  | _ -> failwith "stack error: op"
-
-(* operation : op -> i' *)
-let operation' op = fun vs vs_out c v0 s t m -> match s with
-    v1 :: s ->
-    begin match (v0, v1) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> ret c (VNum (n0 + n1)) (VEnv (vs_out) :: s) t m
-          | Minus -> ret c (VNum (n0 - n1)) (VEnv (vs_out) :: s) t m
-          | Times -> ret c (VNum (n0 * n1)) (VEnv (vs_out) :: s) t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else ret c (VNum (n0 / n1)) (VEnv (vs_out) :: s) t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                        ^ " are not numbers")
@@ -173,10 +147,10 @@ and f8s es xs = match es with
 
 (* f8t : e -> string list -> v list -> i' *)
 and f8t e xs = match e with
-    Num (n) -> num' n
-  | Var (x) -> access' (Env.offset x xs)
+    Num (n) -> return (num n)
+  | Var (x) -> return (access (Env.offset x xs))
   | Op (e0, op, e1) ->
-    (f8 e1 xs) >> push >> (f8 e0 xs) >>> operation' (op)
+    (f8 e1 xs) >> push >> (f8 e0 xs) >>> return (operation (op))
   | Fun (x, e) -> grab (f8t e (x :: xs))
   | App (e0, e1, e2s) ->
     (f8st e2s xs) >>>> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >>> appterm
