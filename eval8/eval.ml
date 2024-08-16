@@ -34,6 +34,10 @@ let (>>) i0 i1 = fun vs c a s t m ->
 let (>>>) i0 i1 = fun vs vs_out c a s t m ->
   i0 vs (fun v' s' t' m' -> i1 vs_out vs c v' s' t' m') a s t m
 
+(* (>>>>) : i' -> i -> i *)
+let (>>>>) i0 i1 = fun vs c a s t m ->
+  i0 vs [] (fun v' s' t' m' -> i1 vs c v' s' t' m') a s t m
+
 (* push : i *)
 let push = fun vs c a s t m -> c a (a :: s) t m
 
@@ -121,13 +125,26 @@ let operation' op = fun vs vs_out c v0 s t m -> match s with
 (* (特に f8 において) vs_out が空であるという情報を積む *)
 let pushmark = fun vs c a s t m -> c (VEnv ([])) s t m
 
+(* mark : i' *)
+(* pushmark ではなく普通の vs_out を積む *)
+let mark = fun vs vs_out c a s t m -> c (VEnv vs_out) s t m
+
 (* apply : i *)
 (* acc に v0 が積まれた状態で実行される *)
 let apply = fun vs c v0 s t m -> match s with
   v1 :: VEnv (v2s) :: s -> apply8 v0 v1 v2s c s t m
 
+(* appterm : i *)
+let appterm = fun vs vs_out c v0 s t m -> match s with
+  v1 :: VEnv (v2s) :: s -> apply8 v0 v1 v2s c s t m
+
 (* aux : i *)
 let aux = fun v2s c v1 s t m ->
+  match s with VEnv (v2s) :: s ->
+    c (VEnv (v1 :: v2s)) s t m
+
+(* aux : i' *)
+let aux' = fun v2s vs_out c v1 s t m ->
   match s with VEnv (v2s) :: s ->
     c (VEnv (v1 :: v2s)) s t m
 
@@ -161,8 +178,8 @@ and f8t e xs = match e with
   | Op (e0, op, e1) ->
     (f8 e1 xs) >> push >> (f8 e0 xs) >>> operation' (op)
   | Fun (x, e) -> grab (f8t e (x :: xs))
-  (* | App (e0, e1, e2s) ->
-    (f8s e2s xs) >> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >> apply *)
+  | App (e0, e1, e2s) ->
+    (f8st e2s xs) >>>> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >>> appterm
   | _ -> failwith "not implemented"
   (* | Shift (x, e) -> shift (f8 e (x :: xs)) *)
   (* | Control (x, e) -> control (f8 e (x :: xs)) *)
@@ -170,7 +187,10 @@ and f8t e xs = match e with
   (* | Control0 (x, e) -> control0 (f8 e (x :: xs)) *)
   (* | Reset (e) -> reset (f8 e xs) *)
 
-and f8st es xs = failwith "not implemented"
+and f8st es xs = match es with
+    [] -> mark
+  | first :: rest ->
+    (f8st rest xs) >>>> push >> (f8 first xs) >>> aux'
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] idc (VNum 7) [] TNil MNil
