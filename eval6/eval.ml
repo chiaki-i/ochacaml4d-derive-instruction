@@ -166,7 +166,7 @@ and f6t e xs vs vs_out c s t m =
     end
   | Reset (e) -> f6 e xs vs idc [] TNil (MCons ((c, s, t), m))
 and f6st e2s xs vs vs_out c s t m = match e2s with
-    [] -> c (VEnv ([])) s t m
+    [] -> c (VEnv vs_out) s t m
   | first :: rest ->
     f6st rest xs vs vs_out (* expanding CAppS1 (first, xs, c) *)
       (fun (VEnv v2s) s2 t2 m2 ->
