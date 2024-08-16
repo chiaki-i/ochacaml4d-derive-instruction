@@ -56,18 +56,16 @@ let rec f6 e xs vs c a s t m = match e with
       f6t e (x :: xs) (v :: vs) vs_out c' v s' t' m')) s t m (* change f6 to f6t *)
   | App (e0, e1, e2s) ->
     f6s e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
-      (fun (VEnv (v2s)) s2s t2s m2s ->
+      (fun v2 s2 t2 m2 ->
           f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
             (fun v1 s1 t1 m1 ->
-              begin match s1 with VEnv (v2s) :: s ->
                 f6 e0 xs vs (* expanding CApp0 (c) *)
                   (fun v0 s0 t0 m0 ->
                     begin match s0 with v1 :: VEnv (v2s) :: s ->
                       apply6 v0 v1 v2s c s t0 m0
                     end
-                  ) v1 (v1 :: VEnv (v2s) :: s) t1 m1
-              end
-            ) (VEnv (v2s)) (VEnv (v2s) :: s2s) t2s m2s
+                  ) v1 (v1 :: s1) t1 m1
+            ) (v2) (v2 :: s2) t2 m2
       ) a s t m
   | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc a [] TNil m
   | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc a [] TNil m
@@ -136,18 +134,16 @@ and f6t e xs vs vs_out c a s t m =
     end
   | App (e0, e1, e2s) ->
     f6st e2s xs vs vs_out (* expanding CApp2 (e0, e1, xs, c) *)
-      (fun (VEnv v2s) s2s t2s m2s ->
+      (fun v2 s2 t2 m2 ->
           f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
             (fun v1 s1 t1 m1 ->
-              begin match s1 with VEnv (v2s) :: s ->
                 f6 e0 xs vs (* expanding CApp0 (c) *)
                   (fun v0 s0 t0 m0 ->
                     begin match s0 with v1 :: VEnv (v2s) :: s ->
                       apply6 v0 v1 v2s c s t0 m0
                     end
-                  ) v1 (v1 :: VEnv (v2s) :: s) t1 m1
-              end
-            ) (VEnv (v2s)) (VEnv (v2s) :: s2s) t2s m2s
+                  ) v1 (v1 :: s1) t1 m1
+            ) v2 (v2 :: s2) t2 m2
       ) a s t m
   | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc a [] TNil m
   | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc a [] TNil m
