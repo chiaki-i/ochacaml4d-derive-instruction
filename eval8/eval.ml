@@ -122,7 +122,31 @@ let aux' = fun v2s vs_out c v1 s t m ->
   match s with VEnv (v2s) :: s ->
     c (VEnv (v1 :: v2s)) s t m
 
-(* f8 : e -> string list -> i' *)
+(* shift : i -> i *)
+let shift i = fun vs vs_out c a s t m ->
+  i (VContS (c, s, t) :: vs) vs_out idc a [] TNil m
+
+(* control : i -> i *)
+let control i = fun vs vs_out c a s t m ->
+  i (VContC (c, s, t) :: vs) vs_out idc a [] TNil m
+
+(* shift0 : i -> i *)
+let shift0 i = fun vs vs_out c a s t m -> match m with
+    MCons ((c0, s0, t0), m0) ->
+    i (VContS (c, s, t) :: vs) vs_out c0 a s0 t0 m0
+  | _ -> failwith "shift0 is used without enclosing reset"
+
+(* control0 : i -> i *)
+let control0 i = fun vs vs_out c a s t m -> match m with
+    MCons ((c0, s0, t0), m0) ->
+    i (VContC (c, s, t) :: vs) vs_out c0 a s0 t0 m0
+  | _ -> failwith "control0 is used without enclosing reset"
+
+(* reset : i -> i *)
+let reset i = fun vs vs_out c a s t m ->
+  i vs vs_out idc a [] TNil (MCons ((c, s, t), m))
+
+(* f8 : e -> string list -> i *)
 let rec f8 e xs = match e with
     Num (n) -> num n
   | Var (x) -> access (Env.offset x xs)
@@ -132,12 +156,11 @@ let rec f8 e xs = match e with
   | App (e0, e1, e2s) ->
     (* pushmark inserted by f8s *)
     (f8s e2s xs) >> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >> apply
-  | _ -> failwith "not implemented"
-  (* | Shift (x, e) -> shift (f8 e (x :: xs)) *)
-  (* | Control (x, e) -> control (f8 e (x :: xs)) *)
-  (* | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) *)
-  (* | Control0 (x, e) -> control0 (f8 e (x :: xs)) *)
-  (* | Reset (e) -> reset (f8 e xs) *)
+  | Shift (x, e) -> shift (f8 e (x :: xs))
+  | Control (x, e) -> control (f8 e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
+  | Control0 (x, e) -> control0 (f8 e (x :: xs))
+  | Reset (e) -> reset (f8 e xs)
 
 (* f8s : e -> string list -> env -> i *)
 and f8s es xs = match es with
@@ -154,12 +177,11 @@ and f8t e xs = match e with
   | Fun (x, e) -> grab (f8t e (x :: xs))
   | App (e0, e1, e2s) ->
     (f8st e2s xs) >>>> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >>> appterm
-  | _ -> failwith "not implemented"
-  (* | Shift (x, e) -> shift (f8 e (x :: xs)) *)
-  (* | Control (x, e) -> control (f8 e (x :: xs)) *)
-  (* | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) *)
-  (* | Control0 (x, e) -> control0 (f8 e (x :: xs)) *)
-  (* | Reset (e) -> reset (f8 e xs) *)
+  | Shift (x, e) -> shift (f8 e (x :: xs))
+  | Control (x, e) -> control (f8 e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
+  | Control0 (x, e) -> control0 (f8 e (x :: xs))
+  | Reset (e) -> reset (f8 e xs)
 
 and f8st es xs = match es with
     [] -> mark
@@ -168,40 +190,3 @@ and f8st es xs = match es with
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] [] idc (VNum 7) [] TNil MNil
-
-(*
-(* shift : i -> i *)
-let shift i = fun c s t m -> match s with
-    VEnv (vs) :: s -> i idc (VEnv (VContS (c, s, t) :: vs) :: []) TNil m
-  | _ -> failwith "stack error: shift"
-
-(* control : i -> i *)
-let control i = fun c s t m -> match s with
-    VEnv (vs) :: s -> i idc (VEnv (VContC (c, s, t) :: vs) :: []) TNil m
-  | _ -> failwith "stack error: control"
-
-(* shift0 : i -> i *)
-let shift0 i = fun c s t m -> match s with
-    VEnv (vs) :: s ->
-    begin match m with
-        MCons ((c0, s0, t0), m0) ->
-        i c0 (VEnv (VContS (c, s, t) :: vs) :: s0) t0 m0
-      | _ -> failwith "shift0 is used without enclosing reset"
-    end
-  | _ -> failwith "stack error: shift0"
-
-(* control0 : i -> i *)
-let control0 i = fun c s t m -> match s with
-    VEnv (vs) :: s ->
-    begin match m with
-        MCons ((c0, s0, t0), m0) ->
-        i c0 (VEnv (VContC (c, s, t) :: vs) :: s0) t0 m0
-      | _ -> failwith "control0 is used without enclosing reset"
-    end
-  | _ -> failwith "stack error: control0"
-
-(* reset : i -> i *)
-let reset i = fun c s t m -> match s with
-    VEnv (vs) :: s -> i idc (VEnv (vs) :: []) TNil (MCons ((c, s, t), m))
-  | _ -> failwith "stack error: reset"
-*)
