@@ -51,9 +51,9 @@ let apply8 v0 v1 v2s c s t m = match v0 with
                     ^ " is not a function; it cannot be applied.")
 
 (* return : i' -> i' *)
-let return i = fun vs vs_out c a s t m ->
+let return = fun vs vs_out c a s t m ->
   match vs_out with
-      [] -> i vs vs_out c a s t m
+      [] -> c a s t m
     | first :: rest -> apply8 a first rest c s t m
 
 (* num : int -> i *)
@@ -170,10 +170,10 @@ and f8s es xs = match es with
 
 (* f8t : e -> string list -> v list -> i' *)
 and f8t e xs = match e with
-    Num (n) -> return (num n)
-  | Var (x) -> return (access (Env.offset x xs))
+    Num (n) -> num n >> return
+  | Var (x) -> access (Env.offset x xs) >> return
   | Op (e0, op, e1) ->
-    (f8 e1 xs) >> push >> (f8 e0 xs) >>> return (operation (op))
+    (f8 e1 xs) >> push >> (f8 e0 xs) >>> operation (op) >> return
   | Fun (x, e) -> grab (f8t e (x :: xs))
   | App (e0, e1, e2s) ->
     (f8st e2s xs) >>>> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >>> appterm
