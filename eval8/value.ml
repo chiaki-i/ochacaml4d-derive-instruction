@@ -29,6 +29,9 @@ let rec to_string value = match value with
   | VEnv (_) -> "<VEnv>"
 (*   | VK (_) -> "<VK>" *)
 
+let vlist_of_string lst =
+  List.fold_left (fun s1 s2 -> s1 ^ " " ^ s2) "" (List.map to_string lst)
+
 (* Value.print : v -> unit *)
 let print exp =
   let str = to_string exp in
