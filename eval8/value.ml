@@ -17,7 +17,7 @@ and t = TNil | Trail of (v -> t -> m -> v)
 and m = MNil
       | MCons of (c * s * t) * m
 
-type i  = v list -> c -> v -> s -> t -> m -> v
+(* type i  = v list -> c -> v -> s -> t -> m -> v *)
 type i' = v list -> v list -> c -> v -> s -> t -> m -> v (* for tail call optimization *)
 
 (* to_string : v -> string *)
