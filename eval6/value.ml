@@ -7,7 +7,7 @@ type v = VNum of int
        | VContC of c * s * t
        | VEnv of v list
 
-and c = v -> s -> t -> m -> v
+and c = v -> v list -> s -> t -> m -> v
 
 and s = v list
 
