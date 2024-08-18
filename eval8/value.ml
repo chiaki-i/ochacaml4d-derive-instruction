@@ -6,6 +6,7 @@ type v = VNum of int
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
+       | VEmpty
        (* | VK of c *)
 
 and c = v -> s -> t -> m -> v

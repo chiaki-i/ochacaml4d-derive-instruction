@@ -45,8 +45,9 @@ let apply8 v0 v1 v2s c s t m = match v0 with
 (* return : i' -> i' *)
 let return = fun vs vs_out c a s t m ->
   match vs_out with
-      [] -> c a s t m
+      VEmpty :: [] -> c a s t m
     | first :: rest -> apply8 a first rest c s t m
+    | [] -> failwith "return error"
 
 (* num : int -> i' *)
 let num n = fun vs vs_out c a s t m -> c (VNum (n)) s t m
@@ -91,7 +92,7 @@ let operation op = fun vs vs_out c v0 s t m -> match s with
 
 (* pushmark : i' *)
 (* (特に f8 において) vs_out が空であるという情報を積む *)
-let pushmark = fun vs vs_out c a s t m -> c (VEnv ([])) s t m
+let pushmark = fun vs vs_out c a s t m -> c (VEnv [VEmpty]) s t m
 
 (* mark : i' *)
 (* pushmark ではなく普通の vs_out を積む *)
