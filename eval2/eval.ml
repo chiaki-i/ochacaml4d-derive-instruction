@@ -64,7 +64,6 @@ let rec run_c2 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | _ -> failwith "run_c2: unexpected continuation"
 (* runs_c2 : cs -> v list -> t -> m -> v *)
 (* cs receives v list instead of v *)
 and runs_c2 cs v2s t m = match cs with
@@ -72,7 +71,6 @@ and runs_c2 cs v2s t m = match cs with
     f2 e1 xs vs (CApp1 (e0, xs, vs, v2s, c)) t m
   | CAppS1 (first, xs, vs, cs) ->
     f2 first xs vs (CAppS0 (v2s, cs)) t m
-  | _ -> failwith "runs_c2: unexpected continuation"
 
 (* f2 : e -> string list -> v list -> c -> t -> m -> v *)
 and f2 e xs vs c t m = match e with
