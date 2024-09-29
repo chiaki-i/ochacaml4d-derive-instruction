@@ -4,7 +4,7 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> v list -> c -> t -> m -> v)
+       | VFun of (e * string * string list * v list)
        | VContS of c * t
        | VContC of c * t
 
@@ -14,11 +14,9 @@ and f = CApp0 of v * v list
       | CApp2 of e * e * string list * v list
       | CAppS0 of v list
       | CAppS1 of e * string list * v list
-      | CRet of v list
+      | CRet
       | COp0 of e * string list * v list * op
       | COp1 of v * op
-      | COp2 of e * string list * v list * v list * op
-      | COp3 of v * v list * op
 
 (* Continuation becomes a single list of frames *)
 and c = f list
