@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Stack-based interpreter : eval4 *)
+(* Stack-based interpreter with tail optimization : eval4 *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -30,7 +30,11 @@ let rec run_c4 c v s t m = match (c, s) with
     f4 e0 xs vs (CApp0 :: c) (v :: VEnv (v2s) :: s) t m
   | (CAppS0 :: cs, VEnv (v2s) :: s) ->
     runs_c4 cs (v :: v2s) s t m
-  | (CRet :: c, s) -> run_c4 c v s t m
+  | (CRet :: c, s) -> (* todo: s による場合分け *)
+    begin match s with
+        VMark :: s -> run_c4 c v s t m
+      | v1 :: v2s -> apply4 v v1 v2s c s t m
+    end
   | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
     f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
   | (COp1 (op) :: c, v0 :: s) ->
@@ -58,10 +62,11 @@ and runs_c4 c v s t m = match (c, s) with
 (* apply4 : v -> v -> v list -> c -> s -> t -> m -> v *)
 and apply4 v0 v1 v2s c s t m = match v0 with
     VFun (e, x, xs, vs) ->
-    begin match v2s with
-        [] -> f4t e (x :: xs) (v1 :: vs) c s t m
-      | first :: rest -> f4t e (x :: xs) (v1 :: vs) (CApp0 :: c) (first :: VEnv (rest) :: s) t m
-    end  | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
+      begin match v2s with
+          [] -> f4t e (x :: xs) (v1 :: vs) c s t m
+        | first :: rest -> f4t e (x :: xs) (v1 :: vs) (CApp0 :: c) (first :: VEnv (rest) :: s) t m
+      end
+    | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     run_c4 c' v1 s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
   | _ -> failwith (to_string v0
@@ -93,7 +98,7 @@ and f4 e xs vs c s t m = match e with
   | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
 (* f4s: e list -> string list -> v list -> c -> s -> t -> m *)
 and f4s es xs vs c s t m = match es with
-    [] -> runs_c4 c [] s t m
+    [] -> runs_c4 c [] (VMark :: s) t m (* todo: ここでスタックに mark を入れる *)
   | first :: rest ->
     f4s rest xs vs (CAppS1 (first, xs) :: c) (VEnv (vs) :: s) t m
 
@@ -121,7 +126,7 @@ and f4t e xs vs c s t m = match e with
     end
   | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
 and f4st e2s xs vs cs s t m = match e2s with
-    [] -> runs_c4 cs [] s t m
+    [] -> runs_c4 cs [] (VMark :: s) t m (* todo : ここにも Mark を入れる *)
   | first :: rest ->
     f4st rest xs vs (CAppS1 (first, xs) :: cs) (VEnv (vs) :: s) t m
 

@@ -1,6 +1,6 @@
 open Syntax
 
-(* Stack-based interpreter : eval4 *)
+(* Stack-based interpreter with tail optimization : eval4-tail *)
 
 (* Value *)
 type v = VNum of int
@@ -8,6 +8,7 @@ type v = VNum of int
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list (* VEnv: new constructor *)
+       | VMark
 
 and f = CApp0
       | CApp1 of e * string list
