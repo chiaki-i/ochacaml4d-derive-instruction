@@ -28,13 +28,21 @@ let rec run_c4 c v s t m = match (c, s) with
     apply4 v v1 v2s c s t m
   | (CApp1 (e0, xs) :: c, VEnv (v2s) :: VEnv (vs) :: s) ->
     f4 e0 xs vs (CApp0 :: c) (v :: VEnv (v2s) :: s) t m
+    (* stack から vs を取り出して env につっこむ Apply の動作*)
   | (CAppS0 :: cs, VEnv (v2s) :: s) ->
     runs_c4 cs (v :: v2s) s t m
+    (* stack から v 取り出して直接実行しにいく Appterm の動作 *)
   | (CRet :: c, s) -> (* todo: s による場合分け *)
     begin match s with
         VMark :: s -> run_c4 c v s t m
       | v1 :: v2s -> apply4 v v1 v2s c s t m
-    end
+   (* | v1 :: v2s ->
+        begin match v with
+            VEnv (env) -> failwith "here"
+          | _ -> apply4 v v1 v2s c s t m
+        end *)
+      | [] -> failwith "CRet stack error"
+     end
   | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
     f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
   | (COp1 (op) :: c, v0 :: s) ->
@@ -53,20 +61,29 @@ let rec run_c4 c v s t m = match (c, s) with
   | _ -> failwith "stack or cont error"
 (* runs_c4: c -> v list -> s -> t -> m -> v *)
 and runs_c4 c v s t m = match (c, s) with
-    (CApp2 (e0, e1, xs) :: c, VEnv (vs) :: s) ->
+    (CApp2 (e0, e1, xs) :: c, VMark :: VEnv (vs) :: s) ->
     f4 e1 xs vs (CApp1 (e0, xs) :: c) (VEnv (v) :: VEnv (vs) :: s) t m
-    (* ここでの v は e2 ... en の実行結果リスト *)
+  | (CApp2 (e0, e1, xs) :: c, VEnv (vs) :: s) ->
+    f4 e1 xs vs (CApp1 (e0, xs) :: c) (VEnv (v) :: VEnv (vs) :: s) t m
+  | (CAppS1 (first, xs) :: cs, VMark :: VEnv (vs) :: s) ->
+    f4 first xs vs (CAppS0 :: cs) (VEnv (v) :: s) t m
   | (CAppS1 (first, xs) :: cs, VEnv (vs) :: s) ->
     f4 first xs vs (CAppS0 :: cs) (VEnv (v) :: s) t m
+    (* failwith "runs_c4: CAppS1" *)
   | _ -> failwith "runs_c4: unexpected continuation or stack"
 (* apply4 : v -> v -> v list -> c -> s -> t -> m -> v *)
 and apply4 v0 v1 v2s c s t m = match v0 with
     VFun (e, x, xs, vs) ->
       begin match v2s with
-          [] -> f4t e (x :: xs) (v1 :: vs) c s t m
-        | first :: rest -> f4t e (x :: xs) (v1 :: vs) (CApp0 :: c) (first :: VEnv (rest) :: s) t m
+          [] -> (* Grab は arg-s が空かどうかによって場合分けできても良いと思うのだけど *)
+          begin match s with
+              VMark :: s -> failwith "vmark here?"
+            | _ -> f4t e (x :: xs) (v1 :: vs) c s t m
+          end
+        | first :: rest -> (* Cur *)
+          f4t e (x :: xs) (v1 :: vs) (CApp0 :: c) (first :: VEnv (rest) :: s) t m
       end
-    | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
+  | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     run_c4 c' v1 s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
   | _ -> failwith (to_string v0
@@ -126,7 +143,7 @@ and f4t e xs vs c s t m = match e with
     end
   | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
 and f4st e2s xs vs cs s t m = match e2s with
-    [] -> runs_c4 cs [] (VMark :: s) t m (* todo : ここにも Mark を入れる *)
+    [] -> runs_c4 cs [] s t m
   | first :: rest ->
     f4st rest xs vs (CAppS1 (first, xs) :: cs) (VEnv (vs) :: s) t m
 

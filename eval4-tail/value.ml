@@ -36,6 +36,7 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
+  | VMark -> "<VMark>"
 
 (* Value.print : v -> unit *)
 let print exp =
