@@ -20,6 +20,9 @@ eval*/lexer.ml
 eval*/parser.ml
 eval*/parser.mli
 
+# Unignore Makefile
+!*/Makefile
+
 # general
 *.annot
 *.cmo
