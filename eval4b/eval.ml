@@ -105,7 +105,7 @@ and f4 e xs vs c s t m = match s with
         f4 e1 xs vs (COp0 (e0, xs, op) :: c) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Fun (x, e) ->
         run_c4 c (VFun (fun v v2s c' s' t' m' ->
-          f4t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m')) (VArgs (vs_out) :: s) t m (* adding vs_out, change f4 to f4t *)
+          f4t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m')) (VArgs (vs_out) :: s) t m
       | App (e0, e1, e2s) ->
         f4s e2s xs vs (CApp2 (e0, e1, xs) :: c) (VArgs (vs_out) :: VArgs (vs) :: s) t m
       | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [VArgs (vs_out)] TNil m
@@ -131,7 +131,7 @@ and f4s es xs vs c s t m = match s with
     begin match es with
         [] -> runs_c4 c [] (VArgs (vs_out) :: s) t m
       | first :: rest ->
-        f4s rest xs vs (CAppS1 (first, xs) :: c) (VArgs (vs) :: s) t m
+        f4s rest xs vs (CAppS1 (first, xs) :: c) (VArgs (vs_out) :: VArgs (vs) :: s) t m
     end
   | _ -> failwith "f4s: vs_out is missing"
 
