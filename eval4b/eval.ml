@@ -32,7 +32,7 @@ let rec run_c4 c v s t m = match s with
         f4 e0 xs vs (CApp0 :: c) (VArgs (vs_out) :: v :: VArgs (v2s) :: s) t m
       | (CAppS0 :: cs, VArgs (v2s) :: s) ->
         runs_c4 cs (v :: v2s) (VArgs (vs_out) :: s) t m
-      | (CRet :: c, VArgs (vs_out) :: s) ->
+      | (CRet :: c, s) ->
         begin match vs_out with
             [] -> run_c4 c v (VArgs (vs_out) :: s) t m
           | first :: rest -> apply4 v first rest c (VArgs (vs_out) :: s) t m
@@ -52,18 +52,18 @@ let rec run_c4 c v s t m = match s with
             end
           | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
         end
-      | (COp2 (e0, xs, op) :: c, VEnv (vs) :: VArgs (vs_out) :: s) -> (* tail version *)
-        f4 e0 xs vs (COp3 (op) :: c) (VArgs (vs_out) :: v :: VArgs (vs_out) :: s) t m
-      | (COp3 (op) :: c, v0 :: VArgs (vs_out) :: s) -> (* tail version *)
+      | (COp2 (e0, xs, op) :: c, VEnv (vs) :: s) -> (* tail version *)
+        f4 e0 xs vs (COp3 (op) :: c) (VArgs (vs_out) :: v :: s) t m
+      | (COp3 (op) :: c, v0 :: s) -> (* tail version *)
         begin match (v, v0) with
             (VNum (n0), VNum (n1)) ->
             begin match op with
-                Plus -> run_c4 (CRet :: c) (VNum (n0 + n1)) (VArgs (vs_out) :: VArgs (vs_out) :: s) t m
-              | Minus -> run_c4 (CRet :: c) (VNum (n0 - n1)) (VArgs (vs_out) :: VArgs (vs_out) :: s) t m
-              | Times -> run_c4 (CRet :: c) (VNum (n0 * n1)) (VArgs (vs_out) :: VArgs (vs_out) :: s) t m
+                Plus -> run_c4 (CRet :: c) (VNum (n0 + n1)) (VArgs (vs_out) :: s) t m
+              | Minus -> run_c4 (CRet :: c) (VNum (n0 - n1)) (VArgs (vs_out) :: s) t m
+              | Times -> run_c4 (CRet :: c) (VNum (n0 * n1)) (VArgs (vs_out) :: s) t m
               | Divide ->
                 if n1 = 0 then failwith "Division by zero"
-                else run_c4 (CRet :: c) (VNum (n0 / n1)) (VArgs (vs_out) :: VArgs (vs_out) :: s) t m
+                else run_c4 (CRet :: c) (VNum (n0 / n1)) (VArgs (vs_out) :: s) t m
             end
           | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
         end
@@ -138,10 +138,10 @@ and f4s es xs vs c s t m = match s with
 and f4t e xs vs c s t m = match s with
   VArgs (vs_out) :: s ->
     begin match e with
-        Num (n) -> run_c4 (CRet :: c) (VNum (n)) (VArgs (vs_out) :: VArgs (vs_out) :: s) t m (* todo なんとかして汚いのをどうにかしたい *)
-      | Var (x) -> run_c4 (CRet :: c) (List.nth vs (Env.offset x xs)) (VArgs (vs_out) :: VArgs (vs_out) :: s) t m
+        Num (n) -> run_c4 (CRet :: c) (VNum (n)) (VArgs (vs_out) :: s) t m
+      | Var (x) -> run_c4 (CRet :: c) (List.nth vs (Env.offset x xs)) (VArgs (vs_out) :: s) t m
       | Op (e0, op, e1) ->
-        f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VArgs (vs_out) :: VEnv (vs) :: VArgs (vs_out) :: s) t m (* todo: これ明らかに冗長 *)
+        f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Fun (x, e) ->
         begin match vs_out with
             [] -> run_c4 c (VFun (fun v v2s c' s' t' m' ->
