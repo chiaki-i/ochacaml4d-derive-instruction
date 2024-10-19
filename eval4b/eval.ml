@@ -89,7 +89,7 @@ and apply4 v0 v1 v2s c s t m = match s with
         VFun (f) -> f v1 v2s c s t m
       | VContS (c', s', t') -> run_c4 c' v1 (VArgs (vs_out) :: s') t' (MCons ((c, s, t), m))
       | VContC (c', s', t') ->
-        run_c4 c' v1 (VArgs (vs_out) :: s') (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
+        run_c4 c' v1 (VArgs (vs_out) :: s') (apnd t' (cons (fun v t m -> run_c4 c v (VArgs (vs_out) :: s) t m) t)) m
       | _ -> failwith (to_string v0
                       ^ " is not a function; it can not be applied.")
     end
