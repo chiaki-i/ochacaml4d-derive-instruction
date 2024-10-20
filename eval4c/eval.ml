@@ -86,7 +86,7 @@ and runs_c4 c v s t m = match s with
 and apply4 v0 v1 v2s c s t m = match s with
   VArgs (vs_out) :: s ->
     begin match v0 with
-        VFun (f) -> f v1 v2s c s t m
+        VFun (f) -> f v1 c (VArgs (v2s) :: s) t m
       | VContS (c', s', t') -> run_c4 c' v1 (VArgs (vs_out) :: s') t' (MCons ((c, s, t), m))
       | VContC (c', s', t') ->
         run_c4 c' v1 (VArgs (vs_out) :: s') (apnd t' (cons (fun v t m -> run_c4 c v (VArgs (vs_out) :: s) t m) t)) m
@@ -104,8 +104,8 @@ and f4 e xs vs c s t m = match s with
       | Op (e0, op, e1) ->
         f4 e1 xs vs (COp0 (e0, xs, op) :: c) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Fun (x, e) ->
-        run_c4 c (VFun (fun v v2s c' s' t' m' ->
-          f4t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m'))
+        run_c4 c (VFun (fun v c' s' t' m' ->
+          f4t e (x :: xs) (v :: vs) c' s' t' m'))
             (VArgs (vs_out) :: s) t m
           (* todo: vs_out を落とす？ *)
       | App (e0, e1, e2s) ->
@@ -146,8 +146,8 @@ and f4t e xs vs c s t m = match s with
         f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Fun (x, e) ->
         begin match vs_out with
-            [] -> run_c4 c (VFun (fun v v2s c' s' t' m' ->
-              f4t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m'))
+            [] -> run_c4 c (VFun (fun v c' s' t' m' ->
+              f4t e (x :: xs) (v :: vs) c' s' t' m'))
                 (VArgs (vs_out) :: s) t m
               (* todo: s without vs_out: pop the mark from the arg stack *)
           | first :: rest ->
