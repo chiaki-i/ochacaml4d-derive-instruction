@@ -71,7 +71,7 @@ and f1s e2s xs vs c t m = match e2s with
       f1 first xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
 and apply1 v0 v1 vs_out c t m = match v0 with
-    VFun (f) -> f v1 vs_out c t m
+    VFun (f) -> f v1 vs_out c t m (* この vs_out は、f v1 という関数適用の外にある引数という意味での「クロージャの外側」*)
   | VContS (c', t') -> (* app1 をインライン展開しただけ *)
     let c =
       (fun f1 t1 m1 ->
@@ -119,9 +119,9 @@ and f1t e xs vs vs_out c t m =
             end) t0 m0) t m
   | Fun (x, e) ->
     begin match vs_out with
-        [] -> c (VFun (fun v1 vs_out c' t' m' ->
-                        f1t e (x :: xs) (v1 :: vs) vs_out c' t' m')) t m (* Grab *)
-      | first :: rest -> f1t e (x :: xs) (first :: vs) rest c t m
+        [] -> c (VFun (fun v1 v2s c' t' m' ->
+                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+      | first :: rest -> f1t e (x :: xs) (first :: vs) rest c t m (* Grab pops one arg from arg stack, pushes it onto the env *)
     end
   | App (e0, e1, e2s) ->
     f1st e2s xs vs vs_out (fun v2s t2 m2 -> (* Appterm *)
