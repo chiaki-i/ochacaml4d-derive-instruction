@@ -37,8 +37,8 @@ let rec f6 e xs vs c s t m = match s with
         Num (n) -> c (VNum (n)) (VArgs (vs_out) :: s) t m
       | Var (x) -> c (List.nth vs (Env.offset x xs)) (VArgs (vs_out) :: s) t m
       | Op (e0, op, e1) ->
-        f6 e1 xs vs (fun v1 s1 t1 m1 ->
-          f6 e0 xs vs (fun v0 s0 t0 m0 ->
+        f6 e1 xs vs (fun v1 (VArgs (vs_out') :: s1) t1 m1 ->
+          f6 e0 xs vs (fun v0 (VArgs (vs_out) :: s0) t0 m0 ->
             begin match s0 with v1 :: s0 ->
                 begin match (v0, v1) with
                     (VNum (n0), VNum (n1)) ->
@@ -54,7 +54,7 @@ let rec f6 e xs vs c s t m = match s with
                                   ^ " are not numbers")
                 end
               | _ -> failwith "stack error op1"
-            end) (VArgs (vs_out) :: v1 :: s1) t1 m1
+            end) (VArgs (vs_out') :: v1 :: s1) t1 m1
             ) (VArgs (vs_out) :: s) t m
       | Fun (x, e) ->
         c (VFun (fun v v2s c' s' t' m' ->
@@ -62,18 +62,18 @@ let rec f6 e xs vs c s t m = match s with
             (VArgs (vs_out) :: s) t m
       | App (e0, e1, e2s) ->
         f6s e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
-          (fun (VEnv (v2s)) s2s t2s m2s -> (* v2s = VEnv (_) の形 *)
+          (fun (VEnv (v2s)) (VArgs (vs_out2) :: s2s) t2s m2s -> (* v2s = VEnv (_) の形 *)
               f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
-                (fun v1 s1 t1 m1 ->
+                (fun v1 (VArgs (vs_out1) :: s1) t1 m1 ->
                   begin match s1 with VEnv (v2s) :: s ->
                     f6 e0 xs vs (* expanding CApp0 (c) *)
-                      (fun v0 s0 t0 m0 ->
+                      (fun v0 (VArgs (vs_out0) :: s0) t0 m0 ->
                         begin match s0 with v1 :: VEnv (v2s) :: s ->
-                          apply6 v0 v1 v2s c s t0 m0
+                          apply6 v0 v1 v2s c (VArgs (vs_out0) :: s) t0 m0
                         end
-                      ) (VArgs (vs_out) :: v1 :: VEnv (v2s) :: s) t1 m1
+                      ) (VArgs (vs_out1) :: v1 :: VEnv (v2s) :: s) t1 m1
                   end
-                ) (VArgs (vs_out) :: VEnv (v2s) :: s2s) t2s m2s
+                ) (VArgs (vs_out2) :: VEnv (v2s) :: s2s) t2s m2s
           ) (VArgs (vs_out) :: s) t m
       | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc [VArgs (vs_out)] TNil m
       | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc [VArgs (vs_out)] TNil m
@@ -100,13 +100,13 @@ and f6s es xs vs c s t m = match s with
         [] -> c (VEnv ([])) (VArgs (vs_out) :: s) t m (* todo: introduce VMark *)
       | first :: rest ->
         f6s rest xs vs (* expanding CAppS1 (first, xs, c) *)
-          (fun (VEnv (v2s)) s2 t2 m2 ->
+          (fun (VEnv (v2s)) (VArgs (vs_out2) :: s2) t2 m2 ->
               f6 first xs vs (* expanding CAppS0 (cs) *)
-                (fun v1 s1 t1 m1 ->
+                (fun v1 (VArgs (vs_out1) :: s1) t1 m1 ->
                   begin match s1 with VEnv (v2s) :: s ->
-                    c (VEnv (v1 :: v2s)) (VArgs (vs_out) :: s) t1 m1
+                    c (VEnv (v1 :: v2s)) (VArgs (vs_out1) :: s) t1 m1
                   end
-                ) (VArgs (vs_out) :: VEnv (v2s) :: s2) t2 m2
+                ) (VArgs (vs_out2) :: VEnv (v2s) :: s2) t2 m2
           ) (VArgs (vs_out) :: s) t m
       end
     | _ -> failwith "f6s: vs_out is missing"
@@ -125,8 +125,8 @@ and f6t e xs vs c s t m = match s with
         Num (n) -> ret c (VNum (n)) (VArgs (vs_out) :: s) t m
       | Var (x) -> ret c (List.nth vs (Env.offset x xs)) (VArgs (vs_out) :: s) t m
       | Op (e0, op, e1) ->
-        f6 e1 xs vs (fun v1 s1 t1 m1 ->
-            f6 e0 xs vs (fun v0 s0 t0 m0 ->
+        f6 e1 xs vs (fun v1 (VArgs (vs_out') :: s1) t1 m1 ->
+            f6 e0 xs vs (fun v0 (VArgs (vs_out) :: s0) t0 m0 ->
                 begin match s0 with
                     v1 :: s0 ->
                     begin match (v0, v1) with
@@ -143,7 +143,7 @@ and f6t e xs vs c s t m = match s with
                                         ^ " are not numbers")
                     end
                   | _ -> failwith "stack error op1"
-                end) (VArgs (vs_out) :: v1 :: s1) t1 m1
+                end) (VArgs (vs_out') :: v1 :: s1) t1 m1
             ) (VArgs (vs_out) :: s) t m
       | Fun (x, e) ->
         begin match vs_out with
@@ -154,18 +154,18 @@ and f6t e xs vs c s t m = match s with
         end
       | App (e0, e1, e2s) ->
         f6st e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
-          (fun (VEnv v2s) s2s t2s m2s ->
+          (fun (VEnv v2s) (VArgs (vs_out2) :: s2s) t2s m2s ->
               f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
-                (fun v1 s1 t1 m1 ->
+                (fun v1 (VArgs (vs_out1) :: s1) t1 m1 ->
                   begin match s1 with VEnv (v2s) :: s ->
                     f6 e0 xs vs (* expanding CApp0 (c) *)
-                      (fun v0 s0 t0 m0 ->
+                      (fun v0 (VArgs (vs_out0) :: s0) t0 m0 ->
                         begin match s0 with v1 :: VEnv (v2s) :: s ->
-                          apply6 v0 v1 v2s c s t0 m0
+                          apply6 v0 v1 v2s c (VArgs (vs_out0) :: s) t0 m0
                         end
-                      ) (VArgs (vs_out) :: v1 :: VEnv (v2s) :: s) t1 m1
+                      ) (VArgs (vs_out1) :: v1 :: VEnv (v2s) :: s) t1 m1
                   end
-                ) (VArgs (vs_out) :: VEnv (v2s) :: s2s) t2s m2s
+                ) (VArgs (vs_out2) :: VEnv (v2s) :: s2s) t2s m2s
           ) (VArgs (vs_out) :: s) t m
       | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc [VArgs (vs_out)] TNil m
       | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc [VArgs (vs_out)] TNil m
@@ -190,13 +190,13 @@ and f6st e2s xs vs c s t m = match s with
         [] -> c (VEnv vs_out) (VArgs (vs_out) :: s) t m
       | first :: rest ->
         f6st rest xs vs (* expanding CAppS1 (first, xs, c) *)
-          (fun (VEnv v2s) s2 t2 m2 ->
+          (fun (VEnv v2s) (VArgs (vs_out2) :: s2) t2 m2 ->
               f6 first xs vs (* expanding CAppS0 (c) *)
-                (fun v1 s1 t1 m1 ->
+                (fun v1 (VArgs (vs_out1) :: s1) t1 m1 ->
                   begin match s1 with VEnv (v2s) :: s ->
-                    c (VEnv (v1 :: v2s)) (VArgs (vs_out) :: s) t1 m1
+                    c (VEnv (v1 :: v2s)) (VArgs (vs_out1) :: s) t1 m1
                   end
-                ) (VArgs (vs_out) :: VEnv (v2s) :: s2) t2 m2
+                ) (VArgs (vs_out2) :: VEnv (v2s) :: s2) t2 m2
           ) (VArgs (vs_out) :: s) t m
     end
   | _ -> failwith "f6st: vs_out is missing"
