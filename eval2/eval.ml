@@ -30,8 +30,12 @@ let rec run_c2 c v t m = match c with
   | CApp0 (v1, v2s, c) -> apply2 v v1 v2s c t m
   | CApp1 (e0, xs, vs, v2s, c) -> (* vs, v2s are dynamic data *)
     f2 e0 xs vs (CApp0 (v, v2s, c)) t m
-  | CAppS0 (v2s, c) -> runs_c2 c (v :: v2s) t m
-  | CRet (c) -> run_c2 c v t m
+  | CAppS0 (v2s, cs) -> runs_c2 cs (v :: v2s) t m
+  | CRet (vs_out, c) ->
+    begin match vs_out with
+        [] -> run_c2 c v t m
+      | first :: rest -> apply2 v first rest c t m
+    end
   | COp0 (e0, xs, vs, op, c) -> f2 e0 xs vs (COp1 (v, op, c)) t m
   | COp1 (v0, op, c) ->
     begin match (v, v0) with
@@ -46,7 +50,21 @@ let rec run_c2 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-(* runs_c2 : c -> v list -> t -> m -> v *)
+  | COp2 (e0, xs, vs, vs_out, op, c) -> f2 e0 xs vs (COp3 (v, vs_out, op, c)) t m (* tail version *)
+  | COp3 (v0, vs_out, op, c) -> (* tail version *)
+    begin match (v, v0) with
+        (VNum (n0), VNum (n1)) ->
+        begin match op with
+            Plus -> run_c2 (CRet (vs_out, c)) (VNum (n0 + n1)) t m
+          | Minus -> run_c2 (CRet (vs_out, c)) (VNum (n0 - n1)) t m
+          | Times -> run_c2 (CRet (vs_out, c)) (VNum (n0 * n1)) t m
+          | Divide ->
+            if n1 = 0 then failwith "Division by zero"
+            else run_c2 (CRet (vs_out, c)) (VNum (n0 / n1)) t m
+        end
+      | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
+    end
+(* runs_c2 : cs -> v list -> t -> m -> v *)
 (* cs receives v list instead of v *)
 and runs_c2 cs v2s t m = match cs with
     CApp2 (e0, e1, xs, vs, c) ->
@@ -59,7 +77,9 @@ and f2 e xs vs c t m = match e with
     Num (n) -> run_c2 c (VNum (n)) t m
   | Var (x) -> run_c2 c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) -> f2 e1 xs vs (COp0 (e0, xs, vs, op, c)) t m
-  | Fun (x, e) -> run_c2 c (VFun (e, x, xs, vs)) t m
+  | Fun (x, e) ->
+    run_c2 c (VFun (fun v1 vs_out c' t' m' -> (* adding vs_out *)
+      f2t e (x :: xs) (v1 :: vs) vs_out c' t' m')) t m (* change f2 to f2t *)
   | App (e0, e1, e2s) ->
     f2s e2s xs vs (CApp2 (e0, e1, xs, vs, c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
@@ -83,12 +103,8 @@ and f2s e2s xs vs cs t m = match e2s with
     f2s rest xs vs (CAppS1 (first, xs, vs, cs)) t m
 
 (* apply2 : v -> v -> v list -> c -> t -> m -> v *)
-and apply2 v0 v1 v2s c t m = match v0 with
-    VFun (e, x, xs, vs) ->
-    begin match v2s with
-        [] -> f2t e (x :: xs) (v1 :: vs) c t m
-      | first :: rest -> f2t e (x :: xs) (v1 :: vs) (CApp0 (first, rest, c)) t m
-    end
+and apply2 v0 v1 vs_out c t m = match v0 with
+    VFun (f) -> f v1 vs_out c t m
   | VContS (c', t') -> run_c2 c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     run_c2 c' v1 (apnd t' (cons (fun v t m -> run_c2 c v t m) t)) m
@@ -96,14 +112,23 @@ and apply2 v0 v1 v2s c t m = match v0 with
                    ^ " is not a function; it cannot be applied.")
 
 (* f2t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
-and f2t e xs vs c t m =
+and f2t e xs vs vs_out c t m =
+  (* この ret は使われず、代わりに CRet を使う *)
+  (* let ret v t m = match vs_out with
+      [] -> run_c2 c v t m
+    | first :: rest -> apply2 v first rest c t m in *)
   match e with
-    Num (n) -> run_c2 (CRet (c)) (VNum (n)) t m
-  | Var (x) -> run_c2 (CRet (c)) (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) -> f2 e1 xs vs (COp0 (e0, xs, vs, op, c)) t m
-  | Fun (x, e) -> run_c2 c (VFun (e, x, xs, vs)) t m
+    Num (n) -> run_c2 (CRet (vs_out, c)) (VNum (n)) t m
+  | Var (x) -> run_c2 (CRet (vs_out, c)) (List.nth vs (Env.offset x xs)) t m
+  | Op (e0, op, e1) -> f2 e1 xs vs (COp2 (e0, xs, vs, vs_out, op, c)) t m
+  | Fun (x, e) ->
+    begin match vs_out with
+        [] -> run_c2 c (VFun (fun v1 vs_out c' t' m' ->
+                f2t e (x :: xs) (v1 :: vs) vs_out c' t' m')) t m
+      | first :: rest -> f2t e (x :: xs) (first :: vs) rest c t m
+    end
   | App (e0, e1, e2s) ->
-    f2st e2s xs vs (CApp2 (e0, e1, xs, vs, c)) t m (* Appterm calls f2s, Apply calls f2st *)
+    f2st e2s xs vs vs_out (CApp2 (e0, e1, xs, vs, c)) t m (* Appterm と Apply の違いは、（実装上は）f2s と f2st のどちらを呼び出すか *)
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -117,10 +142,10 @@ and f2t e xs vs c t m =
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f2 e xs vs idc TNil (MCons ((c, t), m))
-and f2st e2s xs vs c t m = match e2s with
-    [] -> runs_c2 c [] t m
+and f2st e2s xs vs vs_out cs t m = match e2s with
+    [] -> runs_c2 cs vs_out t m
   | first :: rest ->
-    f2st rest xs vs (CAppS1 (first, xs, vs, c)) t m
+    f2st rest xs vs vs_out (CAppS1 (first, xs, vs, cs)) t m
 
 (* f : e -> v *)
 let f expr = f2 expr [] [] idc TNil MNil
