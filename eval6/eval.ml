@@ -57,7 +57,7 @@ let rec f6 e xs vs c s t m = match s with
             end) (VArgs (vs_out') :: v1 :: s1) t1 m1
             ) (VArgs (vs_out) :: s) t m
       | Fun (x, e) ->
-        c (VFun (fun v v2s c' s' t' m' ->
+        c (VFun (fun v v2s c' s' t' m' -> (* todo: v2s を s' に積むと良い *)
           f6t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m'))
             (VArgs (vs_out) :: s) t m
       | App (e0, e1, e2s) ->
@@ -149,7 +149,7 @@ and f6t e xs vs c s t m = match s with
         begin match vs_out with
             [] -> c (VFun (fun v v2s c' s' t' m' ->
                     f6t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m'))
-                    (VArgs (vs_out) :: s) t m
+                    (VArgs (vs_out) :: s) t m (* todo: ここの vs_out 捨てる。Applyする時に1つ余計に push されているから辻褄あう *)
           | first :: rest -> f6t e (x :: xs) (first :: vs) c (VArgs (rest) :: s) t m
         end
       | App (e0, e1, e2s) ->
@@ -161,7 +161,7 @@ and f6t e xs vs c s t m = match s with
                     f6 e0 xs vs (* expanding CApp0 (c) *)
                       (fun v0 (VArgs (vs_out0) :: s0) t0 m0 ->
                         begin match s0 with v1 :: VEnv (v2s) :: s ->
-                          apply6 v0 v1 v2s c (VArgs (vs_out0) :: s) t0 m0
+                          apply6 v0 v1 v2s c (VArgs (vs_out0) :: s) t0 m0 (* todo: v2s, vs_out, s の順番で積む *)
                         end
                       ) (VArgs (vs_out1) :: v1 :: VEnv (v2s) :: s) t1 m1
                   end
@@ -206,6 +206,7 @@ and apply6 v0 v1 v2s c s t m = match s with
   VArgs (vs_out) :: s ->
     begin match v0 with
         VFun (f) -> f v1 v2s c s t m
+        (* todo: v2s を s の上に積む。vs_out の変換とは別にする？eval4c のように新たなディレクトリ作る？ *)
       | VContS (c', s', t') -> c' v1 s' t' (MCons ((c, s, t), m))
       | VContC (c', s', t') ->
         c' v1 s' (apnd t' (cons (fun v t m -> c v (VArgs (vs_out) :: s) t m) t)) m
