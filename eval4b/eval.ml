@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Stack-based interpreter : eval4 *)
+(* Stack-based interpreter, vs_out on top of the stack: eval4b *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -91,7 +91,7 @@ and f4 e xs vs c s t m = match e with
     f4 e1 xs vs (COp0 (e0, xs, op) :: c) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
     run_c4 c (VFun (fun v vs_out c' s' t' m' ->
-      f4t e (x :: xs) (v :: vs) vs_out c' s' t' m')) s t m (* adding vs_out, change f4 to f4t *)
+      f4t e (x :: xs) (v :: vs) c' (VArgs (vs_out) :: s') t' m')) s t m
   | App (e0, e1, e2s) ->
     f4s e2s xs vs (CApp2 (e0, e1, xs) :: c) (VArgs (vs) :: s) t m
   | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
@@ -115,38 +115,46 @@ and f4s es xs vs c s t m = match es with
   | first :: rest ->
     f4s rest xs vs (CAppS1 (first, xs) :: c) (VArgs (vs) :: s) t m
 
-and f4t e xs vs vs_out c s t m = match e with
-    Num (n) -> run_c4 (CRet :: c) (VNum (n)) (VArgs (vs_out) :: s) t m
-  | Var (x) -> run_c4 (CRet :: c) (List.nth vs (Env.offset x xs)) (VArgs (vs_out) :: s) t m
-  | Op (e0, op, e1) ->
-    f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VEnv (vs) :: VArgs (vs_out) :: s) t m
-  | Fun (x, e) ->
-    begin match vs_out with
-        [] -> run_c4 c (VFun (fun v vs_out c' s' t' m' ->
-                f4t e (x :: xs) (v :: vs) vs_out c' s' t' m')) s t m (* adding vs_out, change f4 to f4t *)
-      | first :: rest -> f4t e (x :: xs) (first :: vs) rest c s t m
+and f4t e xs vs c s t m =
+  match s with (VArgs (vs_out) :: s) ->
+    begin match e with
+        Num (n) -> run_c4 (CRet :: c) (VNum (n)) (VArgs (vs_out) :: s) t m
+      | Var (x) -> run_c4 (CRet :: c) (List.nth vs (Env.offset x xs)) (VArgs (vs_out) :: s) t m
+      | Op (e0, op, e1) ->
+        f4 e1 xs vs (COp2 (e0, xs, op) :: c) (VEnv (vs) :: VArgs (vs_out) :: s) t m
+      | Fun (x, e) ->
+        begin match vs_out with
+            [] -> run_c4 c (VFun (fun v vs_out c' s' t' m' ->
+                    f4t e (x :: xs) (v :: vs) c' (VArgs (vs_out) :: s') t' m')) s t m
+          | first :: rest -> f4t e (x :: xs) (first :: vs) c (VArgs (rest) :: s) t m
+        end
+      | App (e0, e1, e2s) ->
+        f4st e2s xs vs (CApp2 (e0, e1, xs) :: c) (VArgs (vs_out) :: VArgs (vs) :: s) t m
+      | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
+      | Control (x, e) -> f4 e (x :: xs) (VContC (c, s, t) :: vs) [] [] TNil m
+      | Shift0 (x, e) ->
+        begin match m with
+            MCons ((c0, s0, t0), m0) ->
+            f4 e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
+          | _ -> failwith "shift0 is used without enclosing reset"
+        end
+      | Control0 (x, e) ->
+        begin match m with
+            MCons ((c0, s0, t0), m0) ->
+            f4 e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
+          | _ -> failwith "control0 is used without enclosing reset"
+        end
+      | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
     end
-  | App (e0, e1, e2s) ->
-    f4st e2s xs vs vs_out (CApp2 (e0, e1, xs) :: c) (VArgs (vs) :: s) t m
-  | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
-  | Control (x, e) -> f4 e (x :: xs) (VContC (c, s, t) :: vs) [] [] TNil m
-  | Shift0 (x, e) ->
-    begin match m with
-        MCons ((c0, s0, t0), m0) ->
-        f4 e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
-      | _ -> failwith "shift0 is used without enclosing reset"
+  | _ -> failwith "f4t: missing vs_out"
+and f4st e2s xs vs cs s t m =
+  match s with (VArgs (vs_out) :: s) ->
+    begin match e2s with
+        [] -> runs_c4 cs vs_out s t m
+      | first :: rest ->
+        f4st rest xs vs (CAppS1 (first, xs) :: cs) (VArgs (vs) :: s) t m
     end
-  | Control0 (x, e) ->
-    begin match m with
-        MCons ((c0, s0, t0), m0) ->
-        f4 e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
-      | _ -> failwith "control0 is used without enclosing reset"
-    end
-  | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
-and f4st e2s xs vs vs_out cs s t m = match e2s with
-    [] -> runs_c4 cs vs_out s t m
-  | first :: rest ->
-    f4st rest xs vs vs_out (CAppS1 (first, xs) :: cs) (VArgs (vs) :: s) t m
+  | _ -> failwith "f4st: missing vs_out"
 
 
     (* f : e -> v *)
