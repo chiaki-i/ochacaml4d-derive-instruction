@@ -25,7 +25,7 @@ let rec run_c4 c v s t m = match (c, s) with
       | Trail (h) -> h v TNil m
     end
   | (CApp0 :: c, v1 :: VArgs (v2s) :: s) ->
-    apply4 v v1 v2s c s t m
+    apply4 v v1 c (VArgs (v2s) :: s) t m
   | (CApp1 (e0, xs) :: c, VArgs (v2s) :: VEnv (vs) :: s) ->
     f4 e0 xs vs (CApp0 :: c) (v :: VArgs (v2s) :: s) t m
   | (CAppS0 :: cs, VArgs (v2s) :: s) ->
@@ -33,7 +33,7 @@ let rec run_c4 c v s t m = match (c, s) with
   | (CRet :: c, VArgs (vs_out) :: s) ->
     begin match vs_out with
         [] -> run_c4 c v s t m
-      | first :: rest -> apply4 v first rest c s t m
+      | first :: rest -> apply4 v first c (VArgs (rest) :: s) t m
     end
   | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
     f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
@@ -75,13 +75,16 @@ and runs_c4 c v s t m = match (c, s) with
     f4 first xs vs (CAppS0 :: cs) (VArgs (v) :: s) t m
   | _ -> failwith "runs_c4: unexpected continuation or stack"
 (* apply4 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply4 v0 v1 vs_out c s t m = match v0 with
-    VFun (f) -> f v1 vs_out c s t m
-  | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
-  | VContC (c', s', t') ->
-    run_c4 c' v1 s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+and apply4 v0 v1 c s t m = match s with (VArgs (v2s) :: s) ->
+  begin match v0 with
+      VFun (f) -> f v1 v2s c s t m
+    | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
+    | VContC (c', s', t') ->
+      run_c4 c' v1 s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
+    | _ -> failwith (to_string v0
+                    ^ " is not a function; it can not be applied.")
+  end
+  | _ -> failwith "apply4: missing v2s"
 
 (* f4 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f4 e xs vs c s t m = match e with
