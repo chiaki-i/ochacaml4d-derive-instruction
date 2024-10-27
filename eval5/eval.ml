@@ -27,7 +27,7 @@ let rec run_c5 c v s t m = match s with
           | Trail (h) -> h v TNil m
         end
       | (CApp0 (c), v1 :: VEnv (v2s) :: s) ->
-        apply5 v v1 v2s c (VArgs (vs_out) :: s) t m
+        apply5 v v1 c (VArgs (vs_out) :: VArgs (v2s) :: s) t m
       | (CApp1 (e0, xs, c), VEnv (v2s) :: VEnv (vs) :: s) ->
         f5 e0 xs vs (CApp0 (c)) (VArgs (vs_out) :: v :: VEnv (v2s) :: s) t m
       | (CAppS0 (cs), VEnv (v2s) :: s) ->
@@ -35,7 +35,7 @@ let rec run_c5 c v s t m = match s with
       | (CRet (c), s) ->
         begin match vs_out with
             [] -> run_c5 c v (VArgs (vs_out) :: s) t m
-          | first :: rest -> apply5 v first rest c (VArgs (vs_out) :: s) t m
+          | first :: rest -> apply5 v first c (VArgs (vs_out) :: VArgs (rest) :: s) t m
         end
       | (COp0 (e0, xs, op, c), VEnv (vs) :: s) ->
         f5 e0 xs vs (COp1 (op, c)) (VArgs (vs_out) :: v :: s) t m
@@ -81,11 +81,11 @@ and runs_c5 c v s t m = match s with
       | _ -> failwith "runs_c5: unexpected continuation or stack"
     end
   | _ -> failwith "runs_c5: vs_out is missing"
-(* apply5 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply5 v0 v1 v2s c s t m = match s with
-  VArgs (vs_out) :: s ->
+(* apply5 : v -> v -> c -> s -> t -> m -> v *)
+and apply5 v0 v1 c s t m = match s with
+  VArgs (vs_out) :: VArgs (v2s) :: s ->
     begin match v0 with
-        VFun (f) -> f v1 v2s c s t m
+        VFun (f) -> f v1 c (VArgs (v2s) :: s) t m
       | VContS (c', s', t') -> run_c5 c' v1 (VArgs (vs_out) :: s') t' (MCons ((c, s, t), m))
       | VContC (c', s', t') ->
         run_c5 c' v1 (VArgs (vs_out) :: s') (apnd t' (cons (fun v t m -> run_c5 c v (VArgs (vs_out) :: s) t m) t)) m
@@ -103,8 +103,8 @@ and f5 e xs vs c s t m = match s with
       | Op (e0, op, e1) ->
         f5 e1 xs vs (COp0 (e0, xs, op, c)) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Fun (x, e) ->
-        run_c5 c (VFun (fun v v2s c' s' t' m' ->
-          f5t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m')) (VArgs (vs_out) :: s) t m
+        run_c5 c (VFun (fun v c' s' t' m' ->
+          f5t e (x :: xs) (v :: vs) c' s' t' m')) (VArgs (vs_out) :: s) t m
       | App (e0, e1, e2s) ->
         f5s e2s xs vs (CApp2 (e0, e1, xs, c)) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, t) :: vs) C0 [VArgs (vs_out)] TNil m
@@ -143,8 +143,8 @@ and f5t e xs vs c s t m = match s with
         f5 e1 xs vs (COp2 (e0, xs, op, c)) (VArgs (vs_out) :: VEnv (vs) :: s) t m
       | Fun (x, e) ->
         begin match vs_out with
-            [] -> run_c5 c (VFun (fun v v2s c' s' t' m' ->
-                    f5t e (x :: xs) (v :: vs) c' (VArgs (v2s) :: s') t' m')) (VArgs (vs_out) :: s) t m
+            [] -> run_c5 c (VFun (fun v c' s' t' m' ->
+                    f5t e (x :: xs) (v :: vs) c' s' t' m')) (VArgs (vs_out) :: s) t m
           | first :: rest -> f5t e (x :: xs) (first :: vs) c (VArgs (rest) :: s) t m
         end
       | App (e0, e1, e2s) ->
