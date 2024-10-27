@@ -27,7 +27,7 @@ let rec run_c4 c v s t m = match s with
           | Trail (h) -> h v TNil m
         end
       | (CApp0 :: c, v1 :: VArgs (v2s) :: s) ->
-        apply4 v v1 v2s c (VArgs (vs_out) :: s) t m
+        apply4 v v1 c (VArgs (vs_out) :: VArgs (v2s) :: s) t m
       | (CApp1 (e0, xs) :: c, VArgs (v2s) :: VEnv (vs) :: s) ->
         f4 e0 xs vs (CApp0 :: c) (VArgs (vs_out) :: v :: VArgs (v2s) :: s) t m
       | (CAppS0 :: cs, VArgs (v2s) :: s) ->
@@ -35,7 +35,7 @@ let rec run_c4 c v s t m = match s with
       | (CRet :: c, s) ->
         begin match vs_out with
             [] -> run_c4 c v (VArgs (vs_out) :: s) t m
-          | first :: rest -> apply4 v first rest c (VArgs (vs_out) :: s) t m
+          | first :: rest -> apply4 v first c (VArgs (vs_out) :: VArgs (rest) :: s) t m (* failwith "CRet: not empty" *)
         end
       | (COp0 (e0, xs, op) :: c, VEnv (vs) :: s) ->
         f4 e0 xs vs (COp1 (op) :: c) (VArgs (vs_out) :: v :: s) t m
@@ -82,9 +82,9 @@ and runs_c4 c v s t m = match s with
       | _ -> failwith "runs_c4: unexpected continuation or stack"
     end
   | _ -> failwith "runs_c4: vs_out is missing"
-(* apply4 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply4 v0 v1 v2s c s t m = match s with
-  VArgs (vs_out) :: s ->
+(* apply4 : v -> v -> c -> s -> t -> m -> v *)
+and apply4 v0 v1 c s t m = match s with
+  VArgs (vs_out) :: VArgs (v2s) :: s ->
     begin match v0 with
         VFun (f) -> f v1 c (VArgs (v2s) :: s) t m
       | VContS (c', s', t') -> run_c4 c' v1 (VArgs (vs_out) :: s') t' (MCons ((c, s, t), m))
@@ -150,7 +150,7 @@ and f4t e xs vs c s t m = match s with
               f4t e (x :: xs) (v :: vs) c' s' t' m'))
                 (VArgs (vs_out) :: s) t m
               (* todo: s without vs_out: pop the mark from the arg stack *)
-          | first :: rest ->
+          | first :: rest -> (* failwith "f4t Grab: not empty" *)
             f4t e (x :: xs) (first :: vs) c (VArgs (rest) :: s) t m
         end
       | App (e0, e1, e2s) ->
