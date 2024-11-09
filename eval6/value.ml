@@ -6,6 +6,7 @@ type v = VNum of int
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
+       | VArgs of v list
 
 and c = v -> s -> t -> m -> v
 
@@ -24,6 +25,7 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
+  | VArgs (_) -> "<VArgs>"
 
 (* Value.print : v -> unit *)
 let print exp =
