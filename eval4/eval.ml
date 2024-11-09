@@ -146,7 +146,7 @@ and f4t e xs vs vs_out c s t m = match e with
 and f4st e2s xs vs vs_out cs s t m = match e2s with
     [] -> runs_c4 cs vs_out s t m
   | first :: rest ->
-    f4st rest xs vs vs_out (CAppS1 (first, xs) :: cs) (VArgs (vs) :: s) t m
+    f4st rest xs vs vs_out (CAppS1 (first, xs) :: cs) (VArgs (vs_out) :: VArgs (vs) :: s) t m
 
 
     (* f : e -> v *)

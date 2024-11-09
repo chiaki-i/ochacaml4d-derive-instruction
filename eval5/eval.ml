@@ -154,7 +154,7 @@ and f5st e2s xs vs cs s t m =
     begin match e2s with
         [] -> runs_c5 cs vs_out s t m
       | first :: rest ->
-        f5st rest xs vs (CAppS1 (first, xs, cs)) (VArgs (vs) :: s) t m
+        f5st rest xs vs (CAppS1 (first, xs, cs)) (VArgs (vs_out) :: VArgs (vs) :: s) t m
     end
   | _ -> failwith "f5st: missing vs_out"
 

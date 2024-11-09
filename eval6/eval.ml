@@ -145,7 +145,7 @@ and f6t e xs vs c s t m =
         | first :: rest -> f6t e (x :: xs) (first :: vs) c (VArgs (rest) :: s) t m
       end
     | App (e0, e1, e2s) ->
-      f6st e2s xs vs vs_out (* expanding CApp2 (e0, e1, xs, c) *)
+      f6st e2s xs vs (* expanding CApp2 (e0, e1, xs, c) *)
         (fun v2s s2s t2s m2s ->
           begin match s2s with VEnv (vs) :: s ->
             f6 e1 xs vs (* expanding CApp1 (e0, xs, c) *)
@@ -160,7 +160,7 @@ and f6t e xs vs c s t m =
                 end
               ) (VEnv (v2s) :: VEnv (vs) :: s) t2s m2s
           end
-        ) (VEnv (vs) :: s) t m
+        ) (VArgs (vs_out) :: VEnv (vs) :: s) t m
     | Shift (x, e) -> f6 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
     | Control (x, e) -> f6 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
     | Shift0 (x, e) ->
@@ -177,20 +177,22 @@ and f6t e xs vs c s t m =
       end
     | Reset (e) -> f6 e xs vs idc [] TNil (MCons ((c, s, t), m))
     end
-and f6st e2s xs vs vs_out cs s t m = match e2s with
-    [] -> cs vs_out s t m
-  | first :: rest ->
-    f6st rest xs vs vs_out (* expanding CAppS1 (first, xs, c) *)
-      (fun v1 s1 t1 m1 ->
-        begin match s1 with VEnv (vs) :: s ->
-          f6 first xs vs (* expanding CAppS0 (cs) *)
-            (fun v2 s2 t2 m2 ->
-              begin match s2 with VEnv (v2s) :: s ->
-                cs (v2 :: v2s) s t2 m2
-              end
-            ) (VEnv (v1) :: s) t1 m1
-        end
-      ) (VEnv (vs) :: s) t m
+and f6st e2s xs vs cs s t m = match s with (VArgs (vs_out) :: s) ->
+  begin match e2s with
+      [] -> cs vs_out s t m
+    | first :: rest ->
+      f6st rest xs vs (* expanding CAppS1 (first, xs, c) *)
+        (fun v1 s1 t1 m1 ->
+          begin match s1 with VEnv (vs) :: s ->
+            f6 first xs vs (* expanding CAppS0 (cs) *)
+              (fun v2 s2 t2 m2 ->
+                begin match s2 with VEnv (v2s) :: s ->
+                  cs (v2 :: v2s) s t2 m2
+                end
+              ) (VEnv (v1) :: s) t1 m1
+          end
+        ) (VArgs (vs_out) :: VEnv (vs) :: s) t m
+    end
 
 (* apply6 : v -> v -> v list -> c -> s -> t -> m -> v *)
 and apply6 v0 v1 c s t m = match s with (VArgs (v2s) :: s) ->
