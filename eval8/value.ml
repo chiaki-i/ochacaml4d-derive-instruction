@@ -6,8 +6,7 @@ type v = VNum of int
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
-       | VEmpty
-       (* | VK of c *)
+       | VArgs of v list
 
 and c = v -> s -> t -> m -> v
 
@@ -19,7 +18,7 @@ and m = MNil
       | MCons of (c * s * t) * m
 
 (* type i  = v list -> c -> v -> s -> t -> m -> v *)
-type i' = v list -> v list -> c -> v -> s -> t -> m -> v (* for tail call optimization *)
+type i' = v list -> c -> v -> s -> t -> m -> v
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
@@ -28,7 +27,7 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
-(*   | VK (_) -> "<VK>" *)
+  | VArgs (_) -> "<VArgs>"
 
 let vlist_of_string lst =
   List.fold_left (fun s1 s2 -> s1 ^ " " ^ s2) "" (List.map to_string lst)
