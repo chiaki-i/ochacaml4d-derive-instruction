@@ -5,7 +5,7 @@ open Value
 
 (* initial continuation : s -> t -> m -> v *)
 let idc v s t m = match s with
-    [] ->
+    _ -> (* [] *)
     begin match t with
         TNil ->
         begin match m with
@@ -14,7 +14,7 @@ let idc v s t m = match s with
         end
       | Trail (h) -> h v TNil m
     end
-  | _ -> failwith "stack error: idc"
+  (* | first :: _ -> print first; failwith "stack error: idc" *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -95,7 +95,9 @@ let pushmark = fun vs c a s t m -> c (VEnv []) s t m
 
 (* mark : i' *)
 (* pushmark ではなく普通の vs_out を積む *)
-let skip = fun vs c a (VArgs (vs_out) :: s) t m -> c (VEnv (vs_out)) s t m
+let skip = fun vs c a s t m -> match s with (VArgs (vs_out) :: s) ->
+    c (VEnv (vs_out)) s t m
+  | _ -> failwith "stack error: skip"
 
 (* apply : i' *)
 (* acc に v0 が積まれた状態で実行される *)
