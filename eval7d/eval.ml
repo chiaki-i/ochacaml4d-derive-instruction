@@ -25,24 +25,13 @@ let rec run_c7 c s r t m = match (c, s, r) with
       | Trail (h) -> h v TNil m
     end
   | (CApp0 (c), v :: VArg (v1) :: s, r) ->
-    apply5 v v1 c s r t m
-  | (CApp1 (e0, xs, c), v :: s, VEnv (vs) :: r) ->
-    f7 e0 xs vs (CApp0 (c)) (VArg (v) :: s) r t m
-  | (COp0 (e0, xs, op, c), v :: s, VEnv (vs) :: r) ->
-    f7 e0 xs vs (COp1 (op, c)) (v :: s) r t m
-  | (COp1 (op, c), v :: v0 :: s, r) ->
-    begin match (v, v0) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> run_c7 c (VNum (n0 + n1) :: s) r t m
-          | Minus -> run_c7 c (VNum (n0 - n1) :: s) r t m
-          | Times -> run_c7 c (VNum (n0 * n1) :: s) r t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else run_c7 c (VNum (n0 / n1) :: s) r t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
-    end
+    apply7 v v1 c s r t m
+  | (CApp1 (f_e0_xs, c), v :: s, VEnv (vs) :: r) ->
+    f_e0_xs vs (CApp0 (c)) (VArg (v) :: s) r t m
+  | (COp0 (apply_op, c), v :: v1 :: s, r) ->
+    apply_op v v1 c s r t m
+  | (COp1 (f_e0_xs, apply_op, c), v :: s, VEnv (vs) :: r) ->
+    f_e0_xs vs (COp0 (apply_op, c)) (v :: s) r t m
   | _ -> failwith "stack or cont error"
 
 (* f7 : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
@@ -50,7 +39,10 @@ and f7 e xs vs c s r t m = match e with
     Num (n) -> run_c7 c (VNum (n) :: s) r t m
   | Var (x) -> run_c7 c (List.nth vs (Env.offset x xs) :: s) r t m
   | Op (e0, op, e1) ->
-    f7 e1 xs vs (COp0 (e0, xs, op, c)) s (VEnv (vs) :: r) t m
+    let f_e1_xs = f7 e1 xs in
+    let f_e0_xs = f7 e0 xs in
+    let apply_op = apply_op7 op in
+    f_e1_xs vs (COp1 (f_e0_xs, apply_op, c)) s (VEnv (vs) :: r) t m
   | Fun (x, e) ->
     begin match (c, s, r) with
       (CApp0 (c'),  VArg (v1) :: s', r) -> (* Grab *)
@@ -59,7 +51,9 @@ and f7 e xs vs c s r t m = match e with
              f7 e (x :: xs) (v1 :: vs) c' s' r' t' m') :: s) r t m
     end
   | App (e0, e1, e2s) ->
-    f7 e1 xs vs (CApp1 (e0, xs, c)) s (VEnv (vs) :: r) t m
+    let f_e1_xs = f7 e1 xs in
+    let f_e0_xs = f7 e0 xs in
+    f_e1_xs vs (CApp1 (f_e0_xs, c)) s (VEnv (vs) :: r) t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
   | Shift0 (x, e) ->
@@ -76,8 +70,8 @@ and f7 e xs vs c s r t m = match e with
     end
   | Reset (e) -> f7 e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
 
-(* apply5 : v -> v -> c -> s -> r -> t -> m -> v *)
-and apply5 v0 v1 c s r t m = match v0 with
+(* apply7 : v -> v -> c -> s -> r -> t -> m -> v *)
+and apply7 v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') ->
     run_c7 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
@@ -86,6 +80,19 @@ and apply5 v0 v1 c s r t m = match v0 with
            (apnd t' (cons (fun v t m -> run_c7 c (v :: s) r t m) t)) m
   | _ -> failwith (to_string v0
                     ^ " is not a function; it can not be applied.")
+
+and apply_op7 op v0 v1 c s1 r1 t1 m1 = match (v0, v1) with
+    (VNum (n0), VNum (n1)) ->
+    begin match op with
+      Plus -> run_c7 c (VNum (n0 + n1) :: s1) r1 t1 m1
+    | Minus -> run_c7 c (VNum (n0 - n1) :: s1) r1 t1 m1
+    | Times -> run_c7 c (VNum (n0 * n1) :: s1) r1 t1 m1
+    | Divide ->
+      if n1 = 0 then failwith "Division by zero"
+      else run_c7 c (VNum (n0 / n1) :: s1) r1 t1 m1
+    end
+  | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                   ^ " are not numbers")
 
 (* f : e -> v *)
 let f expr = f7 expr [] [] C0 [] [] TNil MNil

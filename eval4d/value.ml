@@ -1,24 +1,26 @@
 open Syntax
 
-(* Defunctionalized interpreter with values passed via stack : eval7d *)
+(* Stack-based interpreter : eval4 *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> r -> t -> m -> v)
+       | VFun of (v -> c -> s -> r -> t -> m -> v)
        | VContS of c * s * r * t
        | VContC of c * s * r * t
-       | VEnv of v list
-       | VArg of v
+       | VEnv of v list (* VEnv: new constructor *)
+       | VArg of v (* VArg: new constructor *)
 
-and c = C0
-      | CApp0 of c
-      | CApp1 of i * c
-      | COp0 of (v -> v -> c -> s -> r -> t -> m -> v) * c
-      | COp1 of i * (v -> v -> c -> s -> r -> t -> m -> v) * c
+and f = CApp0
+      | CApp1 of i
+      | COp0 of (v -> v -> c -> s -> r -> t -> m -> v)
+      | COp1 of i * (v -> v -> c -> s -> r -> t -> m -> v)
 
+and c = f list
+
+(* Stack: new datatype *)
 and s = v list
 
-and r = v list
+and r = v list (* return stack *)
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
