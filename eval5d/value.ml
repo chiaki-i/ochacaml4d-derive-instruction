@@ -1,10 +1,10 @@
 open Syntax
 
-(* Defunctionalized interpreter with values passed via stack : eval7d *)
+(* Delinearized interpreter : eval5 *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> r -> t -> m -> v)
+       | VFun of (v -> c -> s -> r -> t -> m -> v)
        | VContS of c * s * r * t
        | VContC of c * s * r * t
        | VEnv of v list
