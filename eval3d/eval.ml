@@ -27,19 +27,39 @@ let rec run_c3 c v t m = match c with
   | CApp0 (v1) :: c -> apply3 v v1 c t m
   | CApp1 (f_e0_xs, vs) :: c ->
     f_e0_xs vs (CApp0 (v) :: c) t m
-  | COp0 (v1, apply_op) :: c -> apply_op v v1 c t m
-  | COp1 (f_e0_xs, vs, apply_op) :: c ->
-    f_e0_xs vs (COp0 (v, apply_op) :: c) t m
+  | COpP0 (v1) :: c -> apply_op3 Plus v v1 c t m
+  | COpP1 (f_e0_xs, vs) :: c ->
+    f_e0_xs vs (COpP0 (v) :: c) t m
+  | COpM0 (v1) :: c -> apply_op3 Minus v v1 c t m
+  | COpM1 (f_e0_xs, vs) :: c ->
+    f_e0_xs vs (COpM0 (v) :: c) t m
+  | COpT0 (v1) :: c -> apply_op3 Times v v1 c t m
+  | COpT1 (f_e0_xs, vs) :: c ->
+    f_e0_xs vs (COpT0 (v) :: c) t m
+  | COpD0 (v1) :: c -> apply_op3 Divide v v1 c t m
+  | COpD1 (f_e0_xs, vs) :: c ->
+    f_e0_xs vs (COpD0 (v) :: c) t m
 
 (* f3 : e -> string list -> v list -> c -> t -> m -> v *)
 and f3 e xs vs c t m = match e with
     Num (n) -> run_c3 c (VNum (n)) t m
   | Var (x) -> run_c3 c (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) ->
+  | Op (e0, Plus, e1) ->
     let f_e1_xs = f3 e1 xs in
     let f_e0_xs = f3 e0 xs in
-    let apply_op = apply_op3 op in
-    f_e1_xs vs (COp1 (f_e0_xs, vs, apply_op) :: c) t m
+    f_e1_xs vs (COpP1 (f_e0_xs, vs) :: c) t m
+  | Op (e0, Minus, e1) ->
+    let f_e1_xs = f3 e1 xs in
+    let f_e0_xs = f3 e0 xs in
+    f_e1_xs vs (COpM1 (f_e0_xs, vs) :: c) t m
+  | Op (e0, Times, e1) ->
+    let f_e1_xs = f3 e1 xs in
+    let f_e0_xs = f3 e0 xs in
+    f_e1_xs vs (COpT1 (f_e0_xs, vs) :: c) t m
+  | Op (e0, Divide, e1) ->
+    let f_e1_xs = f3 e1 xs in
+    let f_e0_xs = f3 e0 xs in
+    f_e1_xs vs (COpD1 (f_e0_xs, vs) :: c) t m
   | Fun (x, e) ->
     begin match c with
       CApp0 (v1) :: c' -> (* Grab *)

@@ -3,14 +3,14 @@ open Value
 
 (* Interpreter with values passed via stack : eval7 *)
 
-(* initial continuation : s -> t -> m -> v *)
-let idc s t m = match s with
-    v :: [] ->
+(* initial continuation : s -> r -> t -> m -> v *)
+let idc s r t m = match (s, r) with
+    (v :: [], []) ->
     begin match t with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> c (v :: s) t m
+          | MCons ((c, s, r, t), m) -> c (v :: s) r t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -26,6 +26,88 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* f7 : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
+let rec f7 e xs vs c s r t m =
+  begin match e with
+      Num (n) -> c (VNum (n) :: s) r t m
+    | Var (x) -> c ((List.nth vs (Env.offset x xs)) :: s) r t m
+    | Op (e0, op, e1) ->
+      f7 e1 xs vs (fun s1 r1 t1 m1 ->
+          begin match (s1, r1) with
+              (v1 :: s1, VEnv (vs) :: r1) -> (* VNum を Stack から取り出す *)
+              f7 e0 xs vs (fun s0 r0 t0 m0 ->
+                  begin match (s0, r0) with
+                      (v0 :: v1 :: s0, r0) -> (* VNum を Stack から取り出す *)
+                      begin match (v0, v1) with
+                          (VNum (n0), VNum (n1)) ->
+                          begin match op with
+                              Plus -> c (VNum (n0 + n1) :: s0) r0 t0 m0
+                            | Minus -> c (VNum (n0 - n1) :: s0) r0 t0 m0
+                            | Times -> c (VNum (n0 * n1) :: s0) r0 t0 m0
+                            | Divide ->
+                              if n1 = 0 then failwith "Division by zero"
+                              else c (VNum (n0 / n1) :: s0) r0 t0 m0
+                          end
+                        | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                                          ^ " are not numbers")
+                      end
+                    | _ -> failwith "stack error op1"
+                  end) (v1 :: s1) r1 t1 m1
+            | _ -> failwith "stack error"
+          end) s (VEnv (vs) :: r) t m
+    | Fun (x, e) ->
+      begin match (s, r) with
+        (VArg (v1, c') :: s', r) -> (* Grab *)
+               f7 e (x :: xs) (v1 :: vs) c' s' r t m
+      | _ ->
+        let vfun = VFun (fun c' s' r' t' m' ->
+          begin match (s', r') with
+              (v :: s', r') -> f7 e (x :: xs) (v :: vs) c' s' r' t' m'
+            | _ -> failwith "stack error"
+          end) in
+        c (vfun :: s) r t m (* VFun そのものも Stack に積む *)
+      end
+    | App (e0, e1, _) ->
+      f7 e1 xs vs
+        (fun s1 r1 t1 m1 ->
+          begin match (s1, r1) with (v1 :: s, VEnv (vs) :: r1) ->
+            f7 e0 xs vs
+              (fun s0 r0 t0 m0 ->
+                begin match (s0, r0) with (v0 :: VArg (v1, c) :: s, r0) ->
+                  apply7 v0 v1 c s r0 t0 m0
+                end
+              ) (VArg (v1, c) :: s) r1 t1 m1
+          end
+        ) s (VEnv (vs) :: r) t m
+    | Shift (x, e) ->
+      f7 e (x :: xs) (VContS (c, s, r, t) :: vs) idc [] [] TNil m
+    | Control (x, e) ->
+      f7 e (x :: xs) (VContC (c, s, r, t) :: vs) idc [] [] TNil m
+    | Shift0 (x, e) ->
+      begin match m with
+          MCons ((c0, s0, r0, t0), m0) ->
+          f7 e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+        | _ -> failwith "shift0 is used without enclosing reset"
+      end
+    | Control0 (x, e) ->
+      begin match m with
+          MCons ((c0, s0, r0, t0), m0) ->
+          f7 e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+        | _ -> failwith "control0 is used without enclosing reset"
+      end
+    | Reset (e) -> f7 e xs vs idc [] [] TNil (MCons ((c, s, r, t), m))
+  end
+
+(* apply7 : v -> v -> c -> s -> r -> t -> m -> v *)
+  and apply7 v0 v1 c s r t m = match v0 with
+    VFun (f) -> f c (v1 :: s) r t m
+  | VContS (c', s', r', t') -> c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
+  | VContC (c', s', r', t') ->
+    c' (v1 :: s') r' (apnd t' (cons (fun v t m -> c (v :: s) r t m) t)) m
+  | _ -> failwith (to_string v0
+                    ^ " is not a function; it can not be applied.")
+
+(*
 (* f7 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f7 e xs vs c s t m =
   begin match e with
@@ -219,6 +301,7 @@ and f7st e2s xs vs vs_out cs s t m = match e2s with
     c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                     ^ " is not a function; it can not be applied.")
+*)
 
 (* f : e -> v *)
-let f expr = f7 expr [] [] idc [] TNil MNil
+let f expr = f7 expr [] [] idc [] [] TNil MNil

@@ -43,13 +43,30 @@ let rec f1 e xs vs c t m =
   match e with
     Num (n) -> c (VNum (n)) t m
   | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) ->
+  | Op (e0, Plus, e1) ->
     let f1_e1_xs = f1 e1 xs in
     let f1_e0_xs = f1 e0 xs in
-    let operation_op = operation op in
     f1_e1_xs vs (fun v1 t0 m0 ->
         f1_e0_xs vs (fun v0 t1 m1 ->
-            operation_op v0 v1 c t1 m1) t0 m0) t m
+            operation Plus v0 v1 c t1 m1) t0 m0) t m
+  | Op (e0, Minus, e1) ->
+    let f1_e1_xs = f1 e1 xs in
+    let f1_e0_xs = f1 e0 xs in
+    f1_e1_xs vs (fun v1 t0 m0 ->
+        f1_e0_xs vs (fun v0 t1 m1 ->
+            operation Minus v0 v1 c t1 m1) t0 m0) t m
+  | Op (e0, Times, e1) ->
+    let f1_e1_xs = f1 e1 xs in
+    let f1_e0_xs = f1 e0 xs in
+    f1_e1_xs vs (fun v1 t0 m0 ->
+        f1_e0_xs vs (fun v0 t1 m1 ->
+            operation Times v0 v1 c t1 m1) t0 m0) t m
+  | Op (e0, Divide, e1) ->
+    let f1_e1_xs = f1 e1 xs in
+    let f1_e0_xs = f1 e0 xs in
+    f1_e1_xs vs (fun v1 t0 m0 ->
+        f1_e0_xs vs (fun v0 t1 m1 ->
+            operation Divide v0 v1 c t1 m1) t0 m0) t m
   | Fun (x, e) ->
     c (VFun (fun v1 c' t' m' ->
               f1 e (x :: xs) (v1 :: vs) c' t' m')) t m

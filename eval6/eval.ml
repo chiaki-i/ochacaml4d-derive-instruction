@@ -3,14 +3,14 @@ open Value
 
 (* Refunctionalized interpreter : eval6 *)
 
-(* initial continuation : v -> s -> t -> m -> v *)
-let idc v s t m = match s with
-    [] ->
+(* initial continuation : v -> s -> r -> t -> m -> v *)
+let idc v s r t m = match (s, r) with
+    ([], []) ->
     begin match t with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> c v s t m
+          | MCons ((c, s, r, t), m) -> c v s r t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -26,6 +26,82 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* f6 : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
+let rec f6 e xs vs c s r t m = match e with
+    Num (n) -> c (VNum (n)) s r t m
+  | Var (x) -> c (List.nth vs (Env.offset x xs)) s r t m
+  | Op (e0, op, e1) ->
+    f6 e1 xs vs (fun v1 s1 r1 t1 m1 ->
+        begin match (s1, r1) with
+            (s1, VEnv (vs) :: r1) ->
+            f6 e0 xs vs (fun v0 s0 r0 t0 m0 ->
+                begin match (s0, r0) with
+                    (v1 :: s0, r0) ->
+                    begin match (v0, v1) with
+                        (VNum (n0), VNum (n1)) ->
+                        begin match op with
+                            Plus -> c (VNum (n0 + n1)) s0 r0 t0 m0
+                          | Minus -> c (VNum (n0 - n1)) s0 r0 t0 m0
+                          | Times -> c (VNum (n0 * n1)) s0 r0 t0 m0
+                          | Divide ->
+                            if n1 = 0 then failwith "Division by zero"
+                            else c (VNum (n0 / n1)) s0 r0 t0 m0
+                        end
+                      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                                       ^ " are not numbers")
+                    end
+                  | _ -> failwith "stack error op1"
+                end) (v1 :: s1) r1 t1 m1
+          | _ -> failwith "stack error op2"
+        end) s (VEnv (vs) :: r) t m
+  | Fun (x, e) ->
+    begin match (s, r) with
+      (VArg (v1, c') :: s', r) -> (* Grab *)
+             f6 e (x :: xs) (v1 :: vs) c' s' r t m
+    | _ -> c (VFun (fun v1 c' s' r' t' m' ->
+             f6 e (x :: xs) (v1 :: vs) c' s' r' t' m')) s r t m
+    end
+  | App (e0, e1, _) ->
+    f6 e1 xs vs
+      (fun v1 s1 r1 t1 m1 ->
+        begin match (s1, r1) with (s1, VEnv (vs) :: r1) ->
+          f6 e0 xs vs
+            (fun v0 s0 r0 t0 m0 ->
+              begin match (s0, r0) with (VArg (v1, c) :: s0, r0) ->
+                apply6 v0 v1 c s0 r0 t0 m0
+              end
+            ) (VArg (v1, c) :: s1) r1 t1 m1
+        end
+      ) s (VEnv (vs) :: r) t m
+  | Shift (x, e) ->
+    f6 e (x :: xs) (VContS (c, s, r, t) :: vs) idc [] [] TNil m
+  | Control (x, e) ->
+    f6 e (x :: xs) (VContC (c, s, r, t) :: vs) idc [] [] TNil m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, r0, t0), m0) ->
+        f6 e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, r0, t0), m0) ->
+        f6 e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f6 e xs vs idc [] [] TNil (MCons ((c, s, r, t), m))
+
+(* apply6 : v -> v -> c -> s -> r -> t -> m -> v *)
+and apply6 v0 v1 c s r t m = match v0 with
+    VFun (f) -> f v1 c s r t m
+  | VContS (c', s', r', t') -> c' v1 s' r' t' (MCons ((c, s, r, t), m))
+  | VContC (c', s', r', t') ->
+    c' v1 s' r' (apnd t' (cons (fun v t m -> c v s r t m) t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
+
+
+(*
 (* f6 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f6 e xs vs c s t m = match e with
     Num (n) -> c (VNum (n)) s t m
@@ -204,6 +280,7 @@ and apply6 v0 v1 c s t m = match s with (VArgs (v2s) :: s) ->
     | _ -> failwith (to_string v0
                       ^ " is not a function; it can not be applied.")
   end
+*)
 
 (* f : e -> v *)
-let f expr = f6 expr [] [] idc [] TNil MNil
+let f expr = f6 expr [] [] idc [] [] TNil MNil
