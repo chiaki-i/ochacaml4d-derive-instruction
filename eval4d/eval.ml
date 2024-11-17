@@ -28,21 +28,44 @@ let rec run_c4 c v s r t m = match (c, s, r) with
     apply4 v v1 c s r t m
   | (CApp1 (f_e0_xs) :: c, s, VEnv (vs) :: r) ->
     f_e0_xs vs (CApp0 :: c) (VArg (v) :: s) r t m
-  | (COp0 (apply_op) :: c, v1 :: s, r) ->
-    apply_op v v1 c s r t m
-  | (COp1 (f_e0_xs, apply_op) :: c, s, VEnv (vs) :: r) ->
-    f_e0_xs vs (COp0 (apply_op) :: c) (v :: s) r t m
+  | (COpP0 :: c, v1 :: s, r) ->
+    apply_op4 Plus v v1 c s r t m
+  | (COpP1 (f_e0_xs) :: c, s, VEnv (vs) :: r) ->
+    f_e0_xs vs (COpP0 :: c) (v :: s) r t m
+  | (COpM0 :: c, v1 :: s, r) ->
+    apply_op4 Minus v v1 c s r t m
+  | (COpM1 (f_e0_xs) :: c, s, VEnv (vs) :: r) ->
+    f_e0_xs vs (COpM0 :: c) (v :: s) r t m
+  | (COpT0 :: c, v1 :: s, r) ->
+    apply_op4 Times v v1 c s r t m
+  | (COpT1 (f_e0_xs) :: c, s, VEnv (vs) :: r) ->
+    f_e0_xs vs (COpT0 :: c) (v :: s) r t m
+  | (COpD0 :: c, v1 :: s, r) ->
+    apply_op4 Divide v v1 c s r t m
+  | (COpD1 (f_e0_xs) :: c, s, VEnv (vs) :: r) ->
+    f_e0_xs vs (COpD0 :: c) (v :: s) r t m
   | _ -> failwith "stack or cont error"
 
 (* f4 : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
 and f4 e xs vs c s r t m = match e with
     Num (n) -> run_c4 c (VNum (n)) s r t m
   | Var (x) -> run_c4 c (List.nth vs (Env.offset x xs)) s r t m
-  | Op (e0, op, e1) ->
+  | Op (e0, Plus, e1) ->
     let f_e1_xs = f4 e1 xs in
     let f_e0_xs = f4 e0 xs in
-    let apply_op = apply_op4 op in
-    f_e1_xs vs (COp1 (f_e0_xs, apply_op) :: c) s (VEnv (vs) :: r) t m
+    f_e1_xs vs (COpP1 (f_e0_xs) :: c) s (VEnv (vs) :: r) t m
+  | Op (e0, Minus, e1) ->
+    let f_e1_xs = f4 e1 xs in
+    let f_e0_xs = f4 e0 xs in
+    f_e1_xs vs (COpM1 (f_e0_xs) :: c) s (VEnv (vs) :: r) t m
+  | Op (e0, Times, e1) ->
+    let f_e1_xs = f4 e1 xs in
+    let f_e0_xs = f4 e0 xs in
+    f_e1_xs vs (COpT1 (f_e0_xs) :: c) s (VEnv (vs) :: r) t m
+  | Op (e0, Divide, e1) ->
+    let f_e1_xs = f4 e1 xs in
+    let f_e0_xs = f4 e0 xs in
+    f_e1_xs vs (COpD1 (f_e0_xs) :: c) s (VEnv (vs) :: r) t m
   | Fun (x, e) ->
     begin match (c, s, r) with
       (CApp0 :: c',  VArg (v1) :: s', r) -> (* Grab *)

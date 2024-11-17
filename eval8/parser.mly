@@ -1,6 +1,11 @@
 %{
 let make_fun vars expr =
   List.fold_right (fun v e -> Syntax.Fun (v, e)) vars expr
+
+let rec expand_app e es = match es with
+    [] -> e
+  | first :: rest ->
+      expand_app (Syntax.App (e, first, [])) rest
 %}
 /* token definition */
 %token LPAREN RPAREN
@@ -49,7 +54,8 @@ expr:
 | FUN VAR vars ARROW expr
 { Syntax.Fun ($2, make_fun $3 $5) }
 | app
-{ let (e0, e1, e2s) = $1 in Syntax.App (e0, e1, List.rev e2s) }
+{ let (e0, e1, e2s) = $1 in
+  expand_app (Syntax.App (e0, e1, [])) (List.rev e2s) }
 | SHIFT VAR ARROW expr
 { Syntax.Shift ($2, $4) }
 | CONTROL VAR ARROW expr

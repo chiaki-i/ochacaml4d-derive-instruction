@@ -11,8 +11,14 @@ type v = VNum of int
 (* Frame: new datatype *)
 and f = CApp0 of v
       | CApp1 of i * v list
-      | COp0 of v * (v -> v -> c -> t -> m -> v)
-      | COp1 of i * v list * (v -> v -> c -> t -> m -> v)
+      | COpP0 of v
+      | COpP1 of i * v list
+      | COpM0 of v
+      | COpM1 of i * v list
+      | COpT0 of v
+      | COpT1 of i * v list
+      | COpD0 of v
+      | COpD1 of i * v list
 
 (* Continuation becomes a single list of frames *)
 and c = f list

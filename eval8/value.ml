@@ -2,23 +2,24 @@
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> v list -> c -> s -> t -> m -> v)
-       | VContS of c * s * t
-       | VContC of c * s * t
+       | VFun of (c -> s -> r -> t -> m -> v)
+       | VContS of c * s * r * t
+       | VContC of c * s * r * t
        | VEnv of v list
-       | VArgs of v list
+       | VArg of v * c
 
-and c = v -> s -> t -> m -> v
+and c = s -> r -> t -> m -> v
 
 and s = v list
+
+and r = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil
-      | MCons of (c * s * t) * m
+      | MCons of (c * s * r * t) * m
 
-(* type i  = v list -> c -> v -> s -> t -> m -> v *)
-type i' = v list -> c -> v -> s -> t -> m -> v
+type i  = v list -> c -> s -> r -> t -> m -> v
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
@@ -27,7 +28,7 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
-  | VArgs (_) -> "<VArgs>"
+  | VArg (v, _) -> "<VArg: " ^ to_string v ^ ">"
 
 let vlist_of_string lst =
   List.fold_left (fun s1 s2 -> s1 ^ " " ^ s2) "" (List.map to_string lst)

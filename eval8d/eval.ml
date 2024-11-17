@@ -3,21 +3,6 @@ open Value
 
 (* Interpreter using combinators factored as instructions : eval8 *)
 
-(* initial continuation : s -> t -> m -> v *)
-(*
-let idc s r t m = match (s, r) with
-    (v :: [], []) ->
-    begin match t with
-        TNil ->
-        begin match m with
-            MNil -> v
-          | MCons ((c, s, r, t), m) -> c (v :: s) r t m
-        end
-      | Trail (h) -> h v TNil m
-    end
-  | _ -> failwith "stack error: idc"
-*)
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -29,8 +14,19 @@ let apnd t0 t1 = match t0 with
   | Trail (h) -> cons h t1
 
 (* (>>) : i -> i -> i *)
-let (>>) i0 i1 = fun vs c s r t m ->
-  i0 vs (CRest (i1, c)) s (VEnv (vs) :: r) t m
+let (>>!) i0 i1 = fun vs c s r t m ->
+  i0 vs (CApp1 (i1, c)) s (VEnv (vs) :: r) t m
+
+let (>>@) i0 i1 = fun vs c s r t m ->
+  i0 vs (CApp0 (i1, c)) s (VEnv (vs) :: r) t m
+
+(*
+let (>>+) i0 i1 = fun vs c s r t m ->
+  i0 vs (COp1 (i1, apply_op, c)) s (VEnv (vs) :: r) t m
+
+let (>>* ) i0 i1 = fun vs c s r t m ->
+  i0 vs (COp0 (i1, c)) s (VEnv (vs) :: r) t m
+*)
 
 (* num : int -> i *)
 let rec num n = fun vs c s r t m -> run_c8 c (VNum (n) :: s) r t m
@@ -38,30 +34,32 @@ let rec num n = fun vs c s r t m -> run_c8 c (VNum (n) :: s) r t m
 (* access : int -> i *)
 and access n = fun vs c s r t m -> run_c8 c (List.nth vs n :: s) r t m
 
-(* operation : op -> i *)
-and operation op = fun vs c s r t m -> match (s, r) with
-    (v0 :: v1 :: s, r) ->
-    begin match (v0, v1) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> run_c8 c (VNum (n0 + n1) :: s) r t m
-          | Minus -> run_c8 c (VNum (n0 - n1) :: s) r t m
-          | Times -> run_c8 c (VNum (n0 * n1) :: s) r t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else run_c8 c (VNum (n0 / n1) :: s) r t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
-                       ^ " are not numbers")
+(* apply_op8 : op -> v -> v -> c -> s -> r -> t -> m -> v *)
+and apply_op8 op v0 v1 c s1 r1 t1 m1 = match (v0, v1) with
+    (VNum (n0), VNum (n1)) ->
+    begin match op with
+      Plus -> run_c8 c (VNum (n0 + n1) :: s1) r1 t1 m1
+    | Minus -> run_c8 c (VNum (n0 - n1) :: s1) r1 t1 m1
+    | Times -> run_c8 c (VNum (n0 * n1) :: s1) r1 t1 m1
+    | Divide ->
+      if n1 = 0 then failwith "Division by zero"
+      else run_c8 c (VNum (n0 / n1) :: s1) r1 t1 m1
     end
-  | _ -> failwith "stack error: op"
+  | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                   ^ " are not numbers")
+
+(* apply_op : op -> i *)
+and apply_op op = fun vs c s r t m -> match (s, r) with
+  (v0 :: v1 :: s, r) -> apply_op8 op v0 v1 c s r t m
 
 (* grab : i -> i *)
 and grab i = fun vs c s r t m ->
   begin match (c, s, r) with
-      (CApp0 (c'), VArg (v1) :: s', r) -> (* Grab *)
+  (*
+      (CApp0 (apply, c'), VArg (v1) :: s', r) -> (* Grab *)
         print_endline "here";
         i (v1 :: vs) c' s' r t m
+        *)
     | _ ->
         let vfun = VFun (fun c' s' r' t' m' ->
           begin match (s', r') with
@@ -84,7 +82,7 @@ and apply8 v0 v1 c s r t m = match v0 with
 
 (* apply : i *)
 and apply = fun vs c s r t m -> match (s, r) with
-  (v0 :: v1 :: s, r) -> apply8 v0 v1 c s r t m
+  (v0 :: VArg (v1) :: s, r) -> apply8 v0 v1 c s r t m
 
 (* shift : i -> i *)
 and shift i = fun vs c s r t m ->
@@ -121,38 +119,29 @@ and run_c8 c s r t m = match (c, s, r) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CRest (i1, c'), s', VEnv (vs) :: r') -> i1 vs c s' r' t m
-(*   (fun s' (VEnv (vs) :: r') t' m' -> i1 vs c s' r' t' m') *)
-  | (CApp0 (c), v :: VArg (v1) :: s, r) ->
-    apply8 v v1 c s r t m
-  | (CApp1 (e0, xs, c), v :: s, VEnv (vs) :: r) ->
-    f8 e0 xs vs (CApp0 (c)) (VArg (v) :: s) r t m
-  | (COp0 (e0, xs, op, c), v :: s, VEnv (vs) :: r) ->
-    f8 e0 xs vs (COp1 (op, c)) (v :: s) r t m
-  | (COp1 (op, c), v :: v0 :: s, r) ->
-    begin match (v, v0) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> run_c8 c (VNum (n0 + n1) :: s) r t m
-          | Minus -> run_c8 c (VNum (n0 - n1) :: s) r t m
-          | Times -> run_c8 c (VNum (n0 * n1) :: s) r t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else run_c8 c (VNum (n0 / n1) :: s) r t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
-    end
+  | (CApp1 (i, c), v :: s, VEnv (vs) :: r) ->
+    i vs (CApp0 (apply, c)) (VArg (v) :: s) (VEnv (vs) :: r) t m
+  | (CApp0 (apply, c), v :: VArg (v1) :: s, VEnv (vs) :: r) ->
+    apply vs c (v :: VArg (v1) :: s) r t m
+(*
+  | (COp1 (i1, c), v :: s, VEnv (vs) :: r) ->
+    i1 vs (COp0 (c)) (v :: s) r t m
+  | (COp0 (c), v :: v0 :: s, VEnv (vs) :: r) ->
+    i vs c (v :: v0 :: s) r t m
   | _ -> failwith "stack or cont error"
+*)
 
 (* f8 : e -> string list -> i *)
 and f8 e xs = match e with
     Num (n) -> num n
   | Var (x) -> access (Env.offset x xs)
+  (*
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation (op)
+    f8 e1 xs >>+ f8 e0 xs >>* apply_op op
+    *)
   | Fun (x, e) -> grab (f8 e (x :: xs))
   | App (e0, e1, _) ->
-    f8 e1 xs >> f8 e0 xs >> apply
+    f8 e1 xs >>! f8 e0 xs >>@ apply
   | Shift (x, e) -> shift (f8 e (x :: xs))
   | Control (x, e) -> control (f8 e (x :: xs))
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs))

@@ -11,11 +11,16 @@ type v = VNum of int
        | VArg of v
 
 and c = C0
-      | CRest of i * c
-      | CApp0 of c
-      | CApp1 of e * string list * c
-      | COp0 of e * string list * op * c
-      | COp1 of op * c
+      | CApp0 of i * c
+      | CApp1 of i * c
+      | COpP0 of c
+      | COpP1 of i * c
+      | COpM0 of c
+      | COpM1 of i * c
+      | COpT0 of c
+      | COpT1 of i * c
+      | COpD0 of c
+      | COpD1 of i * c
 
 and s = v list
 
@@ -25,7 +30,7 @@ and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil | MCons of (c * s * r * t) * m
 
-and i  = v list -> c -> s -> r -> t -> m -> v
+and i = v list -> c -> s -> r -> t -> m -> v
 
 
 (* to_string : v -> string *)

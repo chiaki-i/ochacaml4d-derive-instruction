@@ -11,8 +11,14 @@ type v = VNum of int
 and c = C0
       | CApp0 of v * c
       | CApp1 of i * v list * c
-      | COp0 of v * (v -> v -> c -> t -> m -> v) * c
-      | COp1 of i * v list * (v -> v -> c -> t -> m -> v) * c
+      | COpP0 of v * c
+      | COpP1 of i * v list * c
+      | COpM0 of v * c
+      | COpM1 of i * v list * c
+      | COpT0 of v * c
+      | COpT1 of i * v list * c
+      | COpD0 of v * c
+      | COpD1 of i * v list * c
 
 and t = TNil | Trail of (v -> t -> m -> v)
 

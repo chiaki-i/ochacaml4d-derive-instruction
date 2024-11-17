@@ -13,8 +13,14 @@ type v = VNum of int
 and c = C0
       | CApp0 of c
       | CApp1 of i * c
-      | COp0 of (v -> v -> c -> s -> r -> t -> m -> v) * c
-      | COp1 of i * (v -> v -> c -> s -> r -> t -> m -> v) * c
+      | COpP0 of c
+      | COpP1 of i * c
+      | COpM0 of c
+      | COpM1 of i * c
+      | COpT0 of c
+      | COpT1 of i * c
+      | COpD0 of c
+      | COpD1 of i * c
 
 and s = v list
 
