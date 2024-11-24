@@ -1,9 +1,6 @@
 open Syntax
 open Value
 
-(* 方針：関数化してるけど VArg の最適化をしていないものを作成し、
- * それをもとに非関数化したものがどうなるかを探る *)
-
 (* Interpreter using combinators factored as instructions : eval8 *)
 
 (* run_c8 : c -> s -> r -> t -> m -> v *)
@@ -19,8 +16,10 @@ let rec run_c8 c s r t m = match (c, s, r) with
     end
   | (CSeq (i1, c), (v :: s), (VEnv (vs) :: r)) ->
     i1 vs c (v :: s) r t m
+    (*
   | (CSeq2 (i1, c), (v :: s), (VEnv (vs) :: r)) ->
     i1 vs c (VArg (v) :: s) r t m
+    *)
 
 (* initial continuation : s -> t -> m -> v *)
 let idc = C0
@@ -37,8 +36,10 @@ let apnd t0 t1 = match t0 with
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = fun vs c s r t m ->
+  (* print_endline (Value.s_to_string s); *)
   i0 vs (CSeq (i1, c)) s (VEnv (vs) :: r) t m
 
+(*
 (* (>>>) : i -> i -> i *)
 let (>>>) i0 i1 = fun vs c s r t m ->
   i0 vs (CSeq2 (i1, c)) s (VEnv (vs) :: r) t m
@@ -46,9 +47,13 @@ let (>>>) i0 i1 = fun vs c s r t m ->
 (* (>>>>) : i -> i -> i *)
 let (>>>>) i0 i1 = fun vs c (VArg (v) :: s) r t m ->
   i0 vs (CSeq (i1, c)) (VArg2 (v, c) :: s) (VEnv (vs) :: r) t m
+*)
 
 (* (f8 e1 xs >>> f8 e0 xs) >> apply *)
 (*  f8 e1 xs >>> (f8 e0 xs >> apply) *)
+
+(* varg : i *)
+let varg = fun vs c (v :: s) r t m -> run_c8 c (VArg (v) :: s) r t m
 
 (* num : int -> i *)
 let num n = fun vs c s r t m -> run_c8 c (VNum (n) :: s) r t m
@@ -74,21 +79,6 @@ let operation op = fun vs c s r t m -> match (s, r) with
     end
   | _ -> failwith "stack error: op"
 
-(* grab : i -> i *)
-let grab i = fun vs c s r t m ->
-  begin match (s, r) with
-      (VArg2 (v1, c') :: s', r) -> (* Grab *)
-        (* print_endline "here"; *)
-        i (v1 :: vs) c' s' r t m
-    | _ ->
-        let vfun = VFun (fun c' s' r' t' m' ->
-          begin match (s', r') with
-            (v :: s', r') -> i (v :: vs) c' s' r' t' m'
-          | _ -> failwith "stack error"
-          end) in
-        run_c8 c (vfun :: s) r t m
-  end
-
 (* apply8 : v -> v -> c -> s -> r -> t -> m -> v *)
 let apply8 v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
@@ -102,7 +92,30 @@ let apply8 v0 v1 c s r t m = match v0 with
 
 (* apply : i *)
 let apply = fun vs c s r t m -> match (s, r) with
-  (v0 :: VArg2 (v1, _) :: s, r) -> apply8 v0 v1 c s r t m
+  (v0 :: VArg (v1) :: s, r) -> apply8 v0 v1 c s r t m
+
+(* grab : i -> i *)
+let grab i = fun vs c s r t m ->
+  begin match (c, s, r) with
+      (CSeq (i', c'), VArg (v1) :: s', (VEnv (_) :: r)) when i' == apply -> (* Grab *)
+        (* print_endline ("grab: " ^ Value.s_to_string s); *)
+        i (v1 :: vs) c' s' r t m
+    | _ ->
+        let vfun = VFun (fun c' s' r' t' m' ->
+          begin match (s', r') with
+            (v :: s', r') -> i (v :: vs) c' s' r' t' m'
+          | _ -> failwith "stack error"
+          end) in
+        run_c8 c (vfun :: s) r t m
+  end
+
+(*
+  run_c8 (CSeq (apply, c')) (vfun :: v1 :: s) (VEnv (vs) :: r) t m
+= apply vs c' (vfun :: v1 :: s) r t m
+= apply8 vfun v1 c' s r t m
+= f c' (v1 :: s) r t m
+= i (v1 :: vs) c' s r t m
+*)
 
 (* shift : i -> i *)
 let shift i = fun vs c s r t m ->
@@ -133,10 +146,10 @@ let rec f8 e xs = match e with
     Num (n) -> num n
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
-    f8 e1 xs >> (f8 e0 xs >> operation (op))
+    f8 e1 xs >> f8 e0 xs >> operation (op)
   | Fun (x, e) -> grab (f8 e (x :: xs))
   | App (e0, e1, _) ->
-    f8 e1 xs >>> (f8 e0 xs >>>> apply)
+    f8 e1 xs >> varg >> f8 e0 xs >> apply
   | Shift (x, e) -> shift (f8 e (x :: xs))
   | Control (x, e) -> control (f8 e (x :: xs))
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs))

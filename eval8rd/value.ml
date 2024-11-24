@@ -9,11 +9,15 @@ type v = VNum of int
        | VContC of c * s * r * t
        | VEnv of v list
        | VArg of v
+       (*
        | VArg2 of v * c
+       *)
 
 and c = C0
       | CSeq of i * c
+      (*
       | CSeq2 of i * c
+      *)
 
 and s = v list
 
@@ -34,7 +38,20 @@ let rec to_string value = match value with
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
   | VArg (v) -> "<VArg: " ^ to_string v ^ ">"
+  (*
   | VArg2 (v, _) -> "<VArg2: " ^ to_string v ^ ">"
+  *)
+
+(* s_to_string : v -> string *)
+let rec s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    to_string first ^
+    List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
 
 (* Value.print : v -> unit *)
 let print exp =
