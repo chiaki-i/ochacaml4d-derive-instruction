@@ -144,18 +144,16 @@ let reset i = fun vs c s r t m ->
   i vs idc [] [] TNil (MCons ((c, s, r, t), m))
 
 (* f8 : e -> string list -> i *)
-let rec f8 e xs = match e with
+let rec f8 e xs vs c s r t m = match e with
     Num (n) -> (* num n *)
-    fun vs c s r t m ->
       run_c8 c (VNum (n) :: s) r t m
   | Var (x) -> (* access (Env.offset x xs) *)
-    fun vs c s r t m ->
       run_c8 c (List.nth vs (Env.offset x xs) :: s) r t m
   | Op (e0, op, e1) ->
     (* f8 e1 xs >> f8 e0 xs >> operation (op) *)
     (* (* >> *) fun vs c s r t m -> i0 vs (CSeq (i1, c)) s (VEnv (vs) :: r) t m *)
     (* (* 途中 *) fun vs c s r t m -> f8 e1 xs vs (CSeq ((f8 e0 xs >> operation (op)), c)) s (VEnv (vs) :: r) t m *)
-    fun vs c s r t m -> f8 e1 xs vs (CSeq
+    f8 e1 xs vs (CSeq
       ((fun vs c s r t m ->
         f8 e0 xs vs (CSeq
           ((fun vs c s r t m ->
@@ -179,7 +177,6 @@ let rec f8 e xs = match e with
           s (VEnv (vs) :: r) t m), c))
       s (VEnv (vs) :: r) t m
   | Fun (x, e) -> (* grab (f8 e (x :: xs)) *)
-    fun vs c s r t m ->
     begin match (c, s, r) with
         (CSeq (i', c'), VArg (v1) :: s', (VEnv (_) :: r)) when i' == apply -> (* Grab *)
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
@@ -195,7 +192,7 @@ let rec f8 e xs = match e with
   | App (e0, e1, _) ->
     (* f8 e1 xs >> varg >> f8 e0 xs >> apply *)
     (* (* >> *) fun vs c s r t m -> i0 vs (CSeq (i1, c)) s (VEnv (vs) :: r) t m *)
-    fun vs c s r t m -> f8 e1 xs vs (CSeq
+    f8 e1 xs vs (CSeq
       ((fun vs c s r t m ->
         (fun vs c (v :: s) r t m -> run_c8 c (VArg (v) :: s) r t m) (* varg *)
         vs (CSeq
@@ -207,25 +204,22 @@ let rec f8 e xs = match e with
         s (VEnv (vs) :: r) t m), c))
       s (VEnv (vs) :: r) t m
   | Shift (x, e) -> (* shift (f8 e (x :: xs)) *)
-    fun vs c s r t m -> f8 e (x :: xs) (VContS (c, s, r, t) :: vs) idc [] [] TNil m
+    f8 e (x :: xs) (VContS (c, s, r, t) :: vs) idc [] [] TNil m
   | Control (x, e) -> (* control (f8 e (x :: xs)) *)
-    fun vs c s r t m -> f8 e (x :: xs) (VContC (c, s, r, t) :: vs) idc [] [] TNil m
+    f8 e (x :: xs) (VContC (c, s, r, t) :: vs) idc [] [] TNil m
   | Shift0 (x, e) -> (* shift0 (f8 e (x :: xs)) *)
-    fun vs c s r t m ->
       begin match m with
           MCons ((c0, s0, r0, t0), m0) ->
           f8 e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
         | _ -> failwith "shift0 is used without enclosing reset"
       end
   | Control0 (x, e) -> (* control0 (f8 e (x :: xs)) *)
-    fun vs c s r t m ->
       begin match m with
           MCons ((c0, s0, r0, t0), m0) ->
           f8 e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
         | _ -> failwith "control0 is used without enclosing reset"
       end
   | Reset (e) -> (* reset (f8 e xs) *)
-    fun vs c s r t m ->
     f8 e xs vs idc [] [] TNil (MCons ((c, s, r, t), m))
 
 (* f : e -> v *)
