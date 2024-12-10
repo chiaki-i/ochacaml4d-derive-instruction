@@ -1,4 +1,6 @@
-(* Interpreter using combinators factored as instructions : eval8 *)
+open Syntax
+
+(* Defunctionalized interpreter with values passed via stack : eval7d *)
 
 (* Value *)
 type v = VNum of int
@@ -6,9 +8,19 @@ type v = VNum of int
        | VContS of c * s * r * t
        | VContC of c * s * r * t
        | VEnv of v list
-       | VArg of v * c
+       | VArg of v
 
-and c = s -> r -> t -> m -> v
+and c = C0
+      | CApp0 of i * c
+      | CApp1 of i * c
+      | COpP0 of c
+      | COpP1 of i * c
+      | COpM0 of c
+      | COpM1 of i * c
+      | COpT0 of c
+      | COpT1 of i * c
+      | COpD0 of c
+      | COpD1 of i * c
 
 and s = v list
 
@@ -16,10 +28,10 @@ and r = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
-and m = MNil
-      | MCons of (c * s * r * t) * m
+and m = MNil | MCons of (c * s * r * t) * m
 
-type i  = v list -> c -> s -> r -> t -> m -> v
+and i = v list -> c -> s -> r -> t -> m -> v
+
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
@@ -28,10 +40,7 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
   | VEnv (_) -> "<VEnv>"
-  | VArg (v, _) -> "<VArg: " ^ to_string v ^ ">"
-
-let vlist_of_string lst =
-  List.fold_left (fun s1 s2 -> s1 ^ " " ^ s2) "" (List.map to_string lst)
+  | VArg (v) -> "<VArg: " ^ to_string v ^ ">"
 
 (* Value.print : v -> unit *)
 let print exp =
