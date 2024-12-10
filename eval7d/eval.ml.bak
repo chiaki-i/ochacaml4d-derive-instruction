@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Defunctionalized interpreter with values passed via stack : eval7d *)
+(* Delinearized interpreter : eval5 *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
