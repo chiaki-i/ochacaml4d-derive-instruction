@@ -55,6 +55,24 @@ and run_i9 i vs c s r t m = match i with
         end
       | _ -> failwith "stack error"
     end
+  | IApply ->
+    begin match (s, r) with
+        (v0 :: VArg (v1) :: s, r) -> apply9 v0 v1 c s r t m
+      | _ -> failwith "stack error: IApply"
+    end
+  | IGrab (i) ->
+    begin match (c, s, r) with
+        (i' :: c', VArg (v1) :: s', (VEnv (_) :: r)) when i' == IApply -> (* Grab *)
+          (* print_endline ("grab: " ^ Value.s_to_string s); *)
+          run_i9 i (v1 :: vs) c' s' r t m
+      | _ ->
+          let vfun = VFun (fun c' s' r' t' m' ->
+            begin match (s', r') with
+              (v :: s', r') -> i (v :: vs) c' s' r' t' m'
+            | _ -> failwith "stack error"
+            end) in
+          run_c9 c (vfun :: s) r t m
+  end
   (*
   | ICall ->
     begin match s with
@@ -112,6 +130,18 @@ and run_i9 i vs c s r t m = match i with
   | ISeq (i0, i1) ->
     run_i9 i0 vs (i1 :: c) s (VEnv (vs) :: r) t m
   | _ -> failwith "not implemented"
+
+(* apply8 : v -> v -> c -> s -> r -> t -> m -> v *)
+and apply9 v0 v1 c s r t m = match v0 with
+    VFun (f) -> f c (v1 :: s) r t m
+  | VContS (c', s', r', t') ->
+    run_c8 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
+  | VContC (c', s', r', t') ->
+    run_c8 c' (v1 :: s') r'
+           (apnd t' (cons (fun v t m -> run_c8 c (v :: s) r t m) t)) m
+  | _ -> failwith (to_string v0
+                    ^ " is not a function; it cannot be applied.")
+
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)

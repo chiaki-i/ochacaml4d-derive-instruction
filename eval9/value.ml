@@ -14,8 +14,8 @@ and i = IVArg
       | INum of int
       | IAccess of int
       | IOp of op
-      (* | IApply
-      | IGrab of i *)
+      | IApply
+      | IGrab of i
       | ISeq of i * i (* >> の実体 *)
 
 (* and i = INum of int | IAccess of int
