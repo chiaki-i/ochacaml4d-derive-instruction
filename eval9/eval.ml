@@ -6,15 +6,20 @@ open Value
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* run_h9 : h -> v -> t -> m -> v *)
+let rec run_h9 h v r t m = match h with
+    Hold (c, s, r) -> run_c9 c (v :: s) r t m
+  | Append (h, h') -> run_h9 h v r (cons h' t) m
+
 (* run_c9 : c -> s -> t -> m -> v *)
-let rec run_c9 c s r t m = match (c, s, r) with
+and run_c9 c s r t m = match (c, s, r) with
     ([], v :: [], []) ->
     begin match t with
         TNil ->
@@ -22,7 +27,7 @@ let rec run_c9 c s r t m = match (c, s, r) with
             [] -> v
           | (c, s, r, t) :: m -> run_c9 c (v :: s) r t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h9 h v r TNil m
     end
   | (i1 :: c, v :: s, VEnv (vs) :: r) ->
     run_i9 i1 vs c (v :: s) r t m
@@ -55,10 +60,15 @@ and run_i9 i vs c s r t m = match i with
         end
       | _ -> failwith "stack error"
     end
-  | IApply ->
+  (* | IApply ->
     begin match (s, r) with
-        (v0 :: VArg (v1) :: s, r) -> apply9 v0 v1 c s r t m
+        (v0 :: VArg (v1) :: s, r) -> ICall v0 v1 c s r t m
       | _ -> failwith "stack error: IApply"
+    end *)
+  | IClosure (i, vs) -> (* 実行するかどうか、IGrab の中で決まる *)
+    begin match (s, r) with
+        (v :: s, r) -> run_i9 i (v :: vs) c s r t m
+      | _ -> failwith "stack error"
     end
   | IGrab (i) ->
     begin match (c, s, r) with
@@ -66,28 +76,30 @@ and run_i9 i vs c s r t m = match i with
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
           run_i9 i (v1 :: vs) c' s' r t m
       | _ ->
-          let vfun = VFun (fun c' s' r' t' m' ->
-            begin match (s', r') with
-              (v :: s', r') -> i (v :: vs) c' s' r' t' m'
-            | _ -> failwith "stack error"
-            end) in
-          run_c9 c (vfun :: s) r t m
-  end
-  (*
-  | ICall ->
-    begin match s with
-        v1 :: v0 :: s ->
+        let vfun = VFun (IClosure (i, vs)) in
+        run_c9 c (vfun :: s) r t m
+    end
+  | IApply ->
+ (* VFun (f) -> f c (v1 :: s) r t m
+  | VContS (c', s', r', t') ->
+    run_c8 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
+  | VContC (c', s', r', t') ->
+    run_c8 c' (v1 :: s') r'
+           (apnd t' (cons (fun v t m -> run_c8 c (v :: s) r t m) t)) m
+  | _ -> failwith (to_string v0
+                    ^ " is not a function; it cannot be applied.") *)
+    begin match (s, r) with
+        (v1 :: v0 :: s, r) ->
         begin match v0 with
-            VFun (i, vs) -> run_i9 i [] (VEnv (v1 :: vs) :: VK (c) :: s) t m
-          | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' ((c, s, t) :: m)
+            VFun (IClosure (i, vs)) -> run_i9 i vs c (v1 :: s) r t m
+          (* | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' ((c, s, t) :: m)
           | VContC (c', s', t') ->
-            run_c9 c' (v1 :: s') (apnd t' (cons (Hold (c, s)) t)) m
+            run_c9 c' (v1 :: s') (apnd t' (cons (Hold (c, s)) t)) m *)
           | _ -> failwith (to_string v0
                           ^ " is not a function; it can not be applied.")
         end
-      | _ -> failwith "stack error"
+      | _ -> failwith "stack error: ICall"
     end
-    *)
     (*
     | IShift (i) ->
       begin match s with
@@ -132,7 +144,7 @@ and run_i9 i vs c s r t m = match i with
   | _ -> failwith "not implemented"
 
 (* apply8 : v -> v -> c -> s -> r -> t -> m -> v *)
-and apply9 v0 v1 c s r t m = match v0 with
+(* and apply9 v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') ->
     run_c8 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
@@ -140,7 +152,7 @@ and apply9 v0 v1 c s r t m = match v0 with
     run_c8 c' (v1 :: s') r'
            (apnd t' (cons (fun v t m -> run_c8 c (v :: s) r t m) t)) m
   | _ -> failwith (to_string v0
-                    ^ " is not a function; it cannot be applied.")
+                    ^ " is not a function; it cannot be applied.") *)
 
 
 (* (>>) : i -> i -> i *)
@@ -152,9 +164,9 @@ let rec f9 e xs = begin match e with
   | Var (x) -> IAccess (Env.offset x xs)
   | Op (e0, op, e1) ->
     (f9 e0 xs) >> (f9 e1 xs) >> IOp (op)
+  | Fun (x, e) -> IGrab ((f9 e (x :: xs)))
+  | App (e0, e1, _) -> (f9 e0 xs) >> (f9 e1 xs) >> IApply
   (*
-  | Fun (x, e) -> IPush_closure ((f9 e (x :: xs)) >> IReturn)
-  | App (e0, e1) -> IPush_env >> (f9 e0 xs) >> IPop_env >> (f9 e1 xs) >> ICall
   | Shift (x, e) -> IShift (f9 e (x :: xs))
   | Control (x, e) -> IControl (f9 e (x :: xs))
   | Shift0 (x, e) -> IShift0 (f9 e (x :: xs))

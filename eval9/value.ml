@@ -4,7 +4,7 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of i * v list
+       | VFun of i
        | VContS of c * s * t
        | VContC of c * s * t
        | VEnv of v list
@@ -15,6 +15,8 @@ and i = IVArg
       | IAccess of int
       | IOp of op
       | IApply
+      | ICall
+      | IClosure of i * v list
       | IGrab of i
       | ISeq of i * i (* >> の実体 *)
 
@@ -32,14 +34,12 @@ and s = v list
 
 and r = v list
 
-(* and h = Hold of c * s
+and h = Hold of c * s * r
       | Append of h * h
 
-and t = TNil | Trail of h *)
+and t = TNil | Trail of h
 
-and t = TNil | Trail of (v -> t -> m -> v)
-
-and m = (c * s * r * t) list (* M をリストにした理由は？ *)
+and m = (c * s * r * t) list
 
 
 (* to_string : v -> string *)
