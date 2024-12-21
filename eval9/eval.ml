@@ -103,7 +103,7 @@ and run_i9 i vs c s r t m = match i with
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | IReset (i) ->
-    run_i9 i vs idc [] [] TNil [(c, s, r, t)]
+    run_i9 i vs idc [] [] TNil ((c, s, r, t) :: m)
   | ISeq (i0, i1) ->
     run_i9 i0 vs (i1 :: c) s (VEnv (vs) :: r) t m
 
