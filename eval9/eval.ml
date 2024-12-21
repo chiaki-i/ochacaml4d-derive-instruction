@@ -62,26 +62,25 @@ and run_i9 i vs c s r t m = match i with
         end
       | _ -> failwith "stack error"
     end
-  | IClosure (i, vs) -> (* VFun の中身を非関数化 *)
-    begin match (s, r) with
-        (v :: s, r) -> run_i9 i (v :: vs) c s r t m (* v を環境に push する *)
-      | _ -> failwith "stack error"
-    end
   | IGrab (i) ->
     begin match (c, s, r) with
         (IApply :: c', VArg (v1) :: s', (VEnv (_) :: r)) -> (* Grab *)
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
           run_i9 i (v1 :: vs) c' s' r t m
       | _ ->
-        let vfun = VFun (IClosure (i, vs)) in
+        let vfun = VFun (i, vs) in
         run_c9 c (vfun :: s) r t m
     end
   | IApply ->
     begin match (s, r) with
         (v0 :: VArg (v1) :: s, r) ->
         begin match v0 with
-            VFun (IClosure (i, vs)) ->
-            run_i9 i vs c (v1 :: s) r t m
+            VFun (i, vs) ->
+              begin match s with
+                  v :: s ->
+                  run_i9 i (v :: vs) c (v1 :: s) r t m
+                | _ -> failwith "stack error"
+              end
           | VContS (c', s', r', t') ->
             run_c9 c' (v1 :: s') r' t' ((c, s, r, t) :: m)
           | VContC (c', s', r', t') ->

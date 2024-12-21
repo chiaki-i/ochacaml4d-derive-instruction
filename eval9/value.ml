@@ -4,7 +4,7 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of i
+       | VFun of i * v list
        | VContS of c * s * r * t
        | VContC of c * s * r * t
        | VEnv of v list
@@ -15,7 +15,7 @@ and i = IVArg
       | IAccess of int
       | IOp of op
       | IApply
-      | IClosure of i * v list
+      (* | IClosure of i * v list *)
       | IGrab of i
       | ISeq of i * i (* >> の実体 *)
       | IShift of i | IControl of i
