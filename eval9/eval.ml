@@ -13,6 +13,8 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+let idc = []
+
 (* run_h9 : h -> v -> t -> m -> v *)
 let rec run_h9 h v r t m = match h with
     Hold (c, s, r) -> run_c9 c (v :: s) r t m
@@ -80,56 +82,36 @@ and run_i9 i vs c s r t m = match i with
         begin match v0 with
             VFun (IClosure (i, vs)) ->
             run_i9 i vs c (v1 :: s) r t m
-          (* | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' ((c, s, t) :: m)
-          | VContC (c', s', t') ->
-            run_c9 c' (v1 :: s') (apnd t' (cons (Hold (c, s)) t)) m *)
+          | VContS (c', s', r', t') ->
+            run_c9 c' (v1 :: s') r' t' ((c, s, r, t) :: m)
+          | VContC (c', s', r', t') ->
+            run_c9 c' (v1 :: s') r'
+              (apnd t' (cons (Hold (c, s, r)) t)) m
           | _ -> failwith (to_string v0
                           ^ " is not a function; it can not be applied.")
         end
       | _ -> failwith "stack error: IApply"
     end
-    (*
-    | IShift (i) ->
-      begin match s with
-          VEnv (vs) :: s ->
-          run_i9 i [] (VEnv (VContS (c, s, t) :: vs) :: []) TNil m
-        | _ -> failwith "stack error"
-      end
-    | IControl (i) ->
-      begin match s with
-          VEnv (vs) :: s ->
-          run_i9 i [] (VEnv (VContC (c, s, t) :: vs) :: []) TNil m
-        | _ -> failwith "stack error"
-      end
-    | IShift0 (i) ->
-      begin match s with
-          VEnv (vs) :: s ->
-          begin match m with
-              (c0, s0, t0) :: m0 ->
-              run_i9 i c0 (VEnv (VContS (c, s, t) :: vs) :: s0) t0 m0
-            | _ -> failwith "shift0 is used without enclosing reset"
-          end
-        | _ -> failwith "stack error"
-      end
-    | IControl0 (i) ->
-      begin match s with
-          VEnv (vs) :: s ->
-          begin match m with
-              (c0, s0, t0) :: m0 ->
-              run_i9 i c0 (VEnv (VContC (c, s, t) :: vs) :: s0) t0 m0
-            | _ -> failwith "control0 is used without enclosing reset"
-          end
-        | _ -> failwith "stack error"
-      end
-    | IReset (i) ->
-      begin match s with
-          VEnv (vs) :: s ->
-          run_i9 i [] (VEnv (vs) :: []) TNil ((c, s, t) :: m)
-        | _ -> failwith "stack error"
-      end *)
+  | IShift (i) ->
+    run_i9 i (VContS (c, s, r, t) :: vs) idc [] [] TNil m
+  | IControl (i) ->
+    run_i9 i (VContC (c, s, r, t) :: vs) idc [] [] TNil m
+  | IShift0 (i) ->
+    begin match m with
+        (c0, s0, r0, t0) :: m0 ->
+          run_i9 i (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | IControl0 (i) ->
+    begin match m with
+        (c0, s0, r0, t0) :: m0 ->
+          run_i9 i (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | IReset (i) ->
+    run_i9 i vs idc [] [] TNil [(c, s, r, t)]
   | ISeq (i0, i1) ->
     run_i9 i0 vs (i1 :: c) s (VEnv (vs) :: r) t m
-  | _ -> failwith "not implemented"
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
@@ -143,15 +125,12 @@ let rec f9 e xs = begin match e with
   | Fun (x, e) -> IGrab ((f9 e (x :: xs)))
   | App (e0, e1, _) ->
     (f9 e1 xs) >> IVArg >> (f9 e0 xs) >> IApply
-  (*
   | Shift (x, e) -> IShift (f9 e (x :: xs))
   | Control (x, e) -> IControl (f9 e (x :: xs))
   | Shift0 (x, e) -> IShift0 (f9 e (x :: xs))
   | Control0 (x, e) -> IControl0 (f9 e (x :: xs))
   | Reset (e) -> IReset (f9 e xs)
-  *)
-  | _ -> failwith "not implemented"
   end
 
 (* f : e -> v *)
-let f expr = run_i9 (f9 expr []) [] [] [] [] TNil []
+let f expr = run_i9 (f9 expr []) [] idc [] [] TNil []

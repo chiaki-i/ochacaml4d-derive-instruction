@@ -5,8 +5,8 @@ open Syntax
 (* Value *)
 type v = VNum of int
        | VFun of i
-       | VContS of c * s * t
-       | VContC of c * s * t
+       | VContS of c * s * r * t
+       | VContC of c * s * r * t
        | VEnv of v list
        | VArg of v
 
@@ -15,17 +15,16 @@ and i = IVArg
       | IAccess of int
       | IOp of op
       | IApply
-      | ICall
       | IClosure of i * v list
       | IGrab of i
       | ISeq of i * i (* >> の実体 *)
+      | IShift of i | IControl of i
+      | IShift0 of i | IControl0 of i
+      | IReset of i
 
 (* and i = INum of int | IAccess of int
       | IPush_closure of i | IReturn
       | IPush_env | IPop_env | IOp of op | ICall
-      | IShift of i | IControl of i
-      | IShift0 of i | IControl0 of i
-      | IReset of i
       | ISeq of i * i *)
 
 and c = i list
