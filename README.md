@@ -1,10 +1,11 @@
-# ochacaml4d-definitional-interpreter
-Derive OchaCaml4D from definitional interpreter
+# ochacaml4d-derive-instruction
 
-## How to test
+Derive OchaCaml4D virtual machine instructions from the  definitional interpreter
 
-- Download [OcamlMakefile](https://github.com/mmottl/ocaml-makefile/blob/master/OCamlMakefile) into `~/include/OCamlMakefile`.
-- Run the following to generate a binary named `interpreter`.
+## How to run
+
+- Save [OcamlMakefile](https://github.com/mmottl/ocaml-makefile/blob/master/OCamlMakefile) as `~/include/OCamlMakefile`, or modify `OCAMLMAKEFILE` value in each `eval*/Makefile` to the desired local path.
+- Compile to make `eval*/interpreter`.
 
 ```shell
 $ cd eval1/
