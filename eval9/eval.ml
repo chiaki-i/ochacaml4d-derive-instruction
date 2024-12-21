@@ -68,19 +68,14 @@ and run_i9 i vs c s r t m = match i with
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
           run_i9 i (v1 :: vs) c' s' r t m
       | _ ->
-        let vfun = VFun (i, vs) in
-        run_c9 c (vfun :: s) r t m
+        run_c9 c (VFun (i, vs) :: s) r t m
     end
   | IApply ->
     begin match (s, r) with
         (v0 :: VArg (v1) :: s, r) ->
         begin match v0 with
             VFun (i, vs) ->
-              begin match s with
-                  v :: s ->
-                  run_i9 i (v :: vs) c (v1 :: s) r t m
-                | _ -> failwith "stack error"
-              end
+            run_i9 i (v1 :: vs) c s r t m
           | VContS (c', s', r', t') ->
             run_c9 c' (v1 :: s') r' t' ((c, s, r, t) :: m)
           | VContC (c', s', r', t') ->
@@ -120,7 +115,7 @@ let rec f9 e xs = begin match e with
     Num (n) -> INum (n)
   | Var (x) -> IAccess (Env.offset x xs)
   | Op (e0, op, e1) ->
-    (f9 e0 xs) >> (f9 e1 xs) >> IOp (op)
+    (f9 e1 xs) >> (f9 e0 xs) >> IOp (op)
   | Fun (x, e) -> IGrab ((f9 e (x :: xs)))
   | App (e0, e1, _) ->
     (f9 e1 xs) >> IVArg >> (f9 e0 xs) >> IApply

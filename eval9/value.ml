@@ -15,7 +15,6 @@ and i = IVArg
       | IAccess of int
       | IOp of op
       | IApply
-      (* | IClosure of i * v list *)
       | IGrab of i
       | ISeq of i * i (* >> の実体 *)
       | IShift of i | IControl of i
