@@ -19,6 +19,7 @@ and i = IVArg
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i
       | IReset of i
+      | IReturn
 
 and c = (i * v list) list
 

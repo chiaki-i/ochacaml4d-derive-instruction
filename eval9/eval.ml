@@ -17,10 +17,11 @@ let idc = []
 
 (* run_h9 : h -> v -> t -> m -> v *)
 let rec run_h9 h v t m = match h with
-    Hold (c, s) -> run_c9 c (v :: s) t m
+    Hold (c, s) -> run_i9 IReturn [] c (v :: s) t m
   | Append (h, h') -> run_h9 h v (cons h' t) m
 
 (* run_c9 : c -> s -> t -> m -> v *)
+(*
 and run_c9 c s t m = match (c, s) with
     ([], v :: []) ->
     begin match t with
@@ -34,28 +35,29 @@ and run_c9 c s t m = match (c, s) with
   | ((i1, vs) :: c, v :: s) ->
     run_i9 i1 vs c (v :: s) t m
   | _ -> failwith "run_c9 unexpected"
+*)
 
 (* run_i9 : i -> c -> s -> t -> m -> v *)
 and run_i9 i vs c s t m = match i with
     IVArg ->
     begin match s with (v :: s) ->
-        run_c9 c (VArg (v) :: s) t m
+        run_i9 IReturn vs c (VArg (v) :: s) t m
       | _ -> failwith "stack error: run_i9 varg"
     end
-  | INum (n) -> run_c9 c (VNum (n) :: s) t m
-  | IAccess (n) -> run_c9 c ((List.nth vs n) :: s) t m
+  | INum (n) -> run_i9 IReturn vs c (VNum (n) :: s) t m
+  | IAccess (n) -> run_i9 IReturn vs c ((List.nth vs n) :: s) t m
   | IOp (op) ->
     begin match s with
         v0 :: v1 :: s ->
         begin match (v0, v1) with
             (VNum (n0), VNum (n1)) ->
             begin match op with
-                Plus -> run_c9 c (VNum (n0 + n1) :: s) t m
-              | Minus -> run_c9 c (VNum (n0 - n1) :: s) t m
-              | Times -> run_c9 c (VNum (n0 * n1) :: s) t m
+                Plus -> run_i9 IReturn vs c (VNum (n0 + n1) :: s) t m
+              | Minus -> run_i9 IReturn vs c (VNum (n0 - n1) :: s) t m
+              | Times -> run_i9 IReturn vs c (VNum (n0 * n1) :: s) t m
               | Divide ->
                 if n1 = 0 then failwith "Division by zero"
-                else run_c9 c (VNum (n0 / n1) :: s) t m
+                else run_i9 IReturn vs c (VNum (n0 / n1) :: s) t m
             end
           | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                            ^ " are not numbers")
@@ -68,7 +70,7 @@ and run_i9 i vs c s t m = match i with
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
           run_i9 i (v1 :: vs) c' s' t m
       | _ ->
-        run_c9 c (VFun (i, vs) :: s) t m
+        run_i9 IReturn vs c (VFun (i, vs) :: s) t m
     end
   | IApply ->
     begin match s with
@@ -77,9 +79,9 @@ and run_i9 i vs c s t m = match i with
             VFun (i, vs) ->
             run_i9 i (v1 :: vs) c s t m
           | VContS (c', s', t') ->
-            run_c9 c' (v1 :: s') t' ((c, s, t) :: m)
+            run_i9 IReturn vs c' (v1 :: s') t' ((c, s, t) :: m)
           | VContC (c', s', t') ->
-            run_c9 c' (v1 :: s')
+            run_i9 IReturn vs c' (v1 :: s')
               (apnd t' (cons (Hold (c, s)) t)) m
           | _ -> failwith (to_string v0
                           ^ " is not a function; it can not be applied.")
@@ -106,6 +108,21 @@ and run_i9 i vs c s t m = match i with
     run_i9 i vs idc [] TNil ((c, s, t) :: m)
   | ISeq (i0, i1) ->
     run_i9 i0 vs ((i1, vs) :: c) s t m
+  | IReturn ->
+    begin match (c, s) with
+        ([], v :: []) ->
+        begin match t with
+            TNil ->
+            begin match m with
+                [] -> v
+              | (c, s, t) :: m -> run_i9 IReturn vs c (v :: s) t m
+            end
+          | Trail (h) -> run_h9 h v TNil m
+        end
+      | ((i1, vs) :: c, v :: s) ->
+        run_i9 i1 vs c (v :: s) t m
+      | _ -> failwith "run_c9 unexpected"
+    end
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
