@@ -30,7 +30,7 @@ let rec run_c7 c s t m = match (c, s) with
     f7 e0 xs vs (CApp0 (c)) (VArg (v) :: s) t m
   | (COp0 (op, c), v :: v1 :: s) ->
     apply_op7 op v v1 c s t m
-  | (COp1 (e0, xs, vs, op, c), v :: s) ->
+  | (COp1 (e0, xs, op, vs, c), v :: s) ->
     f7 e0 xs vs (COp0 (op, c)) (v :: s) t m
   | _ -> failwith "stack or cont error"
 
@@ -39,7 +39,7 @@ and f7 e xs vs c s t m = match e with
     Num (n) -> run_c7 c (VNum (n) :: s) t m
   | Var (x) -> run_c7 c (List.nth vs (Env.offset x xs) :: s) t m
   | Op (e0, op, e1) ->
-    f7 e1 xs vs (COp1 (e0, xs, vs, op, c)) s t m
+    f7 e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
   | Fun (x, e) ->
     begin match (c, s) with
       (CApp0 (c'),  VArg (v1) :: s') -> (* Grab *)

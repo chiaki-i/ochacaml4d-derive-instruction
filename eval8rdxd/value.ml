@@ -12,10 +12,10 @@ type v = VNum of int
 and c = C0
       | CSeq of c' * v list * c
 
-and c' = COp0 of op
-       | COp1 of e * string list * op
-       | CApp0
+and c' = CApp0
        | CApp1 of e * string list
+       | COp0 of op
+       | COp1 of e * string list * op
 
 and s = v list
 
