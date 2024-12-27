@@ -29,24 +29,7 @@ let rec run_c8 c s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CSeq (i1, vs, c), (v :: s)) ->
-    run_c8' i1 vs c (v :: s) t m
-
-(* apply8 : v -> v -> c -> s -> t -> m -> v *)
-and apply8 v0 v1 c s t m = match v0 with
-    VFun (f) -> f c (v1 :: s) t m
-  | VContS (c', s', t') ->
-    run_c8 c' (v1 :: s') t' (MCons ((c, s, t), m))
-  | VContC (c', s', t') ->
-    run_c8 c' (v1 :: s')
-           (apnd t' (cons (fun v t m -> run_c8 c (v :: s) t m) t)) m
-  | _ -> failwith (to_string v0
-                    ^ " is not a function; it cannot be applied.")
-
-(* run_c8' : v list -> c -> s -> t -> m -> v *)
-and run_c8' c' vs c s t m = match c' with
-    COp0 (op) -> begin match s with
-                   v0 :: v1 :: s ->
+  | (COp0 (op, vs, c), v0 :: v1 :: s) ->
                    begin match (v0, v1) with
                      (VNum (n0), VNum (n1)) ->
                        begin match op with
@@ -60,15 +43,23 @@ and run_c8' c' vs c s t m = match c' with
                      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                                       ^ " are not numbers")
                    end
-                 | _ -> failwith "stack error: op"
-                 end
-  | COp1 (e0, xs, op) -> f8 e0 xs vs (CSeq (COp0 (op), vs, c)) s t m
-  | CApp0 -> begin match s with
-               v0 :: VArg (v1) :: s -> apply8 v0 v1 c s t m
-             end
-  | CApp1 (e0, xs) -> begin match s with (v :: s) -> 
-                        f8 e0 xs vs (CSeq (CApp0, vs, c)) (VArg (v) :: s) t m
-                      end
+  | (COp1 (e0, xs, op, vs, c), v1 :: s) ->
+    f8 e0 xs vs (COp0 (op, vs, c)) (v1 :: s) t m
+  | (CApp0 (vs, c), v0 :: VArg (v1) :: s) ->
+    apply8 v0 v1 c s t m
+  | (CApp1 (e0, xs, vs, c), v :: s) ->
+    f8 e0 xs vs (CApp0 (vs, c)) (VArg (v) :: s) t m
+
+(* apply8 : v -> v -> c -> s -> t -> m -> v *)
+and apply8 v0 v1 c s t m = match v0 with
+    VFun (f) -> f c (v1 :: s) t m
+  | VContS (c', s', t') ->
+    run_c8 c' (v1 :: s') t' (MCons ((c, s, t), m))
+  | VContC (c', s', t') ->
+    run_c8 c' (v1 :: s')
+           (apnd t' (cons (fun v t m -> run_c8 c (v :: s) t m) t)) m
+  | _ -> failwith (to_string v0
+                    ^ " is not a function; it cannot be applied.")
 
 (* f8 : e -> string list -> i *)
 and f8 e xs vs c s t m = match e with
@@ -77,10 +68,10 @@ and f8 e xs vs c s t m = match e with
   | Var (x) ->
     run_c8 c (List.nth vs (Env.offset x xs) :: s) t m
   | Op (e0, op, e1) ->
-    f8 e1 xs vs (CSeq (COp1 (e0, xs, op), vs, c)) s t m
+    f8 e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
   | Fun (x, e) ->
     begin match (c, s) with
-        (CSeq (i', _, c'), VArg (v1) :: s') when i' == CApp0 -> (* Grab *)
+        (CApp0 (_, c'), VArg (v1) :: s') -> (* Grab *)
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
           f8 e (x :: xs) (v1 :: vs) c' s' t m
       | _ ->
@@ -92,7 +83,7 @@ and f8 e xs vs c s t m = match e with
         run_c8 c (vfun :: s) t m
     end
   | App (e0, e1, _) ->
-    f8 e1 xs vs (CSeq (CApp1 (e0, xs), vs, c)) s t m
+    f8 e1 xs vs (CApp1 (e0, xs, vs, c)) s t m
   | Shift (x, e) ->
     f8 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) ->

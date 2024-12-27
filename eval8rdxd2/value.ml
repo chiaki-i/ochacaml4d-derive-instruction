@@ -10,20 +10,16 @@ type v = VNum of int
        | VArg of v
 
 and c = C0
-      | CSeq of c' * v list * c
-
-and c' = COp0 of op
-       | COp1 of e * string list * op
-       | CApp0
-       | CApp1 of e * string list
+      | CApp0 of v list * c
+      | CApp1 of e * string list * v list * c
+      | COp0 of op * v list * c
+      | COp1 of e * string list * op * v list * c
 
 and s = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil | MCons of (c * s * t) * m
-
-and i = v list -> c -> s -> t -> m -> v
 
 
 (* to_string : v -> string *)
