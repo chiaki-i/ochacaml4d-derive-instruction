@@ -26,46 +26,20 @@ let rec run_c7 c s t m = match (c, s) with
     end
   | (CApp0 (c), v :: VArg (v1) :: s) ->
     apply7 v v1 c s t m
-  | (CApp1 (f_e0_xs, vs, c), v :: s) ->
-    f_e0_xs vs (CApp0 (c)) (VArg (v) :: s) t m
-  | (COpP0 (c), v :: v1 :: s) ->
-    apply_op7 Plus v v1 c s t m
-  | (COpP1 (f_e0_xs, vs, c), v :: s) ->
-    f_e0_xs vs (COpP0 (c)) (v :: s) t m
-  | (COpM0 (c), v :: v1 :: s) ->
-    apply_op7 Minus v v1 c s t m
-  | (COpM1 (f_e0_xs, vs, c), v :: s) ->
-    f_e0_xs vs (COpM0 (c)) (v :: s) t m
-  | (COpT0 (c), v :: v1 :: s) ->
-    apply_op7 Times v v1 c s t m
-  | (COpT1 (f_e0_xs, vs, c), v :: s) ->
-    f_e0_xs vs (COpT0 (c)) (v :: s) t m
-  | (COpD0 (c), v :: v1 :: s) ->
-    apply_op7 Divide v v1 c s t m
-  | (COpD1 (f_e0_xs, vs, c), v :: s) ->
-    f_e0_xs vs (COpD0 (c)) (v :: s) t m
+  | (CApp1 (e0, xs, vs, c), v :: s) ->
+    f7 e0 xs vs (CApp0 (c)) (VArg (v) :: s) t m
+  | (COp0 (op, c), v :: v1 :: s) ->
+    apply_op7 op v v1 c s t m
+  | (COp1 (e0, xs, vs, op, c), v :: s) ->
+    f7 e0 xs vs (COp0 (op, c)) (v :: s) t m
   | _ -> failwith "stack or cont error"
 
 (* f7 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f7 e xs vs c s t m = match e with
     Num (n) -> run_c7 c (VNum (n) :: s) t m
   | Var (x) -> run_c7 c (List.nth vs (Env.offset x xs) :: s) t m
-  | Op (e0, Plus, e1) ->
-    let f_e1_xs = f7 e1 xs in
-    let f_e0_xs = f7 e0 xs in
-    f_e1_xs vs (COpP1 (f_e0_xs, vs, c)) s t m
-  | Op (e0, Minus, e1) ->
-    let f_e1_xs = f7 e1 xs in
-    let f_e0_xs = f7 e0 xs in
-    f_e1_xs vs (COpM1 (f_e0_xs, vs, c)) s t m
-  | Op (e0, Times, e1) ->
-    let f_e1_xs = f7 e1 xs in
-    let f_e0_xs = f7 e0 xs in
-    f_e1_xs vs (COpT1 (f_e0_xs, vs, c)) s t m
-  | Op (e0, Divide, e1) ->
-    let f_e1_xs = f7 e1 xs in
-    let f_e0_xs = f7 e0 xs in
-    f_e1_xs vs (COpD1 (f_e0_xs, vs, c)) s t m
+  | Op (e0, op, e1) ->
+    f7 e1 xs vs (COp1 (e0, xs, vs, op, c)) s t m
   | Fun (x, e) ->
     begin match (c, s) with
       (CApp0 (c'),  VArg (v1) :: s') -> (* Grab *)
@@ -74,9 +48,7 @@ and f7 e xs vs c s t m = match e with
              f7 e (x :: xs) (v1 :: vs) c' s' t' m') :: s) t m
     end
   | App (e0, e1, e2s) ->
-    let f_e1_xs = f7 e1 xs in
-    let f_e0_xs = f7 e0 xs in
-    f_e1_xs vs (CApp1 (f_e0_xs, vs, c)) s t m
+    f7 e1 xs vs (CApp1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->
