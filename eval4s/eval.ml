@@ -39,7 +39,7 @@ let rec run_c4 c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (COp1 (e0, xs, vs, op) :: c, s) -> f4 e0 xs vs (COp0 (op) :: c) (v :: s) t m
+  | (COp1 (e0, xs, op, vs) :: c, s) -> f4 e0 xs vs (COp0 (op) :: c) (v :: s) t m
   | _ -> failwith "stack or cont error"
 
 (* run_c4s : cs * c -> v list -> s -> t -> m -> v *)
@@ -53,7 +53,7 @@ and run_c4s cs v2s s t m = match cs with
 and f4 e xs vs c s t m = match e with
     Num (n) -> run_c4 c (VNum (n)) s t m
   | Var (x) -> run_c4 c (List.nth vs (Env.offset x xs)) s t m
-  | Op (e0, op, e1) -> f4 e1 xs vs (COp1 (e0, xs, vs, op) :: c) s t m
+  | Op (e0, op, e1) -> f4 e1 xs vs (COp1 (e0, xs, op, vs) :: c) s t m
   | Fun (x, e) ->
     begin match (c, s) with
       (CApp0 :: c', VArgs (v1 :: v2s) :: s') -> (* Grab *)

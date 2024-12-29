@@ -42,7 +42,7 @@ let rec run_c2 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | COp1 (e0, xs, vs, op, c) -> f2 e0 xs vs (COp0 (v, op, c)) t m
+  | COp1 (e0, xs, op, vs, c) -> f2 e0 xs vs (COp0 (v, op, c)) t m
 
 (* run_c2s : cs -> v list -> t -> m -> v *)
 and run_c2s cs v2s t m = match cs with
@@ -53,7 +53,7 @@ and run_c2s cs v2s t m = match cs with
 and f2 e xs vs c t m = match e with
     Num (n) -> run_c2 c (VNum (n)) t m
   | Var (x) -> run_c2 c (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) -> f2 e1 xs vs (COp1 (e0, xs, vs, op, c)) t m
+  | Op (e0, op, e1) -> f2 e1 xs vs (COp1 (e0, xs, op, vs, c)) t m
   | Fun (x, e) ->
     begin match c with
       CApp0 (v1 :: v2s, c') -> (* Grab *)
