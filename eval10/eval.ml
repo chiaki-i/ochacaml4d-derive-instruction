@@ -77,7 +77,7 @@ and run_c10 c vs s t m = match (c, s) with
   | (IControl0 (i) :: c1, s) ->
     begin match m with
         (c0, s0, t0) :: m0 ->
-        run_c10 (i @ c0) (VContS (c1, s, t) :: vs) s0 t0 m0
+        run_c10 (i @ c0) (VContC (c1, s, t) :: vs) s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | (IReset (i) :: c1, s) ->
