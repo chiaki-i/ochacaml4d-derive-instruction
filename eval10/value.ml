@@ -7,12 +7,14 @@ type v = VNum of int
        | VFun of c * v list
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEnv of v list
-       | VK of c
+       | VArg of v
 
-and i = INum of int | IAccess of int
-      | IPush_closure of c | IReturn
-      | IPush_env | IPop_env | IOp of op | ICall
+and i = IVArg
+      | INum of int
+      | IAccess of int
+      | IOp of op
+      | IApply
+      | IGrab of c
       | IShift of c | IControl of c
       | IShift0 of c | IControl0 of c
       | IReset of c
@@ -35,8 +37,18 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEnv (_) -> "<VEnv>"
-  | VK (_) -> "<VK>"
+  | VArg (v) -> "<VArg: " ^ to_string v ^ ">"
+
+(* s_to_string : s -> string *)
+let rec s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    to_string first ^
+    List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
 
 (* Value.print : v -> unit *)
 let print exp =
