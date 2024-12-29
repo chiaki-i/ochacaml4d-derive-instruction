@@ -56,10 +56,8 @@ and f2 e xs vs c t m = match e with
   | Op (e0, op, e1) -> f2 e1 xs vs (COp1 (e0, xs, vs, op, c)) t m
   | Fun (x, e) ->
     begin match c with
-    (*
-      CApp0 (v1, c') -> (* Grab *)
-             f2 e (x :: xs) (v1 :: vs) c' t m
-             *)
+      CApp0 (v1 :: v2s, c') -> (* Grab *)
+             f2 e (x :: xs) (v1 :: vs) (CApp0 (v2s, c')) t m
     | _ -> run_c2 c (VFun (fun v1 c' t' m' ->
              f2 e (x :: xs) (v1 :: vs) c' t' m')) t m
     end
