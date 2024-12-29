@@ -13,7 +13,7 @@ type e = Num of int
        | Var of string
        | Op of e * op * e
        | Fun of string * e
-       | App of e * e * e list
+       | App of e * e list
        | Shift of string * e
        | Control of string * e
        | Shift0 of string * e
@@ -28,10 +28,9 @@ let rec to_string exp = match exp with
     "(" ^ to_string e0 ^ op_to_string op ^ to_string e1 ^ ")"
   | Fun (x, e) ->
     "(fun " ^ x ^ " -> " ^ to_string e ^ ")"
-  | App (e0, e1, e2s) ->
-    "(" ^ to_string e0 ^ " "
-        ^ List.fold_left (fun s e -> s ^ " " ^ to_string e)
-                         (to_string e1) e2s ^ ")"
+  | App (e0, e2s) ->
+    "(" ^ List.fold_left (fun s e -> s ^ " " ^ to_string e)
+                         (to_string e0) e2s ^ ")"
   | Shift (x, e) ->
     "(shift " ^ x ^ " -> " ^ to_string e ^ ")"
   | Control (x, e) ->

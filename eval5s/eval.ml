@@ -25,8 +25,6 @@ let rec run_c5 c v s t m = match (c, s) with
       | Trail (h) -> h v TNil m
     end
   | (CApp0 (c), VArgs (v2s) :: s) -> apply5s v v2s c s t m
-  | (CApp1 (e0, xs, vs, c),  VArgs (v2s) :: s) ->
-    f5 e0 xs vs (CApp0 (c)) (VArgs (v :: v2s) :: s) t m
   | (CAppS0 (cs, c), VArgs (v2s) :: s) -> run_c5s (cs, c) (v :: v2s) s t m
   | (COp0 (op, c), v0 :: s) ->
     begin match (v, v0) with
@@ -46,8 +44,8 @@ let rec run_c5 c v s t m = match (c, s) with
 
 (* run_c5s : cs * c -> v list -> s -> t -> m -> v *)
 and run_c5s cs v2s s t m = match cs with
-    (CApp2 (e0, e1, xs, vs), c) ->
-    f5 e1 xs vs (CApp1 (e0, xs, vs, c)) (VArgs (v2s) :: s) t m
+    (CApp2 (e0, xs, vs), c) ->
+    f5 e0 xs vs (CApp0 (c)) (VArgs (v2s) :: s) t m
   | (CAppS1 (e, xs, vs, cs), c) ->
     f5 e xs vs (CAppS0 (cs, c)) (VArgs (v2s) :: s) t m
 
@@ -65,8 +63,8 @@ and f5 e xs vs c s t m = match e with
     | _ -> run_c5 c (VFun (fun v1 c' s' t' m' ->
              f5 e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
     end
-  | App (e0, e1, e2s) ->
-    f5s e2s xs vs (CApp2 (e0, e1, xs, vs), c) s t m
+  | App (e0, e2s) ->
+    f5s e2s xs vs (CApp2 (e0, xs, vs), c) s t m
   | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->

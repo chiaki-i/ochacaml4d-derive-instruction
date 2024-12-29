@@ -10,7 +10,6 @@ type v = VNum of int
        | VArgs of v list
 
 and f = CApp0
-      | CApp1 of e * string list * v list
       | CAppS0 of cs
       | COp0 of op
       | COp1 of e * string list * v list * op
@@ -19,7 +18,7 @@ and c = f list
 
 and s = v list
 
-and cs = CApp2 of e * e * string list * v list
+and cs = CApp2 of e * string list * v list
        | CAppS1 of e * string list * v list * cs
 
 and t = TNil | Trail of (v -> t -> m -> v)
