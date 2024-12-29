@@ -13,6 +13,8 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+let idc = []
+
 (* run_h10 : h -> v -> t -> m -> v *)
 let rec run_h10 h vs v t m = match h with
     Hold (c, s) -> run_c10 c vs (v :: s) t m
@@ -25,7 +27,7 @@ and run_c10 c vs s t m = match (c, s) with
         TNil ->
         begin match m with
             [] -> v
-          | (c, s, t) :: m -> run_c10 c vs (v :: s) t m
+          | (c0, s0, t0) :: m0 -> run_c10 c0 vs (v :: s0) t0 m0
         end
       | Trail (h) -> run_h10 h vs v TNil m
     end
@@ -55,30 +57,31 @@ and run_c10 c vs s t m = match (c, s) with
   | (IApply :: c1, v0 :: VArg (v1) :: s) ->
     begin match v0 with
         VFun (c0, vs) -> run_c10 (c0 @ c1) (v1 :: vs) s t m
-      | VContS (c', s', t') -> run_c10 c' vs (v1 :: s') t' ((c, s, t) :: m)
-      | VContC (c', s', t') ->
-        run_c10 c' vs (v1 :: s') (apnd t' (cons (Hold (c, s)) t)) m
+      | VContS (c0, s0, t0) -> run_c10 c0 vs (v1 :: s0) t0 ((c1, s, t) :: m)
+      | VContC (c0, s0, t0) ->
+        run_c10 c0 vs (v1 :: s0) (apnd t0 (cons (Hold (c1, s)) t)) m
       | _ -> failwith (to_string v0
                        ^ " is not a function; it can not be applied.")
     end
-  | (IShift (c0) :: c1, s) ->
-    run_c10 c0 (VContS (c1, s, t) :: vs) [] TNil m
-  | (IControl (c0) :: c1, s) ->
-    run_c10 c0 (VContC (c1, s, t) :: vs) [] TNil m
-  | (IShift0 (c0) :: c1, s) ->
+  | (IApply :: c1, _) -> failwith "stack error: IApply"
+  | (IShift (i) :: c1, s) ->
+    run_c10 i (VContS (c1, s, t) :: vs) [] TNil m
+  | (IControl (i) :: c1, s) ->
+    run_c10 i (VContC (c1, s, t) :: vs) [] TNil m
+  | (IShift0 (i) :: c1, s) ->
     begin match m with
-        (c0', s0, t0) :: m0 ->
-        run_c10 (c0 @ c0') (VContS (c, s, t) :: vs) s0 t0 m0
+        (c0, s0, t0) :: m0 ->
+        run_c10 (i @ c0) (VContS (c1, s, t) :: vs) s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
-  | (IControl0 (c0) :: c1, s) ->
+  | (IControl0 (i) :: c1, s) ->
     begin match m with
-        (c0', s0, t0) :: m0 ->
-        run_c10 (c0 @ c0') (VContS (c, s, t) :: vs) s0 t0 m0
+        (c0, s0, t0) :: m0 ->
+        run_c10 (i @ c0) (VContS (c1, s, t) :: vs) s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
-  | (IReset (c0) :: c1, s) ->
-    run_c10 (c0 @ []) vs [] TNil ((c, s, t) :: m)
+  | (IReset (i) :: c1, s) ->
+    run_c10 (i @ idc) vs [] TNil ((c1, s, t) :: m)
   | _ -> failwith (s_to_string s)
 
 (* f10 : e -> string list -> c *)
