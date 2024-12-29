@@ -25,7 +25,7 @@ let apnd t0 t1 = match t0 with
 
 (* f1: definitional interpreter *)
 
-(* f1 : e -> string list -> v list -> v list -> c -> t -> m -> v *)
+(* f1 : e -> string list -> v list -> c -> t -> m -> v *)
 let rec f1 e xs vs c t m =
   match e with
     Num (n) -> c (VNum (n)) t m
@@ -71,7 +71,7 @@ let rec f1 e xs vs c t m =
     end
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, t), m))
 
-(* f1 : e list -> string list -> v list -> v list -> c -> t -> m -> v list *)
+(* f1 : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f1s e2s xs vs c t m = match e2s with
     [] -> c [] t m
   | e :: e2s ->
