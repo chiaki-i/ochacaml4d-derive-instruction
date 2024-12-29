@@ -22,6 +22,10 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
+  | VArgs ([]) -> "[]"
+  | VArgs (v :: vs) ->
+    "[" ^ List.fold_left (fun s v -> s ^ "; " ^ to_string v)
+                         (to_string v) vs ^ "]"
 
 
 (* Value.print : v -> unit *)
