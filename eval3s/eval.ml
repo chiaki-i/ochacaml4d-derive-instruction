@@ -24,10 +24,9 @@ let rec run_c3 c v t m = match c with
         end
       | Trail (h) -> h v TNil m
     end
-  | CApplyS (v2s) :: c -> apply3s v v2s c t m
-  | CApp0 (v1, v2s) :: c -> apply3 v v1 (CApplyS (v2s) :: c) t m
+  | CApp0 (v2s) :: c -> apply3s v v2s c t m
   | CApp1 (e0, v2s, xs, vs) :: c ->
-    f3 e0 xs vs (CApp0 (v, v2s) :: c) t m
+    f3 e0 xs vs (CApp0 (v :: v2s) :: c) t m
   | CAppS0 (v2s, cs) :: c -> run_c3s (cs, c) (v :: v2s) t m
   | COp0 (v0, op) :: c ->
     begin match (v, v0) with
@@ -97,7 +96,7 @@ and apply3 v0 v1 c t m = match v0 with
 (* apply3s : v -> v list -> c -> t -> m -> v *)
 and apply3s v0 v2s c t m = match v2s with
     [] -> run_c3 c v0 t m
-  | v1 :: v2s -> apply3 v0 v1 (CApplyS (v2s) :: c) t m
+  | v1 :: v2s -> apply3 v0 v1 (CApp0 (v2s) :: c) t m
 
 (* f : e -> v *)
 let f expr = f3 expr [] [] [] TNil MNil

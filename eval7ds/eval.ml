@@ -24,10 +24,9 @@ let rec run_c7 c s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CApplyS (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
-  | (CApp0 (c), v :: v1 :: v2s :: s) -> apply7 v v1 (CApplyS (c)) (v2s :: s) t m
-  | (CApp1 (e0, xs, vs, c),  v :: v2s :: s) ->
-    f7 e0 xs vs (CApp0 (c)) (v :: v2s :: s) t m
+  | (CApp0 (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
+  | (CApp1 (e0, xs, vs, c),  v :: VArgs (v2s) :: s) ->
+    f7 e0 xs vs (CApp0 (c)) (VArgs (v :: v2s) :: s) t m
   | (CAppS0 (cs, c), v :: VArgs (v2s) :: s) ->
     run_c7s (cs, c) (VArgs (v :: v2s) :: s) t m
   | (COp0 (op, c), v :: v0 :: s) ->
@@ -105,7 +104,7 @@ and apply7 v0 v1 c s t m = match v0 with
 (* apply7s : v -> v list -> c -> s -> t -> m -> v *)
 and apply7s v0 v2s c s t m = match v2s with
     [] -> run_c7 c (v0 :: s) t m
-  | v1 :: v2s -> apply7 v0 v1 (CApplyS (c)) (VArgs (v2s) :: s) t m
+  | v1 :: v2s -> apply7 v0 v1 (CApp0 (c)) (VArgs (v2s) :: s) t m
 
 (* f : e -> v *)
 let f expr = f7 expr [] [] C0 [] TNil MNil

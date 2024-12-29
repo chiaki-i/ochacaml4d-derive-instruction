@@ -24,10 +24,9 @@ let rec run_c4 c v s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CApplyS :: c, VArgs (v2s) :: s) -> apply4s v v2s c s t m
-  | (CApp0 :: c, v1 :: v2s :: s) -> apply4 v v1 (CApplyS :: c) (v2s :: s) t m
-  | (CApp1 (e0, xs, vs) :: c,  v2s :: s) ->
-    f4 e0 xs vs (CApp0 :: c) (v :: v2s :: s) t m
+  | (CApp0 :: c, VArgs (v2s) :: s) -> apply4s v v2s c s t m
+  | (CApp1 (e0, xs, vs) :: c,  VArgs (v2s) :: s) ->
+    f4 e0 xs vs (CApp0 :: c) (VArgs (v :: v2s) :: s) t m
   | (CAppS0 (cs) :: c, VArgs (v2s) :: s) -> run_c4s (cs, c) (v :: v2s) s t m
   | (COp0 (op) :: c, v0 :: s) ->
     begin match (v, v0) with
@@ -102,7 +101,7 @@ and apply4 v0 v1 c s t m = match v0 with
 (* apply4s : v -> v list -> c -> s -> t -> m -> v *)
 and apply4s v0 v2s c s t m = match v2s with
     [] -> run_c4 c v0 s t m
-  | v1 :: v2s -> apply4 v0 v1 (CApplyS :: c) (VArgs (v2s) :: s) t m
+  | v1 :: v2s -> apply4 v0 v1 (CApp0 :: c) (VArgs (v2s) :: s) t m
 
 (* f : e -> v *)
 let f expr = f4 expr [] [] [] [] TNil MNil

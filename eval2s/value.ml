@@ -9,10 +9,9 @@ type v = VNum of int
        | VContC of c * t
 
 and c = C0
-      | CApp0 of v * v list * c
+      | CApp0 of v list * c
       | CApp1 of e * v list * string list * v list * c
       | CAppS0 of v list * cs
-      | CApplyS of v list * c
       | COp0 of v * op * c
       | COp1 of e * string list * v list * op * c
 
