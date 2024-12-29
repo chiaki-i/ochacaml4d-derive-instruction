@@ -29,8 +29,7 @@ let rec run_c5 c v s t m = match (c, s) with
   | (CApp1 (e0, xs, vs, c),  v2s :: s) ->
     f5 e0 xs vs (CApp0 (c)) (v :: v2s :: s) t m
   | (CAppS0 (cs, c), VArgs (v2s) :: s) -> run_c5s (cs, c) (v :: v2s) s t m
-  | (COp0 (e0, xs, vs, op, c), s) -> f5 e0 xs vs (COp1 (op, c)) (v :: s) t m
-  | (COp1 (op, c), v0 :: s) ->
+  | (COp0 (op, c), v0 :: s) ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
@@ -43,6 +42,7 @@ let rec run_c5 c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
+  | (COp1 (e0, xs, vs, op, c), s) -> f5 e0 xs vs (COp0 (op, c)) (v :: s) t m
   | _ -> failwith "stack or cont error"
 
 (* run_c5s : cs * c -> v list -> s -> t -> m -> v *)
@@ -56,7 +56,7 @@ and run_c5s cs v2s s t m = match cs with
 and f5 e xs vs c s t m = match e with
     Num (n) -> run_c5 c (VNum (n)) s t m
   | Var (x) -> run_c5 c (List.nth vs (Env.offset x xs)) s t m
-  | Op (e0, op, e1) -> f5 e1 xs vs (COp0 (e0, xs, vs, op, c)) s t m
+  | Op (e0, op, e1) -> f5 e1 xs vs (COp1 (e0, xs, vs, op, c)) s t m
   | Fun (x, e) ->
     begin match (c, s) with
     (*

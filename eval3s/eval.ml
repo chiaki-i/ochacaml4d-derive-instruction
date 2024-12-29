@@ -29,8 +29,7 @@ let rec run_c3 c v t m = match c with
   | CApp1 (e0, v2s, xs, vs) :: c ->
     f3 e0 xs vs (CApp0 (v, v2s) :: c) t m
   | CAppS0 (v2s, cs) :: c -> run_c3s (cs, c) (v :: v2s) t m
-  | COp0 (e0, xs, vs, op) :: c -> f3 e0 xs vs (COp1 (v, op) :: c) t m
-  | COp1 (v0, op) :: c ->
+  | COp0 (v0, op) :: c ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
@@ -43,6 +42,7 @@ let rec run_c3 c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
+  | COp1 (e0, xs, vs, op) :: c -> f3 e0 xs vs (COp0 (v, op) :: c) t m
 
 (* run_c3s : cs * c -> v list -> t -> m -> v *)
 and run_c3s cs v2s t m = match cs with
@@ -53,7 +53,7 @@ and run_c3s cs v2s t m = match cs with
 and f3 e xs vs c t m = match e with
     Num (n) -> run_c3 c (VNum (n)) t m
   | Var (x) -> run_c3 c (List.nth vs (Env.offset x xs)) t m
-  | Op (e0, op, e1) -> f3 e1 xs vs (COp0 (e0, xs, vs, op) :: c) t m
+  | Op (e0, op, e1) -> f3 e1 xs vs (COp1 (e0, xs, vs, op) :: c) t m
   | Fun (x, e) ->
     begin match c with
     (*

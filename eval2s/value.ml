@@ -13,8 +13,8 @@ and c = C0
       | CApp1 of e * v list * string list * v list * c
       | CAppS0 of v list * cs
       | CApplyS of v list * c
-      | COp0 of e * string list * v list * op * c
-      | COp1 of v * op * c
+      | COp0 of v * op * c
+      | COp1 of e * string list * v list * op * c
 
 and cs = CApp2 of e * e * string list * v list * c
        | CAppS1 of e * string list * v list * cs
