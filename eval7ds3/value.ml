@@ -12,16 +12,15 @@ type v = VNum of int
 
 and c = C0
       | CSeq of c' * v list * c
-      | CAppS0 of v list * cs
 
 and c' = CApp0
+       | CApp2 of e * string list
        | COp0 of op
        | COp1 of e * string list * op
+       | CAppS0
+       | CAppS1 of e * string list
 
 and s = v list
-
-and cs = CApp2 of e * string list * v list * c
-       | CAppS1 of e * string list * v list * cs
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
