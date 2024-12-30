@@ -64,24 +64,18 @@ and run_i9 i vs c s t m = match i with
     end
   | IApply ->
     begin match s with
-        v0 :: VArgs (v2s) :: s ->
-          begin match v2s with
-            [] -> run_c9 c (v0 :: s) t m
-          | v1 :: v2s ->
-            (* apply9 v0 v1 ((IApply, vs) :: c) (VArgs (v2s) :: s) t m *)
-            begin match v0 with
-                VFun (i, vs) ->
-                  run_i9 i vs ((IApply, vs) :: c) (v1 :: VArgs (v2s) :: s) t m
-              | VContS (c', s', t') ->
-                run_c9 c' (v1 :: s') t'
-                  ((((IApply, vs) :: c), (VArgs (v2s) :: s), t) :: m)
-              | VContC (c', s', t') ->
-                run_c9 c' (v1 :: s')
-                  (apnd t' (cons (Hold (((IApply, vs) :: c), (VArgs (v2s) :: s))) t)) m
-              | _ -> failwith (to_string v0
-                              ^ " is not a function; it can not be applied.")
-            end
-          end
+        v0 :: VArgs ([]) :: s -> run_c9 c (v0 :: s) t m
+      | VFun (i, vs) :: VArgs (v1 :: v2s) :: s ->
+        run_i9 i vs ((IApply, vs) :: c) (v1 :: VArgs (v2s) :: s) t m
+      | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
+        run_c9 c' (v1 :: s') t'
+          ((((IApply, vs) :: c), (VArgs (v2s) :: s), t) :: m)
+      | VContC (c', s', t') :: VArgs (v1 :: v2s) :: s ->
+        run_c9 c' (v1 :: s')
+          (apnd t' (cons (Hold (((IApply, vs) :: c), (VArgs (v2s) :: s))) t)) m
+      | v0 :: VArgs (v1 :: v2s) :: s ->
+        failwith (to_string v0
+                  ^ " is not a function; it can not be applied.")
       | _ -> failwith "stack error: IApply"
     end
   | IFun (i) ->
