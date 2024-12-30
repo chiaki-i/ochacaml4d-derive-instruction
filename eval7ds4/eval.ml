@@ -27,11 +27,9 @@ let rec run_c7 c s t m = match (c, s) with
     end
   | (CSeq (c', vs, c), (v :: s)) ->
     c' vs c (v :: s) t m
-  | (CAppS0 (vs, cs), v :: VArgs (v2s) :: s) ->
-    run_c7s cs (VArgs (v :: v2s) :: s) t m
 
 (* apply7 : v -> v -> c -> s -> t -> m -> v *)
-and apply7 v0 v1 c s t m = match v0 with
+let apply7 v0 v1 c s t m = match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') -> run_c7 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
@@ -41,26 +39,18 @@ and apply7 v0 v1 c s t m = match v0 with
                    ^ " is not a function; it can not be applied.")
 
 (* apply7s : v -> v list -> v list -> c -> s -> t -> m -> v *)
-and apply7s v0 v2s vs c s t m = match v2s with
+let rec apply7s v0 v2s vs c s t m = match v2s with
     [] -> run_c7 c (v0 :: s) t m
   | v1 :: v2s ->
     apply7 v0 v1 (CSeq ((fun vs c (v :: VArgs (v2s) :: s) t m ->
       apply7s v v2s vs c s t m), vs, c)) (VArgs (v2s) :: s) t m
 
 (* apply : c' *)
-and apply = fun vs c s t m -> match s with
+let apply = fun vs c s t m -> match s with
   v0 :: VArgs (v2s) :: s -> apply7s v0 v2s vs c s t m
 
-(* run_c7s : cs -> s -> t -> m -> v *)
-and run_c7s cs (VArgs (v2s) :: s) t m = match cs with
-    CApp2 (e0, xs, vs, c) ->
-    f7 e0 xs vs (CSeq ((fun vs c (v :: VArgs (v2s) :: s) t m ->
-      apply7s v v2s vs c s t m), vs, c)) (VArgs (v2s) :: s) t m
-  | CAppS1 (e, xs, vs, cs) ->
-    f7 e xs vs (CAppS0 (vs, cs)) (VArgs (v2s) :: s) t m
-
 (* f7 : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f7 e xs vs c s t m = match e with
+let rec f7 e xs vs c s t m = match e with
     Num (n) -> run_c7 c (VNum (n) :: s) t m
   | Var (x) -> run_c7 c (List.nth vs (Env.offset x xs) :: s) t m
   | Op (e0, op, e1) ->
@@ -89,7 +79,10 @@ and f7 e xs vs c s t m = match e with
              f7 e (x :: xs) (v1 :: vs) c' s' t' m') :: s) t m
     end
   | App (e0, e2s) ->
-    f7s e2s xs vs (CApp2 (e0, xs, vs, c)) s t m
+    f7s e2s xs vs (CSeq ((fun vs c (VArgs (v2s) :: s) t m ->
+      f7 e0 xs vs (CSeq ((fun vs c (v :: VArgs (v2s) :: s) t m ->
+        apply7s v v2s vs c s t m), vs, c)) (VArgs (v2s) :: s) t m
+    ), vs, c)) s t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->
@@ -106,11 +99,15 @@ and f7 e xs vs c s t m = match e with
     end
   | Reset (e) -> f7 e xs vs C0 [] TNil (MCons ((c, s, t), m))
 
-(* f7s : e list -> string list -> v list -> cs -> s -> t -> m -> v list *)
-and f7s e2s xs vs cs s t m = match e2s with
-    [] -> run_c7s cs (VArgs ([]) :: s) t m
+(* f7s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
+and f7s e2s xs vs c s t m = match e2s with
+    [] -> run_c7 c (VArgs ([]) :: s) t m
   | e :: e2s ->
-    f7s e2s xs vs (CAppS1 (e, xs, vs, cs)) s t m
+    f7s e2s xs vs (CSeq ((fun vs c (VArgs (v2s) :: s) t m ->
+      f7 e xs vs (CSeq ((fun vs c (v :: VArgs (v2s) :: s) t m ->
+        run_c7 c (VArgs (v :: v2s) :: s) t m
+      ), vs, c)) (VArgs (v2s) :: s) t m
+    ), vs, c)) s t m
 
 (* f : e -> v *)
 let f expr = f7 expr [] [] C0 [] TNil MNil
