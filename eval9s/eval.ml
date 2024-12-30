@@ -129,9 +129,6 @@ and apply9s v0 v2s vs c s t m = match v2s with
   | v1 :: v2s ->
     apply9 v0 v1 ((IApply, vs) :: c) (VArgs (v2s) :: s) t m
 
-(* and apply9s v0 v2s vs c s t m =
-  List.fold_left (fun v1 -> apply9 v0 v1 ())
- *)
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
 
