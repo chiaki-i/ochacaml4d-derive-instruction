@@ -67,8 +67,8 @@ and run_i9 i vs c s r t m = match i with
               | VContS (c', s', r', t') ->
                 run_c9 c' (v1 :: s') r' t' (MCons (((IApply, vs) :: c, VArgs (v2s) :: s, r, t), m))
               | VContC (c', s', r', t') ->
-                run_c9 c' (v1 :: s') r'
-                      (apnd t' (cons (fun v t m -> run_c9 ((IApply, vs) :: c) (v :: VArgs (v2s) :: s) r t m) t)) m
+                let trail = fun v t m -> run_c9 ((IApply, vs) :: c) (v :: VArgs (v2s) :: s) r t m in
+                run_c9 c' (v1 :: s') r' (apnd t' (cons trail t)) m
               | _ -> failwith (to_string v0
                               ^ " is not a function; it can not be applied.")
             end
