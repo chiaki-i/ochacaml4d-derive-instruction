@@ -25,6 +25,8 @@ and i = IPush
 
 and s = v list
 
+and r = (i * v list) list
+
 and h = Hold of c * s
       | Append of h * h
 
