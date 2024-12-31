@@ -1,6 +1,6 @@
 open Syntax
 
-(* Interpreter using combinators factored as instructions : eval8sr *)
+(* interpreter with defunctionalized instructions : eval9sr *)
 
 (* Value *)
 type v = VNum of int
@@ -10,10 +10,19 @@ type v = VNum of int
        | VArgs of v list
        | VK of c
 
-and c = C0
-      | CSeq of i * v list * c
+and c = (i * v list) list
 
-and i = v list -> c -> s -> r -> t -> m -> v
+and i = IPush
+      | IPushmark
+      | INum of int
+      | IAccess of int
+      | IOp of op
+      | IApply
+      | IFun of i
+      | ISeq of i * i
+      | IShift of i | IControl of i
+      | IShift0 of i | IControl0 of i
+      | IReset of i
 
 and s = v list
 
