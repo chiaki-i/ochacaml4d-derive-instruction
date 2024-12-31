@@ -5,8 +5,8 @@ open Syntax
 (* Value *)
 type v = VNum of int
        | VFun of i * v list
-       | VContS of c * s * t
-       | VContC of c * s * t
+       | VContS of c * s * r * t
+       | VContC of c * s * r * t
        | VArgs of v list
 
 and c = (i * v list) list
@@ -27,12 +27,12 @@ and s = v list
 
 and r = (i * v list) list
 
-and h = Hold of c * s
+and h = Hold of c * s * r
       | Append of h * h
 
 and t = TNil | Trail of h
 
-and m = (c * s * t) list
+and m = (c * s * r * t) list
 
 (* to_string : v -> string *)
 let rec to_string value = match value with

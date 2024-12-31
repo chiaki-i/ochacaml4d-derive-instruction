@@ -17,7 +17,7 @@ let apnd t0 t1 = match t0 with
 
 (* run_h9 : h -> v -> t -> m -> v *)
 let rec run_h9 h v vs r t m = match h with
-    Hold (c, s) -> run_c9 c vs (v :: s) r t m
+    Hold (c, s, r) -> run_c9 c vs (v :: s) r t m
   | Append (h, h') -> run_h9 h v vs r (cons h' t) m
 
 (* run_c9 : c -> v list -> s -> r -> t -> m -> v *)
@@ -27,7 +27,7 @@ and run_c9 c vs s r t m = match (c, s) with
         TNil ->
         begin match m with
             [] -> v
-          | (c, s, t) :: m -> run_c9 c vs (v :: s) r t m
+          | (c, s, r, t) :: m -> run_c9 c vs (v :: s) r t m
         end
       | Trail (h) -> run_h9 h v vs r TNil m
     end
@@ -67,12 +67,12 @@ and run_i9 i vs c s r t m = match i with
         v0 :: VArgs ([]) :: s -> run_c9 c vs (v0 :: s) r t m
       | VFun (i, vs) :: VArgs (v1 :: v2s) :: s ->
         run_i9 i vs ((IApply, vs) :: c) (v1 :: VArgs (v2s) :: s) r t m
-      | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
-        run_c9 c' vs (v1 :: s') r t'
-          ((((IApply, vs) :: c), (VArgs (v2s) :: s), t) :: m)
-      | VContC (c', s', t') :: VArgs (v1 :: v2s) :: s ->
-        run_c9 c' vs (v1 :: s') r
-          (apnd t' (cons (Hold (((IApply, vs) :: c), (VArgs (v2s) :: s))) t)) m
+      | VContS (c', s', r', t') :: VArgs (v1 :: v2s) :: s ->
+        run_c9 c' vs (v1 :: s') r' t'
+          ((((IApply, vs) :: c), (VArgs (v2s) :: s), r, t) :: m)
+      | VContC (c', s', r', t') :: VArgs (v1 :: v2s) :: s ->
+        run_c9 c' vs (v1 :: s') r'
+          (apnd t' (cons (Hold (((IApply, vs) :: c), (VArgs (v2s) :: s), r)) t)) m
       | v0 :: VArgs (v1 :: v2s) :: s ->
         failwith (to_string v0
                   ^ " is not a function; it can not be applied.")
@@ -88,23 +88,23 @@ and run_i9 i vs c s r t m = match i with
         run_c9 c vs (VFun (i, vs) :: s) r t m
     end
   | IShift (i) ->
-    run_i9 i (VContS (c, s, t) :: vs) idc [] r TNil m
+    run_i9 i (VContS (c, s, r, t) :: vs) idc [] r TNil m
   | IControl (i) ->
-    run_i9 i (VContC (c, s, t) :: vs) idc [] r TNil m
+    run_i9 i (VContC (c, s, r, t) :: vs) idc [] r TNil m
   | IShift0 (i) ->
     begin match m with
-        (c0, s0, t0) :: m0 ->
-        run_i9 i (VContS (c, s, t) :: vs) c0 s0 r t0 m0
+        (c0, s0, r0, t0) :: m0 ->
+        run_i9 i (VContS (c, s, r, t) :: vs) c0 s0 r t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | IControl0 (i) ->
     begin match m with
-        (c0, s0, t0) :: m0 ->
-        run_i9 i (VContC (c, s, t) :: vs) c0 s0 r t0 m0
+        (c0, s0, r0, t0) :: m0 ->
+        run_i9 i (VContC (c, s, r, t) :: vs) c0 s0 r t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | IReset (i) ->
-    run_i9 i vs idc [] r TNil ((c, s, t) :: m)
+    run_i9 i vs idc [] r TNil ((c, s, r, t) :: m)
   | ISeq (i0, i1) ->
     run_i9 i0 vs ((i1, vs) :: c) s r t m
 
