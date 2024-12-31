@@ -1,39 +1,28 @@
 open Syntax
 
-(* Interpreter using combinators factored as instructions : eval8s *)
+(* Interpreter using combinators factored as instructions : eval8sr *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of i * v list
+       | VFun of (c -> s -> r -> t -> m -> v)
        | VContS of c * s * r * t
        | VContC of c * s * r * t
        | VArgs of v list
        | VK of c
 
-and c = (i * v list) list
+and c = C0
+      | CSeq of i * v list * c
 
-and i = IPush
-      | IPushmark
-      | INum of int
-      | IAccess of int
-      | IOp of op
-      | IApply
-      | IFun of i
-      | ISeq of i * i (* >> の実体 *)
-      | IShift of i | IControl of i
-      | IShift0 of i | IControl0 of i
-      | IReset of i
+and i = v list -> c -> s -> r -> t -> m -> v
 
 and s = v list
 
 and r = v list
 
-and h = Hold of c * s * r
-      | Append of h * h
+and t = TNil | Trail of (v -> t -> m -> v)
 
-and t = TNil | Trail of h
+and m = MNil | MCons of (c * s * r * t) * m
 
-and m = (c * s * r * t) list
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
@@ -47,16 +36,6 @@ let rec to_string value = match value with
                          (to_string v) vs ^ "]"
   | VK (_) -> "<VK>"
 
-(* s_to_string : v -> string *)
-let rec s_to_string s =
-  "[" ^
-  begin match s with
-    [] -> ""
-  | first :: rest ->
-    to_string first ^
-    List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
-  end
-  ^ "]"
 
 (* Value.print : v -> unit *)
 let print exp =
