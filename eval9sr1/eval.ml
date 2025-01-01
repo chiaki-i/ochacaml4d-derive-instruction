@@ -15,6 +15,9 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* (>>) : i -> i -> i *)
+let (>>) i0 i1 = ISeq (i0, i1)
+
 (* run_h9 : h -> v -> t -> m -> v *)
 let rec run_h9 h v t m = match h with
     Hold (c, s, r) -> run_c9 c (v :: s) r t m
@@ -64,14 +67,15 @@ and run_i9 i vs c s r t m = match i with
   | IApply ->
     begin match s with
         v0 :: VArgs (v2s) :: s ->
-        (* print_endline (s_to_string (v0 :: VArgs (v2s) :: s)); *)
         begin match v2s with
             [] -> run_c9 c (v0 :: s) r t m
           | v1 :: v2s ->
             begin match v0 with
-                VFun (i, vs) -> run_i9 i vs [] (v1 :: VArgs (v2s) :: s) (VK ((IApply, vs) :: c) :: r) t m
+                VFun (i, vs) -> run_i9 i (v1 :: vs) [] (VArgs (v2s) :: s)
+                                       (VK ((IApply, vs) :: c) :: r) t m
               | VContS (c', s', r', t') ->
-                run_c9 c' (v1 :: s') r' t' (MCons (((IApply, vs) :: c, VArgs (v2s) :: s, r, t), m))
+                run_c9 c' (v1 :: s') r' t'
+                       (MCons (((IApply, vs) :: c, VArgs (v2s) :: s, r, t), m))
               | VContC (c', s', r', t') ->
                 let trail = Hold ((IApply, vs) :: c, VArgs (v2s) :: s, r) in
                 run_c9 c' (v1 :: s') r' (apnd t' (cons trail t)) m
@@ -83,9 +87,9 @@ and run_i9 i vs c s r t m = match i with
       end
   (* | IAppTrail (v) ->
     run_c9 ((IApply, vs) :: c) (v :: VArgs (v2s) :: s) r t m *)
-  | IReturn (i) ->
+  | IReturn ->
     begin match (s, r) with
-        (v1 :: s', VK (c') :: r') -> run_i9 i (v1 :: vs) c' s' r' t m
+        (v1 :: s', VK (c') :: r') -> run_c9 c' (v1 :: s') r' t m
       | _ -> failwith "stack error"
     end
   | IFun (i) ->
@@ -94,12 +98,13 @@ and run_i9 i vs c s r t m = match i with
         (* print_endline ("grab: " ^ Value.s_to_string s); *)
         run_i9 i (v1 :: vs) ((i', vs') :: c') (VArgs (v2s) :: s') r' t m (*Grab*)
       | _ -> (* Cur *)
-        (* let vfun = VFun (fun _ s' (VK (c') :: r') t' m' ->
+     (* let vfun = VFun (fun _ s' (VK (c') :: r') t' m' ->
           begin match s' with
-            v1 :: s' -> run_i9 i (v1 :: vs) c' s' r' t' m'
+            v1 :: s' -> run_i9 i (v1 :: vs) ((IReturn, []) :: [])
+                                 s' (VK (c') :: r') t' m'
           | _ -> failwith "stack error"
           end) in *)
-        run_c9 c (VFun (IReturn (i), vs) :: s) r t m
+        run_c9 c (VFun (i >> IReturn, vs) :: s) r t m
     end
   | IShift (i) ->
     run_i9 i (VContS (c, s, r, t) :: vs) [] [] [] TNil m
@@ -121,9 +126,6 @@ and run_i9 i vs c s r t m = match i with
     run_i9 i vs [] [] [] TNil (MCons ((c, s, r, t), m))
   | ISeq (i0, i1) ->
     run_i9 i0 vs ((i1, vs) :: c) s r t m
-
-(* (>>) : i -> i -> i *)
-let (>>) i0 i1 = ISeq (i0, i1)
 
 (* f9 : e -> string list -> i *)
 let rec f9 e xs = match e with
