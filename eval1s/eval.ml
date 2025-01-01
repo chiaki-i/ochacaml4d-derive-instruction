@@ -79,7 +79,7 @@ and f1s e2s xs vs c t m = match e2s with
 
 (* apply1 : v -> v -> c -> t -> m -> v *)
 and apply1 v0 v1 c t m = match v0 with
-    VFun (f) -> f v1 c t m
+    VFun (f) -> f v1 (fun v t m -> c v t m) t m
   | VContS (c', t') -> c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') -> c' v1 (apnd t' (cons c t)) m
   | _ -> failwith (to_string v0

@@ -1,7 +1,7 @@
 open Syntax
 
 (* Defunctionalized interpreter with values passed via stack : eval7d w r.s.*)
-(* Add superfluous v list to CApp0, CAppS0, and COp0 *)
+(* Add superfluous v list to CApp0, CAppS0, COp0, and CRet *)
 
 (* Value *)
 type v = VNum of int
@@ -18,6 +18,7 @@ and c = C0
       | COp0 of op * v list * c
       | COp1 of e * string list * op * v list * c
       | CAppS1 of e * string list * v list * c
+      | CRet of v list * c
 
 and s = v list
 

@@ -42,6 +42,8 @@ let rec run_c4 c v s r t m = match (c, s, r) with
     end
   | (COp1 (e0, xs, op, vs) :: c, s, r) ->
     f4 e0 xs vs (COp0 (op) :: c) (v :: s) r t m
+  | (CRet :: [], s, VK (c') :: r') ->
+    run_c4 c' v s r' t m
   | _ -> failwith "stack or cont error"
 
 (* run_c4s : cs * c -> v list -> s -> r -> t -> m -> v *)
@@ -61,7 +63,7 @@ and f4 e xs vs c s r t m = match e with
       (CApp0 :: c', VArgs (v1 :: v2s) :: s', r') -> (* Grab *)
              f4 e (x :: xs) (v1 :: vs) (CApp0 :: c') (VArgs (v2s) :: s') r' t m
     | _ -> run_c4 c (VFun (fun v1 _ s' (VK (c') :: r') t' m' ->
-             f4 e (x :: xs) (v1 :: vs) c' s' r' t' m')) s r t m
+             f4 e (x :: xs) (v1 :: vs) [CRet] s' (VK (c') :: r') t' m')) s r t m
     end
   | App (e0, e2s) ->
     f4s e2s xs vs (CApp2 (e0, xs, vs), c) s r t m
