@@ -5,18 +5,23 @@ open Value
 
 let idc = []
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* run_h9 : h -> v -> t -> m -> v *)
+let rec run_h9 h v t m = match h with
+    Hold (c, s, r) -> run_c9 c (v :: s) r t m
+  | Append (h, h') -> run_h9 h v (cons h' t) m
+
 (* run_c9 : c -> s -> r -> t -> m -> v *)
-let rec run_c9 c s r t m = match (c, s, r) with
+and run_c9 c s r t m = match (c, s, r) with
     ([], v :: [], []) ->
     begin match t with
         TNil ->
@@ -24,7 +29,7 @@ let rec run_c9 c s r t m = match (c, s, r) with
             MNil -> v
           | MCons ((c, s, r, t), m) -> run_c9 c (v :: s) r t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h9 h v TNil m
     end
   | ((i1, vs) :: c, (v :: s), r) ->
     run_i9 i1 vs c (v :: s) r t m
@@ -59,6 +64,7 @@ and run_i9 i vs c s r t m = match i with
   | IApply ->
     begin match s with
         v0 :: VArgs (v2s) :: s ->
+        (* print_endline (s_to_string (v0 :: VArgs (v2s) :: s)); *)
         begin match v2s with
             [] -> run_c9 c (v0 :: s) r t m
           | v1 :: v2s ->
@@ -67,11 +73,8 @@ and run_i9 i vs c s r t m = match i with
               | VContS (c', s', r', t') ->
                 run_c9 c' (v1 :: s') r' t' (MCons (((IApply, vs) :: c, VArgs (v2s) :: s, r, t), m))
               | VContC (c', s', r', t') ->
-                (* let trail = fun v t m -> run_c9 ((IApply, vs) :: c) (v :: VArgs (v2s) :: s) r t m in *)
-                let trail = fun v t m -> run_i9 IApply vs c (v :: VArgs (v2s) :: s) r t m in
+                let trail = Hold ((IApply, vs) :: c, VArgs (v2s) :: s, r) in
                 run_c9 c' (v1 :: s') r' (apnd t' (cons trail t)) m
-                (* let trail = Hold ((IApply, vs) :: c, v0 :: VArgs (v2s) :: s, r) in
-                run_c9 c' (v1 :: s') r' (apnd t' (cons trail t)) m *)
               | _ -> failwith (to_string v0
                               ^ " is not a function; it can not be applied.")
             end

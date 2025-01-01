@@ -30,7 +30,11 @@ and s = v list
 
 and r = v list
 
-and t = TNil | Trail of (v -> t -> m -> v)
+(* and t = TNil | Trail of (v -> t -> m -> v) *)
+and h = Hold of c * s * r
+      | Append of h * h
+
+and t = TNil | Trail of h
 
 and m = MNil | MCons of (c * s * r * t) * m
 
@@ -47,6 +51,16 @@ let rec to_string value = match value with
                          (to_string v) vs ^ "]"
   | VK (_) -> "<VK>"
 
+(* s_to_string : s -> string *)
+let rec s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    to_string first ^
+    List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
 
 (* Value.print : v -> unit *)
 let print exp =
