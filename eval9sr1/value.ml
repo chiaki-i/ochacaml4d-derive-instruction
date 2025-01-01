@@ -18,7 +18,6 @@ and i = IPush
       | IAccess of int
       | IOp of op
       | IApply
-      | IAppTrail of v
       | IReturn of i
       | IFun of i
       | ISeq of i * i

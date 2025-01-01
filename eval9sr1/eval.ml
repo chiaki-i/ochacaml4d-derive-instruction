@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* interpreter with defunctionalized instructions : eval9s *)
+(* interpreter with defunctionalized lambdas and trails : eval9sr1 *)
 
 let idc = []
 
@@ -64,7 +64,6 @@ and run_i9 i vs c s r t m = match i with
   | IApply ->
     begin match s with
         v0 :: VArgs (v2s) :: s ->
-        (* print_endline (s_to_string (v0 :: VArgs (v2s) :: s)); *)
         begin match v2s with
             [] -> run_c9 c (v0 :: s) r t m
           | v1 :: v2s ->
@@ -81,8 +80,6 @@ and run_i9 i vs c s r t m = match i with
         end
       | _ -> failwith "stack error: IApply"
       end
-  (* | IAppTrail (v) ->
-    run_c9 ((IApply, vs) :: c) (v :: VArgs (v2s) :: s) r t m *)
   | IReturn (i) ->
     begin match (s, r) with
         (v1 :: s', VK (c') :: r') -> run_i9 i (v1 :: vs) c' s' r' t m
