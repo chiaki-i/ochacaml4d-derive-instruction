@@ -66,7 +66,7 @@ and run_i9 i vs c s t m = match i with
     begin match s with
         v0 :: VArgs ([]) :: s -> run_c9 c (v0 :: s) t m
       | VFun (i, vs) :: VArgs (v1 :: v2s) :: s ->
-        run_i9 i vs ((IApply, vs) :: c) (v1 :: VArgs (v2s) :: s) t m
+        run_i9 i (v1 :: vs) ((IApply, vs) :: c) (VArgs (v2s) :: s) t m
       | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
         run_c9 c' (v1 :: s') t'
           ((((IApply, vs) :: c), (VArgs (v2s) :: s), t) :: m)
@@ -110,7 +110,10 @@ and run_i9 i vs c s t m = match i with
 
 (* apply9 : v -> v -> c -> s -> t -> m -> v *)
 and apply9 v0 v1 c s t m = match v0 with
-    VFun (i, vs) -> run_i9 i vs c (v1 :: s) t m
+    VFun (i, vs) -> begin match s with
+                      v1 :: s' -> run_i9 i (v1 :: vs) c s' t m
+                    | _ -> failwith "stack error: VFun"
+                    end
   | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' ((c, s, t) :: m)
   | VContC (c', s', t') ->
     run_c9 c' (v1 :: s') (apnd t' (cons (Hold (c, s)) t)) m
