@@ -65,7 +65,7 @@ and f7 e xs vs c s r t m = match e with
     begin match (c, s, r) with
       (CSeq (CApp0, vs', c'), VArgs (v1 :: v2s) :: s', r') -> (* Grab *)
              f7 e (x :: xs) (v1 :: vs)
-                  (CSeq (CApp0, vs', c')) (VArgs (v2s) :: s') r t m
+                  (CSeq (CApp0, vs', c')) (VArgs (v2s) :: s') r' t m
     | _ -> run_c7 c (VFun (fun _ (v1 :: s') (VK (c') :: r') t' m' ->
              f7 e (x :: xs) (v1 :: vs) (CSeq (CRet, [], C0))
                 s' (VK (c') :: r') t' m') :: s) r t m
