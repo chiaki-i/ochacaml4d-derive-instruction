@@ -42,6 +42,8 @@ let rec run_c5 c v s r t m = match (c, s, r) with
     end
   | (COp1 (e0, xs, op, vs, c), s, r) ->
     f5 e0 xs vs (COp0 (op, c)) (v :: s) r t m
+  | (CRet (C0), s, VK (c') :: r') ->
+    run_c5 c' v s r' t m
   | _ -> failwith "stack or cont error"
 
 (* run_c5s : cs -> v list -> s -> r -> t -> m -> v *)
@@ -61,7 +63,7 @@ and f5 e xs vs c s r t m = match e with
       (CApp0 (c'), VArgs (v1 :: v2s) :: s', r') -> (* Grab *)
              f5 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') r' t m
     | _ -> run_c5 c (VFun (fun v1 _ s' (VK (c') :: r') t' m' ->
-             f5 e (x :: xs) (v1 :: vs) c' s' r' t' m')) s r t m
+             f5 e (x :: xs) (v1 :: vs) (CRet (C0)) s' (VK (c') :: r') t' m')) s r t m
     end
   | App (e0, e2s) ->
     f5s e2s xs vs (CApp2 (e0, xs, vs, c)) s r t m
@@ -90,7 +92,7 @@ and f5s e2s xs vs cs s r t m = match e2s with
 
 (* apply5 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply5 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f v1 C0 s (VK (c) :: r) t m
+    VFun (f) -> f v1 C0 (* dummy *) s (VK (c) :: r) t m
   | VContS (c', s', r', t') -> run_c5 c' v1 s' r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
     run_c5 c' v1 s' r' (apnd t' (cons (fun v t m -> run_c5 c v s r t m) t)) m

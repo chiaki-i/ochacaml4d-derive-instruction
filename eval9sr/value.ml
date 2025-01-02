@@ -19,6 +19,7 @@ and i = IPush
       | IOp of op
       | IApply
       | IFun of i
+      | IReturn
       | ISeq of i * i
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i

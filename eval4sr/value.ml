@@ -14,6 +14,13 @@ and f = CApp0
       | CAppS0 of cs
       | COp0 of op
       | COp1 of e * string list * op * v list
+      | CRet
+
+(*
+eval3   : c =   C1 :: C2 :: CRet :: C3 :: C4 :: CRet :: C5 :: []
+eval4sr : c =   C1 :: C2 :: CRet :: []
+        : r =               VK (C3 :: C4 :: CRet :: []) :: VK (C5 :: []) :: []
+*)
 
 and c = f list
 

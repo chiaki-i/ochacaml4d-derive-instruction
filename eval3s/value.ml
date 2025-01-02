@@ -12,6 +12,7 @@ and f = CApp0 of v list
       | CAppS0 of v list * cs
       | COp0 of v * op
       | COp1 of e * string list * op * v list
+      | CRet
 
 and c = f list
 
