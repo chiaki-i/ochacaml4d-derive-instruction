@@ -73,7 +73,8 @@ let rec f7 e xs vs c s r t m = match e with
     ), c)) s (VS (vs) :: r) t m
   | Fun (x, e) ->
     begin match (c, s, r) with
-      (CSeq (apply, c'), VArgs (v1 :: v2s) :: s', VS (vs') :: r') ->
+      (CSeq (i', c'), VArgs (v1 :: v2s) :: s', VS (vs') :: r')
+             when i' == apply ->
              f7 e (x :: xs) (v1 :: vs) (* Grab *)
                   (CSeq (apply, c')) (VArgs (v2s) :: s')
                   (VS (vs') :: r') t m
