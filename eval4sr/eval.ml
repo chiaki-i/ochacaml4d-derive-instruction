@@ -62,8 +62,8 @@ and f4 e xs vs c s r t m = match e with
     begin match (c, s, r) with
       (CApp0 :: c', VArgs (v1 :: v2s) :: s', r') -> (* Grab *)
              f4 e (x :: xs) (v1 :: vs) (CApp0 :: c') (VArgs (v2s) :: s') r' t m
-    | _ -> run_c4 c (VFun (fun v1 cret s' (VK (c') :: r') t' m' ->
-             f4 e (x :: xs) (v1 :: vs) cret s' (VK (c') :: r') t' m')) s r t m
+    | _ -> run_c4 c (VFun (fun v1 _ s' (VK (c') :: r') t' m' ->
+             f4 e (x :: xs) (v1 :: vs) [CRet] s' (VK (c') :: r') t' m')) s r t m
     end
   | App (e0, e2s) ->
     f4s e2s xs vs (CApp2 (e0, xs, vs) :: c) s r t m
@@ -92,7 +92,7 @@ and f4s e2s xs vs c s r t m = match e2s with
 
 (* apply4 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply4 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f v1 [CRet] s (VK (c) :: r) t m
+    VFun (f) -> f v1 [] (* dummy *) s (VK (c) :: r) t m
   | VContS (c', s', r', t') -> run_c4 c' v1 s' r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
     run_c4 c' v1 s' r' (apnd t' (cons (fun v t m -> run_c4 c v s r t m) t)) m
