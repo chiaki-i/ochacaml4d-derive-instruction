@@ -10,10 +10,20 @@ type v = VNum of int
        | VContC of c * s * r * t
        | VArgs of v list
 
-and c = C0
-      | CSeq of i * c
+and c = i list
 
-and i = rv -> c -> s -> r -> t -> m -> v
+and i = IPush
+      | IPushmark
+      | INum of int
+      | IAccess of int
+      | IOp of op
+      | IApply
+      | IFun of i
+      | IReturn
+      | ISeq of i * i
+      | IShift of i | IControl of i
+      | IShift0 of i | IControl0 of i
+      | IReset of i
 
 and s = v list
 
