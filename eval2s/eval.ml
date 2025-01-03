@@ -46,9 +46,9 @@ let rec run_c2 c v t m = match c with
   | CRet (c) -> run_c2 c v t m
 
 (* run_c2s : cs -> v list -> t -> m -> v *)
-and run_c2s cs v2s t m = match cs with
+and run_c2s c v2s t m = match cs with
     CApp2 (e0, xs, vs, c) -> f2 e0 xs vs (CApp0 (v2s, c)) t m
-  | CAppS1 (e, xs, vs, cs) -> f2 e xs vs (CAppS0 (v2s, cs)) t m
+  | CAppS1 (e, xs, vs, c) -> f2 e xs vs (CAppS0 (v2s, c)) t m
 
 (* f2 : e -> string list -> v list -> c -> t -> m -> v *)
 and f2 e xs vs c t m = match e with
