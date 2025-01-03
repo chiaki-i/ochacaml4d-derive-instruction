@@ -24,13 +24,13 @@ and c' = CApp0
 (* c before:
 (C1, vs)::(C2, vs)::(CRet, [])::(C3, vs)::(C4, vs)::(CRet, [])::(C5, vs)::[]
 
-c and r original:
+after splitting c and vs:
  C1     :: C2     :: CRet     :: C3     :: C4     :: CRet     :: C5     ::[]
      vs ::     vs ::       [] ::     vs ::     vs ::       [] ::     vs ::[]
 
-c and r after:
- C1     :: C2     :: CRet     ::[]
-     vs ::     vs ::{(C3, vs)::(C4, vs)::(CRet, [])}::{(C5, vs)::[]}:[]
+c = C1::C2::CRet::[]
+r = vs::vs::(C3::C4::CRet::[])::vs::vs::(c5::[])::vs::[]
+                               (C3)(C4)          (C5)
 *)
 
 and s = v list
