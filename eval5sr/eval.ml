@@ -3,6 +3,9 @@ open Value
 
 (* Delinearized interpreter : eval5 (with return stack) *)
 
+(* initial continuation *)
+let idc = C0
+
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -41,7 +44,7 @@ let rec run_c5 c v s r t m = match (c, s, r) with
     end
   | (COp1 (e0, xs, op, vs, c), s ,r) ->
     f5 e0 xs vs (COp0 (op, c)) (v :: s) r t m
-  | (CRet (C0), s, VK (c') :: r') ->
+  | (CRet (idc), s, VK (c') :: r') ->
     run_c5 c' v s r' t m
   | _ -> failwith "stack or cont error"
 
@@ -62,12 +65,12 @@ and f5 e xs vs c s r t m = match e with
       (CApp0 (c'), VArgs (v1 :: v2s) :: s', r') -> (* Grab *)
              f5 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') r' t m
     | _ -> run_c5 c (VFun (fun v1 _ s' (VK (c') :: r') t' m' ->
-             f5 e (x :: xs) (v1 :: vs) (CRet (C0)) s' (VK (c') :: r') t' m')) s r t m
+             f5 e (x :: xs) (v1 :: vs) (CRet (idc)) s' (VK (c') :: r') t' m')) s r t m
     end
   | App (e0, e2s) ->
     f5s e2s xs vs (CApp2 (e0, xs, vs, c)) s r t m
-  | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
-  | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
+  | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, r, t) :: vs) idc [] [] TNil m
+  | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, r, t) :: vs) idc [] [] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, r0, t0), m0) ->
@@ -80,7 +83,7 @@ and f5 e xs vs c s r t m = match e with
         f5 e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f5 e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
+  | Reset (e) -> f5 e xs vs idc [] [] TNil (MCons ((c, s, r, t), m))
 
 (* f5s : e list -> string list ->
          v list -> c -> s -> r -> t -> m -> v list *)
@@ -91,7 +94,7 @@ and f5s e2s xs vs c s r t m = match e2s with
 
 (* apply5 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply5 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f v1 C0 (* dummy *) s (VK (c) :: r) t m
+    VFun (f) -> f v1 idc (* dummy *) s (VK (c) :: r) t m
   | VContS (c', s', r', t') -> run_c5 c' v1 s' r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
     run_c5 c' v1 s' r' (apnd t' (cons (fun v t m -> run_c5 c v s r t m) t)) m
@@ -104,4 +107,4 @@ and apply5s v0 v2s c s r t m = match v2s with
   | v1 :: v2s -> apply5 v0 v1 (CApp0 (c)) (VArgs (v2s) :: s) r t m
 
 (* f : e -> v *)
-let f expr = f5 expr [] [] C0 [] [] TNil MNil
+let f expr = f5 expr [] [] idc [] [] TNil MNil
