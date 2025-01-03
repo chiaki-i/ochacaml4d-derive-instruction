@@ -29,8 +29,8 @@ after splitting c and vs:
      vs ::     vs ::       [] ::     vs ::     vs ::       [] ::     vs ::[]
 
 c = C1::C2::CRet::[]
-r = vs::vs::(C3::C4::CRet::[])::vs::vs::(c5::[])::vs::[]
-                               (C3)(C4)          (C5)
+r = vs::vs::(C3::C4::CRet::[], vs::vs::(c5::[], vs::[])
+                              (C3)(C4)         (C5)
 *)
 
 and s = v list
