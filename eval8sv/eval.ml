@@ -63,9 +63,13 @@ let pushmark = fun (VS (vs)) c s r t m -> run_c8 c (VArgs ([]) :: s) r t m
 let push = fun (VS (vs)) c (v :: VArgs (v2s) :: s) r t m ->
   run_c8 c (VArgs (v :: v2s) :: s) r t m
 
+(* return : i *)
+let return = fun (VK (c')) c (v :: s) r t m ->
+  run_c8 c' (v :: s) r t m
+
 (* apply8 : v -> v -> c -> s -> r -> t -> m -> v *)
 let apply8 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f C0 (* dummy *) (v1 :: s) (VK (c) :: r) t m
+    VFun (f) -> f (CSeq (return, C0)) (v1 :: s) (VK (c) :: r) t m
   | VContS (c', s', r', t') ->
     run_c8 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
@@ -84,10 +88,6 @@ let rec apply8s v0 v2s vs c s r t m = match v2s with
 and apply = fun (VS (vs)) c s r t m -> match s with
   v0 :: VArgs (v2s) :: s -> apply8s v0 v2s vs c s r t m
 
-(* return : i *)
-let return = fun (VK (c')) c (v :: s) r t m ->
-  run_c8 c' (v :: s) r t m
-
 (* grab : i -> i *)
 let grab i = fun (VS (vs)) c s r t m ->
   begin match (c, s, r) with
@@ -97,11 +97,9 @@ let grab i = fun (VS (vs)) c s r t m ->
         i (VS (v1 :: vs)) (CSeq (i', c')) (VArgs (v2s) :: s')
           (VS (vs') :: r') t m
     | _ ->
-        let vfun = VFun (fun _ s' (VK (c') :: r') t' m' ->
+        let vfun = VFun (fun c_ret s' (VK (c') :: r') t' m' ->
           begin match s' with
-            v1 :: s' -> (*(i >> return) (v1 :: vs) C0 s' (VK (c') :: r') t' m'*)
-                        i (VS (v1 :: vs)) (CSeq (return, C0))
-                          s' (VK (c') :: r') t' m'
+            v1 :: s' -> i (VS (v1 :: vs)) c_ret s' (VK (c') :: r') t' m'
           | _ -> failwith "stack error"
           end) in
         run_c8 c (vfun :: s) r t m
