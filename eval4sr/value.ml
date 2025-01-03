@@ -11,10 +11,12 @@ type v = VNum of int
        | VK of c
 
 and f = CApp0
-      | CAppS0 of cs
+      | CAppS0
       | COp0 of op
       | COp1 of e * string list * op * v list
       | CRet
+      | CApp2 of e * string list * v list
+      | CAppS1 of e * string list * v list
 
 (*
 eval3   : c =   C1 :: C2 :: CRet :: C3 :: C4 :: CRet :: C5 :: []
@@ -27,9 +29,6 @@ and c = f list
 and s = v list
 
 and r = v list
-
-and cs = CApp2 of e * string list * v list
-       | CAppS1 of e * string list * v list * cs
 
 and t = TNil | Trail of (v -> t -> m -> v)
 

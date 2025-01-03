@@ -25,8 +25,8 @@ let rec run_c4 c v s r t m = match (c, s, r) with
       | Trail (h) -> h v TNil m
     end
   | (CApp0 :: c, VArgs (v2s) :: s, r) -> apply4s v v2s c s r t m
-  | (CAppS0 (cs) :: c, VArgs (v2s) :: s, r) ->
-    run_c4s (cs, c) (v :: v2s) s r t m
+  | (CAppS0 :: c, VArgs (v2s) :: s, r) ->
+    run_c4s c (v :: v2s) s r t m
   | (COp0 (op) :: c, v0 :: s, r) ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
@@ -46,12 +46,12 @@ let rec run_c4 c v s r t m = match (c, s, r) with
     run_c4 c' v s r' t m
   | _ -> failwith "stack or cont error"
 
-(* run_c4s : cs * c -> v list -> s -> r -> t -> m -> v *)
-and run_c4s cs v2s s r t m = match cs with
-    (CApp2 (e0, xs, vs), c) ->
-    f4 e0 xs vs (CApp0 ::c) (VArgs (v2s) :: s) r t m
-  | (CAppS1 (e, xs, vs, cs), c) ->
-    f4 e xs vs (CAppS0 (cs) :: c) (VArgs (v2s) :: s) r t m
+(* run_c4s : c -> v list -> s -> r -> t -> m -> v *)
+and run_c4s c v2s s r t m = match c with
+    CApp2 (e0, xs, vs) :: c ->
+    f4 e0 xs vs (CApp0 :: c) (VArgs (v2s) :: s) r t m
+  | CAppS1 (e, xs, vs) :: c ->
+    f4 e xs vs (CAppS0 :: c) (VArgs (v2s) :: s) r t m
 
 (* f4 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f4 e xs vs c s r t m = match e with
@@ -66,7 +66,7 @@ and f4 e xs vs c s r t m = match e with
              f4 e (x :: xs) (v1 :: vs) cret s' (VK (c') :: r') t' m')) s r t m
     end
   | App (e0, e2s) ->
-    f4s e2s xs vs (CApp2 (e0, xs, vs), c) s r t m
+    f4s e2s xs vs (CApp2 (e0, xs, vs) :: c) s r t m
   | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, r, t) :: vs) [] [] [] TNil m
   | Control (x, e) -> f4 e (x :: xs) (VContC (c, s, r, t) :: vs) [] [] [] TNil m
   | Shift0 (x, e) ->
@@ -84,11 +84,11 @@ and f4 e xs vs c s r t m = match e with
   | Reset (e) -> f4 e xs vs [] [] [] TNil (MCons ((c, s, r, t), m))
 
 (* f4s : e list -> string list ->
-         v list -> cs * c -> s -> r -> t -> m -> v list *)
-and f4s e2s xs vs (cs, c) s r t m = match e2s with
-    [] -> run_c4s (cs, c) [] s r t m
+         v list -> c -> s -> r -> t -> m -> v list *)
+and f4s e2s xs vs c s r t m = match e2s with
+    [] -> run_c4s c [] s r t m
   | e :: e2s ->
-    f4s e2s xs vs (CAppS1 (e, xs, vs, cs), c) s r t m
+    f4s e2s xs vs (CAppS1 (e, xs, vs) :: c) s r t m
 
 (* apply4 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply4 v0 v1 c s r t m = match v0 with
