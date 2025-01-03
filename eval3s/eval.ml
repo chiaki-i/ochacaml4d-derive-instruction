@@ -25,7 +25,7 @@ let rec run_c3 c v t m = match c with
       | Trail (h) -> h v TNil m
     end
   | CApp0 (v2s) :: c -> apply3s v v2s c t m
-  | CAppS0 (v2s, cs) :: c -> run_c3s (cs, c) (v :: v2s) t m
+  | CAppS0 (v2s) :: c -> run_c3s c (v :: v2s) t m
   | COp0 (v0, op) :: c ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
@@ -42,10 +42,10 @@ let rec run_c3 c v t m = match c with
   | COp1 (e0, xs, op, vs) :: c -> f3 e0 xs vs (COp0 (v, op) :: c) t m
   | CRet :: c -> run_c3 c v t m
 
-(* run_c3s : cs * c -> v list -> t -> m -> v *)
-and run_c3s cs v2s t m = match cs with
-    (CApp2 (e0, xs, vs), c) -> f3 e0 xs vs (CApp0 (v2s) ::c) t m
-  | (CAppS1 (e, xs, vs, cs), c) -> f3 e xs vs (CAppS0 (v2s, cs) :: c) t m
+(* run_c3s : c -> v list -> t -> m -> v *)
+and run_c3s c v2s t m = match c with
+    CApp2 (e0, xs, vs) :: c -> f3 e0 xs vs (CApp0 (v2s) :: c) t m
+  | CAppS1 (e, xs, vs) :: c -> f3 e xs vs (CAppS0 (v2s) :: c) t m
 
 (* f3 : e -> string list -> v list -> c -> t -> m -> v *)
 and f3 e xs vs c t m = match e with
@@ -60,7 +60,7 @@ and f3 e xs vs c t m = match e with
              f3 e (x :: xs) (v1 :: vs) c' t' m')) t m
     end
   | App (e0, e2s) ->
-    f3s e2s xs vs (CApp2 (e0, xs, vs), c) t m
+    f3s e2s xs vs (CApp2 (e0, xs, vs) :: c) t m
   | Shift (x, e) -> f3 e (x :: xs) (VContS (c, t) :: vs) [] TNil m
   | Control (x, e) -> f3 e (x :: xs) (VContC (c, t) :: vs) [] TNil m
   | Shift0 (x, e) ->
@@ -75,11 +75,11 @@ and f3 e xs vs c t m = match e with
     end
   | Reset (e) -> f3 e xs vs [] TNil (MCons ((c, t), m))
 
-(* f3s : e list -> string list -> v list -> cs * c -> t -> m -> v list *)
-and f3s e2s xs vs (cs, c) t m = match e2s with
-    [] -> run_c3s (cs, c) [] t m
+(* f3s : e list -> string list -> v list -> c -> t -> m -> v list *)
+and f3s e2s xs vs c t m = match e2s with
+    [] -> run_c3s c [] t m
   | e :: e2s ->
-    f3s e2s xs vs (CAppS1 (e, xs, vs, cs), c) t m
+    f3s e2s xs vs (CAppS1 (e, xs, vs) :: c) t m
 
 (* apply3 : v -> v -> c -> t -> m -> v *)
 and apply3 v0 v1 c t m = match v0 with
