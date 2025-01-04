@@ -86,7 +86,9 @@ let rec f7 e xs vs c s r t m = match e with
     end
   | App (e0, e2s) ->
     f7s e2s xs vs (CSeq ((fun (VS (vs)) c (VArgs (v2s) :: s) r t m ->
-      f7 e0 xs vs (CSeq (apply, c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
+      f7 e0 xs vs (CSeq ((fun (VS (vs)) c (v0 :: VArgs (v2s) :: s) r t m ->
+        apply7s v0 v2s vs c s r t m)
+        , c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
     ), c)) s (VS (vs) :: r) t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
