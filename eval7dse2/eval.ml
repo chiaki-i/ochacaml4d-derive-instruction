@@ -25,11 +25,11 @@ let rec run_c7 c s t m = match (c, s) with
       | Trail (h) -> h v TNil m
     end
   | (CApp0 (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
-  | (CApp2 (e0, xs, vs, c), VArgs (v2s) :: s) ->
+  | (CApp2 (e0, xs, c), VArgs (v2s) :: VEnv (vs) :: s) ->
     f7 e0 xs vs (CApp0 (c)) (VArgs (v2s) :: s) t m
   | (CAppS0 (c), v :: VArgs (v2s) :: s) ->
     run_c7 c (VArgs (v :: v2s) :: s) t m
-  | (CAppS1 (e, xs, vs, c), VArgs (v2s) :: s) ->
+  | (CAppS1 (e, xs, c), VArgs (v2s) :: VEnv (vs) ::  s) ->
     f7 e xs vs (CAppS0 (c)) (VArgs (v2s) :: s) t m
   | (COp0 (op, c), v :: v0 :: s) ->
     begin match (v, v0) with
@@ -44,7 +44,7 @@ let rec run_c7 c s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (COp1 (e0, xs, op, vs, c), v :: s) ->
+  | (COp1 (e0, xs, op, c), v :: VEnv (vs) :: s) ->
     f7 e0 xs vs (COp0 (op, c)) (v :: s) t m
   | _ -> failwith "stack or cont error"
 
@@ -52,7 +52,7 @@ let rec run_c7 c s t m = match (c, s) with
 and f7 e xs vs c s t m = match e with
     Num (n) -> run_c7 c (VNum (n) :: s) t m
   | Var (x) -> run_c7 c (List.nth vs (Env.offset x xs) :: s) t m
-  | Op (e0, op, e1) -> f7 e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
+  | Op (e0, op, e1) -> f7 e1 xs vs (COp1 (e0, xs, op, c)) (VEnv (vs) :: s) t m
   | Fun (x, e) ->
     begin match (c, s) with
       (CApp0 (c'), VArgs (v1 :: v2s) :: s') -> (* Grab *)
@@ -61,7 +61,7 @@ and f7 e xs vs c s t m = match e with
              f7 e (x :: xs) (v1 :: vs) c' s' t' m') :: s) t m
     end
   | App (e0, e2s) ->
-    f7s e2s xs vs (CApp2 (e0, xs, vs, c)) s t m
+    f7s e2s xs vs (CApp2 (e0, xs, c)) (VEnv (vs) :: s) t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->
@@ -82,7 +82,7 @@ and f7 e xs vs c s t m = match e with
 and f7s e2s xs vs c s t m = match e2s with
     [] -> run_c7 c (VArgs ([]) :: s) t m
   | e :: e2s ->
-    f7s e2s xs vs (CAppS1 (e, xs, vs, c)) s t m
+    f7s e2s xs vs (CAppS1 (e, xs, c)) (VEnv (vs) :: s) t m
 
 (* apply7 : v -> v -> c -> s -> t -> m -> v *)
 and apply7 v0 v1 c s t m = match v0 with
