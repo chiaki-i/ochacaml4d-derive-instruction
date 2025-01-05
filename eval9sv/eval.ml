@@ -18,7 +18,7 @@ let apnd t0 t1 = match t0 with
 
 (* run_c9 : c -> s -> r -> t -> m -> v *)
 let rec run_c9 c s r t m = match (c, s, r) with
-    (idc, v :: [], []) ->
+    ([], v :: [], []) ->
     begin match t with
         TNil ->
         begin match m with
