@@ -56,14 +56,6 @@ let rec run_c9 c s r t m = match (c, s, r) with
     begin match s with v0 :: VArgs (v2s) :: s ->
       apply9s v0 v2s vs c s r t m
     end
-  | (IReturn :: c, s, VS (_) :: r) ->
-    begin match (s, r) with (v :: s, VK (c', r') :: r) ->
-      run_c9 c' (v :: s) r' t m
-    end
-(*| (IReturn' :: c, s, VK (c', r') :: r) ->
-    begin match s with v :: s ->
-      run_c9 c' (v :: s) r' t m
-    end *)
   | (IFun (i) :: c, s, VS (vs) :: r) ->
     begin match (c, s, r) with
         (i' :: c', VArgs (v1 :: v2s) :: s', VS (vs') :: r')
@@ -72,12 +64,9 @@ let rec run_c9 c s r t m = match (c, s, r) with
           run_c9 (i :: i' :: c') (VArgs (v2s) :: s')
                  (VS (v1 :: vs) :: VS (vs') :: r') t m
       | _ ->
-          let vfun = VFun (fun _ s' (VK (c', r') :: []) t' m' ->
+          let vfun = VFun (fun c' s' r' t' m' ->
             begin match s' with
-              v1 :: s' -> run_c9 ((i >> IReturn) :: idc) s'
-                                 (VS (v1 :: vs) :: VK (c', r') :: []) t' m'
-                       (* run_c9 (i :: IReturn' :: idc) s'
-                                 (VS (v1 :: vs) :: VK (c', r') :: []) t' m' *)
+              v1 :: s' -> run_c9 (i :: c') s' (VS (v1 :: vs) :: r') t' m'
             | _ -> failwith "stack error"
             end) in
           run_c9 c (vfun :: s) r t m
@@ -108,7 +97,7 @@ and (>>) i0 i1 = ISeq (i0, i1)
 
 (* apply9 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply9 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f idc (* dummy *) (v1 :: s) (VK (c, r) :: []) t m
+    VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') ->
     run_c9 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->

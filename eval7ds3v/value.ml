@@ -19,7 +19,6 @@ and c' = CApp0
        | COp1 of e * string list * op
        | CAppS0
        | CAppS1 of e * string list
-       | CRet
 
 (* c before:
 (C1, vs)::(C2, vs)::(CRet, [])::(C3, vs)::(C4, vs)::(CRet, [])::(C5, vs)::[]

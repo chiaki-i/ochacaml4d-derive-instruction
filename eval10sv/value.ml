@@ -19,7 +19,6 @@ and i = IPush
       | IOp of op
       | IApply
       | IFun of i
-      | IReturn
       | ISeq of i * i
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i
@@ -30,7 +29,6 @@ and s = v list
 and r = rv list
 
 and rv = VS of v list
-       | VK of c * r
 
 and t = TNil | Trail of (v -> t -> m -> v)
 

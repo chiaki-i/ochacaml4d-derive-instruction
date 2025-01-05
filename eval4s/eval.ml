@@ -40,7 +40,6 @@ let rec run_c4 c v s t m = match (c, s) with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | (COp1 (e0, xs, op, vs) :: c, s) -> f4 e0 xs vs (COp0 (op) :: c) (v :: s) t m
-  | (CRet :: c', s) -> run_c4 c' v s t m
   | _ -> failwith "stack or cont error"
 
 (* run_c4s : c -> v list -> s -> t -> m -> v *)
@@ -88,7 +87,7 @@ and f4s e2s xs vs c s t m = match e2s with
 
 (* apply4 : v -> v -> c -> s -> t -> m -> v *)
 and apply4 v0 v1 c s t m = match v0 with
-    VFun (f) -> f v1 (CRet :: c) s t m
+    VFun (f) -> f v1 c s t m
   | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     run_c4 c' v1 s' (apnd t' (cons (fun v t m -> run_c4 c v s t m) t)) m
