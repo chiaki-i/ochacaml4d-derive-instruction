@@ -49,6 +49,62 @@ let rec apply8s v0 v2s vs c s t m = match v2s with
 let apply = fun vs c s t m -> match s with
   v0 :: VArgs (v2s) :: s -> apply8s v0 v2s vs c s t m
 
+let num n = fun vs c s t m -> run_c8 c (VNum (n) :: s) t m
+
+let access n = fun vs c s t m -> run_c8 c (List.nth vs n :: s) t m
+
+let pushmark = fun vs c s t m -> run_c8 c (VArgs ([]) :: s) t m
+
+let push = fun vs c (v :: VArgs (v2s) :: s) t m -> run_c8 c (VArgs (v :: v2s) :: s) t m
+
+let grab i = fun vs c s t m ->
+  begin match (c, s) with
+      (CSeq (i', vs', c'), VArgs (v1 :: v2s) :: s') when i' == apply -> (* Grab *)
+      i (v1 :: vs) (CSeq (i', vs', c')) (VArgs (v2s) :: s') t m
+    | _ ->
+      run_c8 c (VFun (fun c' (v1 :: s') t' m' -> i (v1 :: vs) c' s' t' m') :: s) t m
+    end
+
+let shift i = fun vs c s t m ->
+  i (VContS (c, s, t) :: vs) C0 [] TNil m
+
+let control i = fun vs c s t m -> i (VContC (c, s, t) :: vs) C0 [] TNil m
+
+let shift0 i = fun vs c s t m ->
+  begin match m with
+      MCons ((c0, s0, t0), m0) ->
+      i (VContS (c, s, t) :: vs) c0 s0 t0 m0
+    | _ -> failwith "shift0 is used without enclosing reset"
+  end
+
+let control0 i = fun vs c s t m ->
+  begin match m with
+    MCons ((c0, s0, t0), m0) ->
+    i (VContC (c, s, t) :: vs) c0 s0 t0 m0
+  | _ -> failwith "control0 is used without enclosing reset"
+  end
+
+let reset i = fun vs c s t m -> i vs C0 [] TNil (MCons ((c, s, t), m))
+
+let operation op = fun vs c s t m -> match s with v0 :: v1 :: s ->
+  begin match (v0, v1) with
+      (VNum (n0), VNum (n1)) ->
+      begin match op with
+          Plus -> run_c8 c (VNum (n0 + n1) :: s) t m
+        | Minus -> run_c8 c (VNum (n0 - n1) :: s) t m
+        | Times -> run_c8 c (VNum (n0 * n1) :: s) t m
+        | Divide ->
+          if n1 = 0 then failwith "Division by zero"
+          else run_c8 c (VNum (n0 / n1) :: s) t m
+      end
+    | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                      ^ " are not numbers")
+  end
+
+(* (>>) : i -> i -> i *)
+let (>>) i0 i1 = fun vs c s t m -> i0 vs (CSeq (i1, vs, c)) s t m
+
+(*
 (* f8 : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f8 e xs vs c s t m = match e with
     Num (n) -> run_c8 c (VNum (n) :: s) t m
@@ -107,7 +163,26 @@ and f8s e2s xs vs c s t m = match e2s with
       f8 e xs vs (CSeq ((fun vs c (v :: VArgs (v2s) :: s) t m ->
         run_c8 c (VArgs (v :: v2s) :: s) t m
       ), vs, c)) (VArgs (v2s) :: s) t m
-    ), vs, c)) s t m
+    ), vs, c)) s t m *)
+
+(* f8 : e -> string list -> i *)
+let rec f8 e xs = match e with
+    Num (n) -> num n
+  | Var (x) -> access (Env.offset x xs)
+  | Op (e0, op, e1) -> f8 e1 xs >> f8 e0 xs >> operation (op)
+  | Fun (x, e) -> grab (f8 e (x :: xs))
+  | App (e0, e2s) ->
+    f8s e2s xs >> f8 e0 xs >> apply
+  | Shift (x, e) -> shift (f8 e (x :: xs))
+  | Control (x, e) -> control (f8 e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
+  | Control0 (x, e) -> control0 (f8 e (x :: xs))
+  | Reset (e) -> reset (f8 e xs)
+
+(* f8s : e list -> string list -> i *)
+and f8s e2s xs = match e2s with
+    [] -> pushmark
+  | e :: e2s -> f8s e2s xs >> f8 e xs >> push
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] C0 [] TNil MNil
