@@ -1,6 +1,6 @@
 open Syntax
 
-(* inline run_i9 intor run_c9 : eval10sv *)
+(* inline run_i9 into run_c9 mostly : eval10sv *)
 (* Derived from eval9sv *)
 
 (* Value *)
