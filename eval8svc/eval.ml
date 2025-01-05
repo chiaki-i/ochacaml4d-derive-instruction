@@ -88,7 +88,7 @@ let apply8 v0 v1 c s r t m = match v0 with
 let rec apply8s v0 v2s vs c s r t m = match v2s with
     [] -> run_c8 c (v0 :: s) r t m
   | v1 :: v2s ->
-    apply8 v0 v1 (CSeq (apply >>> c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
+    apply8 v0 v1 (apply >>> c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
 
 (* apply : c' *)
 and apply = fun (VS (vs)) c s r t m -> match s with
