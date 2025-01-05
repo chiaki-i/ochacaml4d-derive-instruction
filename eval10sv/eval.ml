@@ -1,8 +1,8 @@
 open Syntax
 open Value
 
-(* Defuntionalized instructions : eval9sv *)
-(* Derived from eval8sv *)
+(* inline run_i9 intor run_c9 : eval10sv *)
+(* Derived from eval9sv *)
 
 let idc = []
 
