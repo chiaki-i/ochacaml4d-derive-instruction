@@ -1,7 +1,7 @@
 open Syntax
 
-(* Interpreter using combinators factored as instructions : eval8sv *)
-(* Derived from eval7ds4v *)
+(* Defuntionalized instructions : eval9sv *)
+(* Derived from eval8sv *)
 
 (* Value *)
 type v = VNum of int
@@ -30,7 +30,7 @@ and s = v list
 and r = rv list
 
 and rv = VS of v list
-       | VK of c
+       | VK of c * r
 
 and t = TNil | Trail of (v -> t -> m -> v)
 

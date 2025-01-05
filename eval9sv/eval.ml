@@ -63,10 +63,14 @@ and run_i9 i rv c s r t m = match (i, rv) with
     begin match s with v0 :: VArgs (v2s) :: s ->
       apply9s v0 v2s vs c s r t m
     end
-  | (IReturn, VK (c')) ->
-    begin match s with v :: s ->
-      run_c9 c' (v :: s) r t m
+  | (IReturn, VS (_)) ->
+    begin match (s, r) with (v :: s, VK (c', r') :: r) ->
+      run_c9 c' (v :: s) r' t m
     end
+(*| (IReturn', VK (c', r')) ->
+    begin match s with v :: s ->
+      run_c9 c' (v :: s) r' t m
+    end *)
   | (IFun (i), VS (vs)) ->
     begin match (c, s, r) with
         (i' :: c', VArgs (v1 :: v2s) :: s', VS (vs') :: r')
@@ -75,11 +79,12 @@ and run_i9 i rv c s r t m = match (i, rv) with
           run_i9 i (VS (v1 :: vs)) (i' :: c') (VArgs (v2s) :: s')
             (VS (vs') :: r') t m
       | _ ->
-          let vfun = VFun (fun _ s' (VK (c') :: r') t' m' ->
+          let vfun = VFun (fun _ s' (VK (c', r') :: []) t' m' ->
             begin match s' with
-              v1 :: s' -> (*(i >> return) (v1 :: vs) idc s' (VK (c') :: r') t' m'*)
-                          run_i9 i (VS (v1 :: vs)) (IReturn :: idc)
-                            s' (VK (c') :: r') t' m'
+              v1 :: s' -> run_i9 (i >> IReturn) (VS (v1 :: vs)) idc
+                                 s' (VK (c', r') :: []) t' m'
+                       (* run_i9 i (VS (v1 :: vs)) (IReturn' :: idc)
+                            s' (VK (c', r') :: []) t' m' *)
             | _ -> failwith "stack error"
             end) in
           run_c9 c (vfun :: s) r t m
@@ -107,7 +112,7 @@ and run_i9 i rv c s r t m = match (i, rv) with
 
 (* apply9 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply9 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f idc (* dummy *) (v1 :: s) (VK (c) :: r) t m
+    VFun (f) -> f idc (* dummy *) (v1 :: s) (VK (c, r) :: []) t m
   | VContS (c', s', r', t') ->
     run_c9 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
