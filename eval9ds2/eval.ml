@@ -14,11 +14,11 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-let idc = []
+let idc = ([], [])
 
 (* run_c9 : c -> s -> t -> m -> v *)
 let rec run_c9 c s t m = match (c, s) with
-    ([], v :: []) ->
+    (([], []), v :: []) ->
     begin match t with
         TNil ->
         begin match m with
@@ -27,8 +27,8 @@ let rec run_c9 c s t m = match (c, s) with
         end
       | Trail (h) -> h v TNil m
     end
-  | ((c', vs) :: c, v :: s) ->
-    run_i9 c' vs c (v :: s) t m
+  | ((i :: i', vs :: vs'), v :: s) ->
+    run_i9 i vs (i', vs') (v :: s) t m
 
 (* run_c9 : i -> v list -> c -> s -> t -> m -> v *)
 and run_i9 i vs c s t m = match (i, s) with
@@ -52,11 +52,17 @@ and run_i9 i vs c s t m = match (i, s) with
   | (IPush, v :: VArgs (v2s) :: s) -> run_c9 c (VArgs (v :: v2s) :: s) t m
   | (IFun (i), s) ->
     begin match (c, s) with
+        ((i' :: ri, vs' :: rvs), VArgs (v1 :: v2s) :: s') when i' == IApply ->
+        run_i9 i (v1 :: vs) (i' :: ri, vs' :: rvs) (VArgs (v2s) :: s') t m
+      | _ ->
+        run_c9 c (VFun (fun c' (v1 :: s') t' m' -> run_i9 i (v1 :: vs) c' s' t' m') :: s) t m
+    end
+    (* begin match (c, s) with
         ((i', vs') :: c', VArgs (v1 :: v2s) :: s') when i' == IApply -> (* Grab *)
         run_i9 i (v1 :: vs) ((i', vs') :: c') (VArgs (v2s) :: s') t m
       | _ ->
         run_c9 c (VFun (fun c' (v1 :: s') t' m' -> run_i9 i (v1 :: vs) c' s' t' m') :: s) t m
-    end
+    end *)
   | (IApply, v0 :: VArgs (v2s) :: s) -> apply9s v0 v2s vs c s t m
   | (IShift (i), s) -> run_i9 i (VContS (c, s, t) :: vs) idc [] TNil m
   | (IControl (i), s) -> run_i9 i (VContC (c, s, t) :: vs) idc [] TNil m
@@ -73,7 +79,10 @@ and run_i9 i vs c s t m = match (i, s) with
     | _ -> failwith "control0 is used without enclosing reset"
     end
   | (IReset (i), s) -> run_i9 i vs idc [] TNil (MCons ((c, s, t), m))
-  | (ISeq (i0, i1), s) -> run_i9 i0 vs ((i1, vs) :: c) s t m
+  | (ISeq (i0, i1), s) ->
+    begin match c with (is, vss) ->
+      run_i9 i0 vs (i1 :: is, vs :: vss) s t m
+    end
 
 (* apply9 : v -> v -> c -> s -> t -> m -> v *)
 and apply9 v0 v1 c s t m = match v0 with
@@ -89,7 +98,9 @@ and apply9 v0 v1 c s t m = match v0 with
 and apply9s v0 v2s vs c s t m = match v2s with
     [] -> run_c9 c (v0 :: s) t m
   | v1 :: v2s ->
-    apply9 v0 v1 ((IApply, vs) :: c) (VArgs (v2s) :: s) t m
+    begin match c with (is, vss) ->
+      apply9 v0 v1 (IApply :: is, vs :: vss) (VArgs (v2s) :: s) t m
+    end
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)

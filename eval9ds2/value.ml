@@ -10,7 +10,7 @@ type v = VNum of int
        | VContC of c * s * t
        | VArgs of v list
 
-and c = (i * v list) list
+and c = i list * v list list
 
 and i = IPush
       | IPushmark
