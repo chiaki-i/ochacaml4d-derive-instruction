@@ -2,6 +2,7 @@ open Syntax
 open Value
 
 (* defintionalized continuations: eval9ds *)
+(* derived from eval8ds *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -29,11 +30,25 @@ let rec run_c9 c s t m = match (c, s) with
   | ((c', vs) :: c, v :: s) ->
     run_i9 c' vs c (v :: s) t m
 
+(* run_c9 : i -> v list -> c -> s -> t -> m -> v *)
 and run_i9 i vs c s t m = match (i, s) with
   | (INum (n), s) -> run_c9 c (VNum (n) :: s) t m
   | (IAccess (n), s) -> run_c9 c (List.nth vs n :: s) t m
+  | (IOp (op), v0 :: v1 :: s) ->
+    begin match (v0, v1) with
+        (VNum (n0), VNum (n1)) ->
+        begin match op with
+            Plus -> run_c9 c (VNum (n0 + n1) :: s) t m
+          | Minus -> run_c9 c (VNum (n0 - n1) :: s) t m
+          | Times -> run_c9 c (VNum (n0 * n1) :: s) t m
+          | Divide ->
+            if n1 = 0 then failwith "Division by zero"
+            else run_c9 c (VNum (n0 / n1) :: s) t m
+        end
+      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                        ^ " are not numbers")
+    end
   | (IPushmark, s) -> run_c9 c (VArgs ([]) :: s) t m
-  | (IApply, v0 :: VArgs (v2s) :: s) -> apply9s v0 v2s vs c s t m
   | (IPush, v :: VArgs (v2s) :: s) -> run_c9 c (VArgs (v :: v2s) :: s) t m
   | (IFun (i), s) ->
     begin match (c, s) with
@@ -42,6 +57,7 @@ and run_i9 i vs c s t m = match (i, s) with
       | _ ->
         run_c9 c (VFun (fun c' (v1 :: s') t' m' -> run_i9 i (v1 :: vs) c' s' t' m') :: s) t m
     end
+  | (IApply, v0 :: VArgs (v2s) :: s) -> apply9s v0 v2s vs c s t m
   | (IShift (i), s) -> run_i9 i (VContS (c, s, t) :: vs) idc [] TNil m
   | (IControl (i), s) -> run_i9 i (VContC (c, s, t) :: vs) idc [] TNil m
   | (IShift0 (i), s) ->
@@ -57,23 +73,7 @@ and run_i9 i vs c s t m = match (i, s) with
     | _ -> failwith "control0 is used without enclosing reset"
     end
   | (IReset (i), s) -> run_i9 i vs idc [] TNil (MCons ((c, s, t), m))
-  | (IOp (op), v0 :: v1 :: s) ->
-    begin match (v0, v1) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> run_c9 c (VNum (n0 + n1) :: s) t m
-          | Minus -> run_c9 c (VNum (n0 - n1) :: s) t m
-          | Times -> run_c9 c (VNum (n0 * n1) :: s) t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else run_c9 c (VNum (n0 / n1) :: s) t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
-                        ^ " are not numbers")
-    end
-  | (ISeq (i0, i1), s) ->
-    (* ここで、i0 も i1 も ISeq を含まないことを示せば良い？ *)
-    run_i9 i0 vs ((i1, vs) :: c) s t m
+  | (ISeq (i0, i1), s) -> run_i9 i0 vs ((i1, vs) :: c) s t m
 
 (* apply9 : v -> v -> c -> s -> t -> m -> v *)
 and apply9 v0 v1 c s t m = match v0 with
@@ -93,7 +93,6 @@ and apply9s v0 v2s vs c s t m = match v2s with
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
-
 
 (* f9 : e -> string list -> i *)
 let rec f9 e xs = match e with
@@ -116,26 +115,3 @@ and f9s e2s xs = match e2s with
 
 (* f : e -> v *)
 let f expr = run_i9 (f9 expr []) [] idc [] TNil MNil
-
-(* f9 : e -> string list -> i
-let rec f9 e xs = match e with
-    Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
-  | Op (e0, op, e1) -> f9 e1 xs >> f9 e0 xs >> operation (op)
-  | Fun (x, e) -> grab (f9 e (x :: xs))
-  | App (e0, e2s) ->
-    f9s e2s xs >> f9 e0 xs >> apply
-  | Shift (x, e) -> shift (f9 e (x :: xs))
-  | Control (x, e) -> control (f9 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f9 e (x :: xs))
-  | Control0 (x, e) -> control0 (f9 e (x :: xs))
-  | Reset (e) -> reset (f9 e xs)
-
-(* f9s : e list -> string list -> i *)
-and f9s e2s xs = match e2s with
-    [] -> pushmark
-  | e :: e2s -> f9s e2s xs >> f9 e xs >> push
-
-(* f : e -> v *)
-let f expr = f9 expr [] [] C0 [] TNil MNil
- *)
