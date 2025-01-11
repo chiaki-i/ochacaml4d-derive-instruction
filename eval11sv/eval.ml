@@ -5,7 +5,23 @@ open Value
 (* Derived from eval10sv3 *)
 
 let idc = []
+(*
+(* cons : (v -> t -> m -> v) -> t -> t *)
+let rec cons h t = match t with
+    TNil -> Trail (h)
+  | Trail (h') -> Trail (Append (h, h'))
 
+(* apnd : t -> t -> t *)
+let apnd t0 t1 = match t0 with
+    TNil -> t1
+  | Trail (h) -> cons h t1
+
+(* run_h10 : h -> v -> t -> m -> v *)
+let rec run_h10 h v t m = match h with
+    Hold (c, s) -> run_c10 c (v :: s) t m
+  | Append (h, h') -> run_h10 h v (cons h' t) m
+
+ *)
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -71,12 +87,19 @@ let rec run_c9 c s t m = match (c, s) with
           run_c9 ((i, VS (v1 :: vs)) :: (IApply :: is, VS (vs')) :: c')
                  (VArgs (v2s) :: s') t m
   | ((IFun (i) :: is, VS (vs)) :: c, s) ->
-          let vfun = VFun (fun c' s' t' m' ->
-            begin match s' with
-              v1 :: s' -> run_c9 ((i, VS (v1 :: vs)) :: c') s' t' m'
-            | _ -> failwith "stack error"
-            end) in
-          run_c9 ((is, VS (vs)) :: c) (vfun :: s) t m
+  (*  let vfun = VFun (fun c' s' t' m' ->
+        begin match s' with
+            v1 :: s' -> run_c9 ((i, VS (v1 :: vs)) :: c') s' t' m'
+          | _ -> failwith "stack error"
+        end) in
+      run_c9 ((is, VS (vs)) :: c) (vfun :: s) t m *)
+    let vfun = VFun ((IPop :: i, VS (vs)) :: []) in
+    run_c9 ((is, VS (vs)) :: c) (vfun :: s) t m
+  | ((IPop :: is, VS (vs)) :: c, s) ->
+    begin match s with
+        v1 :: s' -> run_c9 ((is, VS (v1 :: vs)) :: c) s' t m
+      | _ -> failwith "stack error"
+    end
   | ((IShift (i) :: is, VS (vs)) :: c, s) ->
     run_c9 ((i, VS (VContS ((is, VS (vs)) :: c, s, t) :: vs)) :: idc) [] TNil m
   | ((IControl (i) :: is, VS (vs)) :: c, s) ->
@@ -98,7 +121,7 @@ let rec run_c9 c s t m = match (c, s) with
 
 (* apply9 : v -> v -> c -> s -> t -> m -> v *)
 and apply9 v0 v1 c s t m = match v0 with
-    VFun (f) -> f c (v1 :: s) t m
+    VFun (c') -> run_c9 (c' @ c) (v1 :: s) t m
   | VContS (c', s', t') ->
     run_c9 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->

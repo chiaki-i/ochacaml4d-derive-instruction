@@ -5,7 +5,7 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> t -> m -> v)
+       | VFun of c
        | VContS of c * s * t
        | VContC of c * s * t
        | VArgs of v list
@@ -13,6 +13,7 @@ type v = VNum of int
 and c = (i list * rv) list
 
 and i = IPush
+      | IPop
       | IPushmark
       | INum of int
       | IAccess of int
