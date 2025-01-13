@@ -104,8 +104,8 @@ and f1t e xs vs v2st c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    c (VFun (fun v1 c' t' m' -> (* Grab will be added after eval2st *)
-              f1t e (x :: xs) (v1 :: vs) c' t' m')) t m
+    c (VFun (fun v1 v2st c' t' m' -> (* Grab will be added after eval2st *)
+              f1t e (x :: xs) (v1 :: vs) v2st c' t' m')) t m
   | App (e0, e2s) ->
     f1st e2s xs vs v2st (fun v2s t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
@@ -127,12 +127,12 @@ and f1t e xs vs v2st c t m =
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, t), m))
 
 (* f1st : e list -> string list -> v list -> c -> t -> m -> v list *)
-and f1st e2s xs vs v2st c t m = match e2s with
-    [] -> c v2st t m (* need test cases for this *)
+and f1st e2s xs vs v2st cs t m = match e2s with
+    [] -> cs v2st t m (* need test cases for this *)
   | e :: e2s ->
     f1s e2s xs vs (fun v2s t2 m2 ->
       f1 e xs vs (fun v1 t1 m1 ->
-        c (v1 :: v2s) t1 m1) t2 m2) t m
+        cs (v1 :: v2s) t1 m1) t2 m2) t m
 
 (* apply1 : v -> v -> c -> t -> m -> v *)
 and apply1 v0 v1 v2s c t m = match v0 with
