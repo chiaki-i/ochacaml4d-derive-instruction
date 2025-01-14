@@ -1,6 +1,7 @@
 open Syntax
 open Value
 
+(* IApply: case dispatch on v2s, inline apply9s *)
 (* linearize continuations : eval10sv4 *)
 (* Derived from eval10sv3 *)
 
@@ -56,10 +57,11 @@ let rec run_c9 c s t m = match (c, s) with
     begin match s with v :: VArgs (v2s) :: s ->
       run_c9 ((is, VS (vs)) :: c) (VArgs (v :: v2s) :: s) t m
     end
-  | ((IApply :: is, VS (vs)) :: c, s) ->
-    begin match s with v0 :: VArgs (v2s) :: s ->
-      apply9s v0 v2s vs ((is, VS (vs)) :: c) s t m
-    end
+  | ((IApply :: is, VS (vs)) :: c, v0 :: VArgs ([]) :: s) ->
+    run_c9 ((is, VS (vs)) :: c) (v0 :: s) t m
+  | ((IApply :: is, VS (vs)) :: c, v0 :: VArgs (v1 :: v2s) :: s) ->
+    apply9 v0 v1 (([IApply], VS (vs)) :: (is, VS (vs)) :: c)
+           (VArgs (v2s) :: s) t m
   | ((IFun (i) :: IApply :: is, VS (vs)) :: c', VArgs (v1 :: v2s) :: s') ->
           (* Grab *)
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
@@ -106,12 +108,6 @@ and apply9 v0 v1 c s t m = match v0 with
            (apnd t' (cons (fun v t m -> run_c9 c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
-
-(* apply9s : v -> v list -> v list -> c -> s -> t -> m -> v *)
-and apply9s v0 v2s vs c s t m = match v2s with
-    [] -> run_c9 c (v0 :: s) t m
-  | v1 :: v2s ->
-    apply9 v0 v1 (([IApply], VS (vs)) :: c) (VArgs (v2s) :: s) t m
 
 (* f9 : e -> string list -> i list *)
 let rec f9 e xs = match e with
