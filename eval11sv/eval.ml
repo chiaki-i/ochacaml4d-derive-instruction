@@ -72,10 +72,21 @@ let rec run_c9 c s t m = match (c, s) with
     begin match s with v :: VArgs (v2s) :: s ->
       run_c9 ((is, VS (vs)) :: c) (VArgs (v :: v2s) :: s) t m
     end
-  | ((IApply :: is, VS (vs)) :: c, s) ->
-    begin match s with v0 :: VArgs (v2s) :: s ->
-      apply9s v0 v2s vs ((is, VS (vs)) :: c) s t m
-    end
+  | ((IApply :: is, VS (vs)) :: c, v0 :: VArgs ([]) :: s) ->
+    run_c9 ((is, VS (vs)) :: c) (v0 :: s) t m
+  | ((IApply :: is, VS (vs)) :: c, VFun (i', VS (vs')) :: VArgs (v1 :: v2s) :: s) ->
+    run_c9 (([IApply], VS (vs')) :: (is, VS (vs)) :: c) (v1 :: VArgs (v2s) :: s) t m
+  | ((IApply :: is, VS (vs)) :: c,
+     VContS (c', s', t') :: VArgs (v1 :: v2s) :: s) ->
+    run_c9 c' (v1 :: s') t'
+           (MCons ((([IApply], VS (vs)) :: (is, VS (vs)) :: c,
+                    VArgs (v2s) :: s, t), m))
+  | ((IApply :: is, VS (vs)) :: c,
+     VContC (c', s', t') :: VArgs (v1 :: v2s) :: s) ->
+    run_c9 c' (v1 :: s')
+           (apnd t' (cons (fun v t m ->
+             run_c9 (([IApply], VS (vs)) :: (is, VS (vs)) :: c)
+                    (v :: VArgs (v2s) :: s) t m) t)) m
   | ((IFun (i) :: IApply :: is, VS (vs)) :: c', VArgs (v1 :: v2s) :: s') ->
           (* Grab *)
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
@@ -87,13 +98,7 @@ let rec run_c9 c s t m = match (c, s) with
           run_c9 ((i, VS (v1 :: vs)) :: (IApply :: is, VS (vs')) :: c')
                  (VArgs (v2s) :: s') t m
   | ((IFun (i) :: is, VS (vs)) :: c, s) ->
-  (*  let vfun = VFun (fun c' s' t' m' ->
-        begin match s' with
-            v1 :: s' -> run_c9 ((i, VS (v1 :: vs)) :: c') s' t' m'
-          | _ -> failwith "stack error"
-        end) in
-      run_c9 ((is, VS (vs)) :: c) (vfun :: s) t m *)
-    let vfun = VFun ((IPop :: i, VS (vs)) :: []) in
+    let vfun = VFun (IPop :: i, VS (vs)) in
     run_c9 ((is, VS (vs)) :: c) (vfun :: s) t m
   | ((IPop :: is, VS (vs)) :: c, s) ->
     begin match s with
@@ -118,23 +123,6 @@ let rec run_c9 c s t m = match (c, s) with
     end
   | ((IReset (i) :: is, VS (vs)) :: c, s) ->
     run_c9 ((i, VS (vs)) :: idc) [] TNil (MCons (((is, VS (vs)) :: c, s, t), m))
-
-(* apply9 : v -> v -> c -> s -> t -> m -> v *)
-and apply9 v0 v1 c s t m = match v0 with
-    VFun (c') -> run_c9 (c' @ c) (v1 :: s) t m
-  | VContS (c', s', t') ->
-    run_c9 c' (v1 :: s') t' (MCons ((c, s, t), m))
-  | VContC (c', s', t') ->
-    run_c9 c' (v1 :: s')
-           (apnd t' (cons (fun v t m -> run_c9 c (v :: s) t m) t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
-
-(* apply9s : v -> v list -> v list -> c -> s -> t -> m -> v *)
-and apply9s v0 v2s vs c s t m = match v2s with
-    [] -> run_c9 c (v0 :: s) t m
-  | v1 :: v2s ->
-    apply9 v0 v1 (([IApply], VS (vs)) :: c) (VArgs (v2s) :: s) t m
 
 (* f9 : e -> string list -> i list *)
 let rec f9 e xs = match e with

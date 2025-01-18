@@ -5,7 +5,7 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of c
+       | VFun of i list * rv
        | VContS of c * s * t
        | VContC of c * s * t
        | VArgs of v list
