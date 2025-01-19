@@ -1,7 +1,7 @@
 open Syntax
 
 (* Defunctionalized interpreter with values passed via stack : eval7d wo r.s.*)
-(* refunctionalize c' *)
+(* refunctionalize c with vs free; derived from eval7ds2 *)
 
 (* Value *)
 type v = VNum of int
@@ -10,10 +10,7 @@ type v = VNum of int
        | VContC of c * s * t
        | VArgs of v list
 
-and c = C0
-      | CSeq of c' * v list * c
-
-and c' = v list -> c -> s -> t -> m -> v
+and c = s -> t -> m -> v
 
 and s = v list
 
