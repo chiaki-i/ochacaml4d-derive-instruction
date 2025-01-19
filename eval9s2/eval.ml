@@ -2,6 +2,7 @@ open Syntax
 open Value
 
 (* defunctionalize i; derived from eval8s (not eval9s) *)
+(* inline apply9s and apply9 *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -25,22 +26,6 @@ let idc s t m = match s with
       | Trail (h) -> h v TNil m
     end
   | _ -> failwith "idc: stack error"
-
-(* apply9 : v -> v -> c -> s -> t -> m -> v *)
-let apply9 v0 v1 c s t m = match v0 with
-    VFun (f) -> f c (v1 :: s) t m
-  | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
-  | VContC (c', s', t') ->
-    c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
-
-(* apply9s : v -> v list -> v list -> c -> s -> t -> m -> v *)
-let rec apply9s v0 v2s c s t m = match v2s with
-    [] -> c (v0 :: s) t m
-  | v1 :: v2s ->
-    apply9 v0 v1 (fun (v :: VArgs (v2s) :: s) t m ->
-      apply9s v v2s c s t m) (VArgs (v2s) :: s) t m
 
 (* run_i9 : i -> v list -> c -> s -> t -> m -> v *)
 let rec run_i9 i vs c s t m = match i with
@@ -70,27 +55,21 @@ let rec run_i9 i vs c s t m = match i with
         c (VArgs (v :: v2s) :: s) t m
       | _ -> failwith "stack error: IPush"
     end
-    (*
   | IApply ->
     begin match s with
-        v0 :: VArgs ([]) :: s -> run_c9 c (v0 :: s) t m
-      | VFun (i, vs) :: VArgs (v1 :: v2s) :: s ->
-        run_i9 i (v1 :: vs) ((IApply, vs) :: c) (VArgs (v2s) :: s) t m
-      | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
-        run_c9 c' (v1 :: s') t'
-          ((((IApply, vs) :: c), (VArgs (v2s) :: s), t) :: m)
-      | VContC (c', s', t') :: VArgs (v1 :: v2s) :: s ->
-        run_c9 c' (v1 :: s')
-          (apnd t' (cons (Hold (((IApply, vs) :: c), (VArgs (v2s) :: s))) t)) m
-      | v0 :: VArgs (v1 :: v2s) :: s ->
-        failwith (to_string v0
-                  ^ " is not a function; it can not be applied.")
-      | _ -> failwith "stack error: IApply"
-    end
-    *)
-  | IApply ->
-    begin match s with
-      v0 :: VArgs (v2s) :: s -> apply9s v0 v2s c s t m
+      v0 :: VArgs ([]) :: s -> c (v0 :: s) t m
+    | VFun (f) :: VArgs (v1 :: v2s) :: s ->
+      f (run_i9 IApply vs c) (v1 :: VArgs (v2s) :: s) t m
+    | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
+      c' (v1 :: s') t' (MCons ((run_i9 IApply vs c, VArgs (v2s) :: s, t), m))
+    | VContC (c', s', t') :: VArgs (v1 :: v2s) :: s ->
+      c' (v1 :: s')
+         (apnd t' (cons (fun v t m ->
+           run_i9 IApply vs c (v :: VArgs (v2s) :: s) t m) t)) m
+    | v0 :: VArgs (v1 :: v2s) :: s ->
+      failwith (to_string v0
+                ^ " is not a function; it can not be applied.")
+    | _ -> failwith "stack error: IApply"
     end
   | IFun (i) ->
     begin match (c, s) with
