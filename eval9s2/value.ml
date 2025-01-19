@@ -1,6 +1,6 @@
 open Syntax
 
-(* Interpreter using combinators factored as instructions : eval8s *)
+(* defunctionalize i; derived from eval8s (not eval9s) *)
 
 (* Value *)
 type v = VNum of int
@@ -11,7 +11,17 @@ type v = VNum of int
 
 and c = s -> t -> m -> v
 
-and i = v list -> c -> s -> t -> m -> v
+and i = IPush
+      | IPushmark
+      | INum of int
+      | IAccess of int
+      | IOp of op
+      | IApply
+      | IFun of i
+      | ISeq of i * i
+      | IShift of i | IControl of i
+      | IShift0 of i | IControl0 of i
+      | IReset of i
 
 and s = v list
 
