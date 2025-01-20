@@ -1,7 +1,6 @@
 open Syntax
 
-(* defunctionalize i; derived from eval8s (not eval9s) *)
-(* defunctionalize c *)
+(* linearize i; derived from eval9s2 *)
 
 (* Value *)
 type v = VNum of int
@@ -10,8 +9,7 @@ type v = VNum of int
        | VContC of c * s * t
        | VArgs of v list
 
-and c = C0
-      | CSeq of i * v list * c
+and c = (i list * v list) list
 
 and i = IPush
       | IPushmark
@@ -19,11 +17,10 @@ and i = IPush
       | IAccess of int
       | IOp of op
       | IApply
-      | IFun of i
-      | ISeq of i * i
-      | IShift of i | IControl of i
-      | IShift0 of i | IControl0 of i
-      | IReset of i
+      | IFun of i list
+      | IShift of i list | IControl of i list
+      | IShift0 of i list | IControl0 of i list
+      | IReset of i list
 
 and s = v list
 
