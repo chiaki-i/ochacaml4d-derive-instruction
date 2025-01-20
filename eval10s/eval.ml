@@ -3,6 +3,8 @@ open Value
 
 (* defunctionalize i; derived from eval8s (not eval9s) *)
 (* inline apply9s and apply9 *)
+(* defunctionalize c *)
+(* inline run_i9 *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -14,58 +16,57 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* initial continuation : s -> t -> m -> v *)
-let idc s t m = match s with
-    v :: [] ->
+(* run_c9 : c -> s -> t -> m -> v *)
+let rec run_c9 c s t m = match (c, s) with
+    (C0, v :: []) ->
     begin match t with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> c (v :: s) t m
+          | MCons ((c, s, t), m) -> run_c9 c (v :: s) t m
         end
       | Trail (h) -> h v TNil m
     end
-  | _ -> failwith "idc: stack error"
-
-(* run_i9 : i -> v list -> c -> s -> t -> m -> v *)
-let rec run_i9 i vs c s t m = match i with
-    INum (n) -> c (VNum (n) :: s) t m
-  | IAccess (n) -> c (List.nth vs n :: s) t m
+  | (CSeq (i, vs, c), s) -> begin match i with
+(* CSeq starts here *)
+    INum (n) -> run_c9 c (VNum (n) :: s) t m
+  | IAccess (n) -> run_c9 c (List.nth vs n :: s) t m
   | IOp (op) ->
     begin match s with
         v0 :: v1 :: s ->
         begin match (v0, v1) with
             (VNum (n0), VNum (n1)) ->
             begin match op with
-                Plus -> c (VNum (n0 + n1) :: s) t m
-              | Minus -> c (VNum (n0 - n1) :: s) t m
-              | Times -> c (VNum (n0 * n1) :: s) t m
+                Plus -> run_c9 c (VNum (n0 + n1) :: s) t m
+              | Minus -> run_c9 c (VNum (n0 - n1) :: s) t m
+              | Times -> run_c9 c (VNum (n0 * n1) :: s) t m
               | Divide ->
                 if n1 = 0 then failwith "Division by zero"
-                else c (VNum (n0 / n1) :: s) t m
+                else run_c9 c (VNum (n0 / n1) :: s) t m
             end
           | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                           ^ " are not numbers")
         end
       | _ -> failwith "stack error: op"
     end
-  | IPushmark -> c (VArgs ([]) :: s) t m
+  | IPushmark -> run_c9 c (VArgs ([]) :: s) t m
   | IPush ->
     begin match s with v :: VArgs (v2s) :: s ->
-        c (VArgs (v :: v2s) :: s) t m
+        run_c9 c (VArgs (v :: v2s) :: s) t m
       | _ -> failwith "stack error: IPush"
     end
   | IApply ->
     begin match s with
-      v0 :: VArgs ([]) :: s -> c (v0 :: s) t m
+      v0 :: VArgs ([]) :: s -> run_c9 c (v0 :: s) t m
     | VFun (f) :: VArgs (v1 :: v2s) :: s ->
-      f (run_i9 IApply vs c) (v1 :: VArgs (v2s) :: s) t m
+      f (CSeq (IApply, vs, c)) (v1 :: VArgs (v2s) :: s) t m
     | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
-      c' (v1 :: s') t' (MCons ((run_i9 IApply vs c, VArgs (v2s) :: s, t), m))
+      run_c9 c' (v1 :: s') t'
+             (MCons ((CSeq (IApply, vs, c), VArgs (v2s) :: s, t), m))
     | VContC (c', s', t') :: VArgs (v1 :: v2s) :: s ->
-      c' (v1 :: s')
-         (apnd t' (cons (fun v t m ->
-           run_i9 IApply vs c (v :: VArgs (v2s) :: s) t m) t)) m
+      run_c9 c' (v1 :: s')
+             (apnd t' (cons (fun v t m ->
+               run_c9 (CSeq (IApply, vs, c)) (v :: VArgs (v2s) :: s) t m) t)) m
     | v0 :: VArgs (v1 :: v2s) :: s ->
       failwith (to_string v0
                 ^ " is not a function; it can not be applied.")
@@ -81,31 +82,34 @@ let rec run_i9 i vs c s t m = match i with
       | _ ->
         let vfun = VFun (fun c' s' t' m' ->
           begin match s' with
-            v1 :: s' -> run_i9 i (v1 :: vs) c' s' t' m'
+            v1 :: s' -> run_c9 (CSeq (i, v1 :: vs, c')) s' t' m'
           | _ -> failwith "stack error"
           end) in
-        c (vfun :: s) t m
+        run_c9 c (vfun :: s) t m
     end
   | IShift (i) ->
-    run_i9 i (VContS (c, s, t) :: vs) idc [] TNil m
+    run_c9 (CSeq (i, VContS (c, s, t) :: vs, C0)) [] TNil m
   | IControl (i) ->
-    run_i9 i (VContC (c, s, t) :: vs) idc [] TNil m
+    run_c9 (CSeq (i, VContC (c, s, t) :: vs, C0)) [] TNil m
   | IShift0 (i) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        run_i9 i (VContS (c, s, t) :: vs) c0 s0 t0 m0
+        run_c9 (CSeq (i, VContS (c, s, t) :: vs, c0)) s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | IControl0 (i) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        run_i9 i (VContC (c, s, t) :: vs) c0 s0 t0 m0
+        run_c9 (CSeq (i, VContC (c, s, t) :: vs, c0)) s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | IReset (i) ->
-    run_i9 i vs idc [] TNil (MCons ((c, s, t), m))
+    run_c9 (CSeq (i, vs, C0)) [] TNil (MCons ((c, s, t), m))
   | ISeq (i0, i1) ->
-    run_i9 i0 vs (run_i9 i1 vs c) s t m
+    run_c9 (CSeq (i0, vs, (CSeq (i1, vs, c)))) s t m
+    end
+(* CSeq ends here *)
+  | _ -> failwith "run_c9: stack error"
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
@@ -129,4 +133,4 @@ and f9s e2s xs = match e2s with
   | e :: e2s -> f9s e2s xs >> f9 e xs >> IPush
 
 (* f : e -> v *)
-let f expr = run_i9 (f9 expr []) [] idc [] TNil MNil
+let f expr = run_c9 (CSeq (f9 expr [], [], C0)) [] TNil MNil

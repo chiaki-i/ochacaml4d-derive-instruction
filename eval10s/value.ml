@@ -1,6 +1,7 @@
 open Syntax
 
 (* defunctionalize i; derived from eval8s (not eval9s) *)
+(* defunctionalize c *)
 
 (* Value *)
 type v = VNum of int
@@ -9,7 +10,8 @@ type v = VNum of int
        | VContC of c * s * t
        | VArgs of v list
 
-and c = s -> t -> m -> v
+and c = C0
+      | CSeq of i * v list * c
 
 and i = IPush
       | IPushmark
