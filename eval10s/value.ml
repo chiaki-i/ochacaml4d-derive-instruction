@@ -1,10 +1,11 @@
 open Syntax
 
 (* linearize i; derived from eval9s2 *)
+(* defunctionalize VFun *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> t -> m -> v)
+       | VFun of i list * v list
        | VContS of c * s * t
        | VContC of c * s * t
        | VArgs of v list

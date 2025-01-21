@@ -2,6 +2,7 @@ open Syntax
 open Value
 
 (* linearize i; derived from eval9s2 *)
+(* defunctionalize VFun *)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -57,8 +58,9 @@ let rec run_c9 c s t m = match (c, s) with
   | ((IApply :: is, vs) :: c, s) ->
     begin match s with
       v0 :: VArgs ([]) :: s -> run_c9 ((is, vs) :: c) (v0 :: s) t m
-    | VFun (f) :: VArgs (v1 :: v2s) :: s ->
-      f (([IApply], vs) :: (is, vs) :: c) (v1 :: VArgs (v2s) :: s) t m
+    | VFun (i, vs') :: VArgs (v1 :: v2s) :: s ->
+      run_c9 ((i, v1 :: vs') :: ([IApply], vs) :: (is, vs) :: c)
+             (VArgs (v2s) :: s) t m
     | VContS (c', s', t') :: VArgs (v1 :: v2s) :: s ->
       run_c9 c' (v1 :: s') t'
              (MCons ((([IApply], vs) :: (is, vs) :: c, VArgs (v2s) :: s, t), m))
@@ -80,11 +82,7 @@ let rec run_c9 c s t m = match (c, s) with
         run_i9 i (v1 :: vs) ((IApply, vs') :: c') (VArgs (v2s) :: s') t m
         *)
       | _ ->
-        let vfun = VFun (fun c' s' t' m' ->
-          begin match s' with
-            v1 :: s' -> run_c9 ((i, v1 :: vs) :: c') s' t' m'
-          | _ -> failwith "stack error"
-          end) in
+        let vfun = VFun (i, vs) in
         run_c9 ((is, vs) :: c) (vfun :: s) t m
     end
   | ((IShift (i) :: is, vs) :: c, s) ->
