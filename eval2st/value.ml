@@ -1,6 +1,6 @@
 open Syntax
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval1 *)
+(* Defunctionalized interpreter : eval2 *)
 
 (* Value *)
 type v = VNum of int
@@ -8,7 +8,14 @@ type v = VNum of int
        | VContS of c * t
        | VContC of c * t
 
-and c = v -> t -> m -> v
+and c = C0
+      | CApp0 of v list * c | CAppT0 of v list * c
+      | CAppS0 of v list * c
+      | COp0 of v * op * c
+      | COp1 of e * string list * op * v list * c
+      | CApp2 of e * string list * v list * c
+      | CAppT2 of e * string list * v list * c
+      | CAppS1 of e * string list * v list * c
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
