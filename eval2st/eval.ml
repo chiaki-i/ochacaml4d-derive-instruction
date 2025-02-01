@@ -89,8 +89,11 @@ and f2t e xs vs c t m = match e with
   | Var (x) -> run_c2 c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) -> f2 e1 xs vs (COp1 (e0, xs, op, vs, c)) t m
   | Fun (x, e) ->
-    run_c2 c (VFun (fun v1 c' t' m' ->
-      f2t e (x :: xs) (v1 :: vs) c' t' m')) t m
+    begin match c with
+        CApp0 (v1 :: v2s, c') -> f2 e (x :: xs) (v1 :: vs) (CApp0 (v2s, c')) t m (* Grab *)
+      | _ -> run_c2 c (VFun (fun v1 c' t' m' ->
+        f2t e (x :: xs) (v1 :: vs) c' t' m')) t m
+    end
   | App (e0, e2s) ->
     f2st e2s xs vs (CApp2 (e0, xs, vs, c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
