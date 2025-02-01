@@ -9,8 +9,11 @@ Derive OchaCaml4D virtual machine instructions from the  definitional interprete
 
 ## Which directory is for which derivation path?
 
-### With return stack, better env management (most recent)
-- Eval1s, 2s, 5sr, 7ds3v, 7ds4v, 8sv, 9sv, 10sv, 10sv2, 10sv3, 10sv4
+### Tail version revived (most recent)
+- Eval1st, 2st, 5st
+
+### With return stack, better env management (after PPL)
+- Eval1s, 2s, 5sr, 7ds3v, 7ds4v, 8sv, 9sv, 10sv, 10sv2, 10sv3, 10sv4, 10sv5, 11sv
 
 ### Functions with multiple arguments (PPL)
 - Eval1s, 2s, 5ds2, 7ds1, 7ds3, 7ds4, 8ds, 9ds

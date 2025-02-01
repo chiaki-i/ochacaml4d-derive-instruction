@@ -28,7 +28,7 @@ let rec run_c5 c v s r t m = match (c, s, r) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (COp1 (e0, xs, op, vs, c), s, r) -> (* この vs は環境 *)
+  | (COp1 (e0, xs, op, vs, c), s, r) ->
     f5 e0 xs vs (COp0 (op, c)) (v :: s) r t m
   | (COp0 (op, c), v0 :: s, r) ->
     begin match (v, v0) with
@@ -98,8 +98,8 @@ and f5t e xs vs c s r t m = match e with
   | Op (e0, op, e1) -> f5 e1 xs vs (COp1 (e0, xs, op, vs, c)) s r t m
   | Fun (x, e) ->
     begin match (c, s, r) with
-        (CApp0 (c'), VArgs (v1 :: v2s) :: s', r') ->
-        f5 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') r' t m (* Grab *)
+        (CApp0 (c'), VArgs (v1 :: v2s) :: s', r') -> (* ZINC's Grab 2nd case *)
+        f5 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') r' t m
       | _ ->
         run_c5 c (VFun (fun v1 c' s' r' t' m' ->
         f5t e (x :: xs) (v1 :: vs) c' s' r' t' m')) s r t m
@@ -122,13 +122,13 @@ and f5t e xs vs c s r t m = match e with
     end
   | Reset (e) -> f5 e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
 
-(* f5st : e list -> string list -> v list -> c -> t -> m -> v list *)
+(* f5st : e list -> string list -> v list -> c -> s -> r -> t -> m -> v list *)
 and f5st e2s xs vs cs s r t m = match e2s with
     [] -> run_c5s cs [] s r t m
   | e :: e2s ->
     f5st e2s xs vs (CAppS1 (e, xs, vs, cs)) s r t m
 
-(* apply5 : v -> v -> c -> t -> m -> v *)
+(* apply5 : v -> v -> c -> s -> r -> t -> m -> v *)
 and apply5 v0 v1 c s r t m = match v0 with
     VFun (f) -> f v1 c s r t m
   | VContS (c', s', r', t') -> run_c5 c' v1 s' r' t' (MCons ((c, s, r, t), m))
@@ -137,12 +137,12 @@ and apply5 v0 v1 c s r t m = match v0 with
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* apply5s : v -> v list -> c -> t -> m -> v *)
+(* apply5s : v -> v list -> c -> s -> r -> t -> m -> v *)
 and apply5s v0 v2s c s r t m = match v2s with
     [] -> run_c5 c v0 s r t m
   | v1 :: v2s -> apply5 v0 v1 (CApp0 (c)) (VArgs (v2s) :: s) r t m
 
-(* apply5st : v -> v list -> c -> t -> m -> v *)
+(* apply5st : v -> v list -> c -> s -> r -> t -> m -> v *)
 and apply5st v0 v2s c s r t m = match v2s with
     [] -> run_c5 c v0 s r t m
   | v1 :: v2s -> apply5 v0 v1 (CAppT0 (c)) (VArgs (v2s) :: s) r t m
