@@ -9,8 +9,12 @@ Derive OchaCaml4D virtual machine instructions from the  definitional interprete
 
 ## Which directory is for which derivation path?
 
-### Tail version revived (most recent)
-- Eval1st, 2st, 5st
+### Tail version revived (2025 Feb)
+- Eval1st's f1st recursively calls f1t instead of f1.
+- Eval1st, 2st, 5st, 7st
+
+### part of c represents return stack (Jan 19-25)
+- Eval1s, 2s, 4s, 5s, 5s2, 7ds, 7ds1, 7ds4 (w/o CSeq), 8s, 9s2, eval10s
 
 ### With return stack, better env management (after PPL)
 - Eval1s, 2s, 5sr, 7ds3v, 7ds4v, 8sv, 9sv, 10sv, 10sv2, 10sv3, 10sv4, 10sv5, 11sv

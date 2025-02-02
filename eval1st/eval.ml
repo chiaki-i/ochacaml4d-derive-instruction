@@ -126,7 +126,7 @@ and f1st e2s xs vs c t m = match e2s with
     [] -> c [] t m
   | e :: e2s ->
     f1st e2s xs vs (fun v2s t2 m2 ->
-      f1 e xs vs (fun v1 t1 m1 -> (* f1t? *)
+      f1t e xs vs (fun v1 t1 m1 -> (* f1t? *)
         c (v1 :: v2s) t1 m1) t2 m2) t m
 
 (* apply1 : v -> v -> c -> t -> m -> v *)

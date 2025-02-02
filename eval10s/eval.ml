@@ -27,7 +27,7 @@ let rec run_c9 c s t m = match (c, s) with
     end
   | (([], vs) :: c, s) -> run_c9 c s t m
   | ((INum (n) :: is, vs) :: c, s) ->
-    run_c9 ((is, vs) :: c) (VNum (n) :: s) t m
+    run_c9 ((is, vs) :: c) (VNum (n) :: s) t m (* is が命令の列、vs が環境、cがリターンスタック！ *)
   | ((IAccess (n) :: is, vs) :: c, s) ->
     run_c9 ((is, vs) :: c) (List.nth vs n :: s) t m
   | ((IOp (op) :: is, vs) :: c, s) ->
