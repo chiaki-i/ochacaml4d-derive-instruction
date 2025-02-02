@@ -44,23 +44,16 @@ let rec run_c5 c v s t m = match (c, s) with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | (CApp0 (c), VArgs (v2s) :: s) -> apply5s v v2s c s t m
-  | (CAppT0 (c), VArgs (v2s) :: s) -> apply5st v v2s c s t m
-  | (CAppS0 (cs), VArgs (v2s) :: s) ->
-    run_c5s cs (v :: v2s) s t m
-  | (CAppST0 (cs), VArgs (v2s) :: s) ->
-    run_c5s cs (v :: v2s) s t m (* CAppST0 is currently identical to CAppS0 *)
-
+  | (CAppS0 (cs), VArgs (v2s) :: s) -> run_c5s cs (v :: v2s) s t m
+  | _ -> failwith "run_c5: unexpected c"
 
 (* run_c5s : cs -> v list -> s -> t -> m -> v *)
 and run_c5s c v2s s t m = match (c, s) with
-    (CApp2 (e0, xs, vs, c), s) ->
+    (CAppT1 (e0, xs, vs, c), s) ->
     f5 e0 xs vs (CApp0 (c)) (VArgs (v2s) :: s) t m
   | (CAppS1 (e, xs, vs, c), s) ->
     f5 e xs vs (CAppS0 (c)) (VArgs (v2s) :: s) t m
-  | (CAppST1 (e, xs, vs, c), s) ->
-    f5t e xs vs (CAppST0 (c)) (VArgs (v2s) :: s) t m (* f2st recursively calls f2t *)
-  | (CAppT2 (e0, xs, vs, c), s) ->
-    f5 e0 xs vs (CAppT0 (c)) (VArgs (v2s) :: s) t m
+  | _ -> failwith "run_c5s: unexpected c"
 
 (* f5: defunctionalized interpreter *)
 (* f5 : e -> string list -> v list -> c -> s -> t -> m -> v *)
@@ -72,7 +65,7 @@ and f5 e xs vs c s t m = match e with
     run_c5 c (VFun (fun v1 c' s' t' m' ->
       f5t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
   | App (e0, e2s) ->
-    f5s e2s xs vs (CApp2 (e0, xs, vs, c)) s t m
+    f5s e2s xs vs (CAppT1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->
@@ -109,7 +102,7 @@ and f5t e xs vs c s t m = match e with
         f5t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
     end
   | App (e0, e2s) ->
-    f5st e2s xs vs (CApp2 (e0, xs, vs, c)) s t m
+    f5s e2s xs vs (CAppT1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, t) :: vs) C0 [] TNil m
   | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, t) :: vs) C0 [] TNil m
   | Shift0 (x, e) ->
@@ -126,13 +119,7 @@ and f5t e xs vs c s t m = match e with
     end
   | Reset (e) -> f5 e xs vs C0 [] TNil (MCons ((c, s, t), m))
 
-(* f5st : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
-and f5st e2s xs vs cs s t m = match e2s with
-    [] -> run_c5s cs [] s t m
-  | e :: e2s ->
-    f5st e2s xs vs (CAppST1 (e, xs, vs, cs)) s t m
-
-(* apply5 : v -> v -> c -> s -> t -> m -> v *)
+  (* apply5 : v -> v -> c -> s -> t -> m -> v *)
 and apply5 v0 v1 c s t m = match v0 with
     VFun (f) -> f v1 c s t m
   | VContS (c', s', t') -> run_c5 c' v1 s' t' (MCons ((c, s, t), m))
@@ -145,11 +132,6 @@ and apply5 v0 v1 c s t m = match v0 with
 and apply5s v0 v2s c s t m = match v2s with
     [] -> run_c5 c v0 s t m
   | v1 :: v2s -> apply5 v0 v1 (CApp0 (c)) (VArgs (v2s) :: s) t m
-
-(* apply5st : v -> v list -> c -> s -> t -> m -> v *)
-and apply5st v0 v2s c s t m = match v2s with
-    [] -> run_c5 c v0 s t m
-  | v1 :: v2s -> apply5 v0 v1 (CAppT0 (c)) (VArgs (v2s) :: s) t m
 
 (* f : e -> v *)
 let f expr = f5 expr [] [] idc [] TNil MNil

@@ -10,21 +10,18 @@ type v = VNum of int
        | VArgs of v list
 
 and c = C0
-      | CApp0 of c | CAppT0 of c
-      | CAppS0 of c | CAppST0 of c
+      | CApp0 of c
+      | CAppS0 of c
       | COp0 of op * c
       | COp1 of e * string list * op * v list * c
-      | CApp2 of e * string list * v list * c
-      | CAppT2 of e * string list * v list * c
+      | CAppT1 of e * string list * v list * c
       | CAppS1 of e * string list * v list * c
-      | CAppST1 of e * string list * v list * c
 
 and s = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil | MCons of (c * s * t) * m
-
 
 (* to_string : v -> string *)
 let rec to_string value = match value with

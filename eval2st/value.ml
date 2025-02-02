@@ -20,14 +20,12 @@ and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil | MCons of (c * t) * m
 
-
 (* to_string : v -> string *)
 let rec to_string value = match value with
     VNum (n) -> string_of_int n
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-
 
 (* Value.print : v -> unit *)
 let print exp =
