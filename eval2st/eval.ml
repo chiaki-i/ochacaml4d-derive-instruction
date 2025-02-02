@@ -45,11 +45,13 @@ let rec run_c2 c v t m = match c with
   | CApp0 (v2s, c) -> apply2s v v2s c t m
   | CAppT0 (v2s, c) -> apply2st v v2s c t m
   | CAppS0 (v2s, cs) -> run_c2s cs (v :: v2s) t m
+  | CAppST0 (v2s, cs) -> run_c2s cs (v :: v2s) t m (* CAppST0 is currently identical to CAppS0 *)
 
 (* run_c2s : cs -> v list -> t -> m -> v *)
 and run_c2s c v2s t m = match c with
     CApp2 (e0, xs, vs, c) -> f2 e0 xs vs (CApp0 (v2s, c)) t m
   | CAppS1 (e, xs, vs, c) -> f2 e xs vs (CAppS0 (v2s, c)) t m
+  | CAppST1 (e, xs, vs, c) -> f2t e xs vs (CAppST0 (v2s, c)) t m (* f2st recursively calls f2t *)
   | CAppT2 (e0, xs, vs, c) -> f2 e0 xs vs (CAppT0 (v2s, c)) t m
 
 (* f2: defunctionalized interpreter *)
@@ -114,7 +116,7 @@ and f2t e xs vs c t m = match e with
 and f2st e2s xs vs cs t m = match e2s with
     [] -> run_c2s cs [] t m
   | e :: e2s ->
-    f2st e2s xs vs (CAppS1 (e, xs, vs, cs)) t m
+    f2st e2s xs vs (CAppST1 (e, xs, vs, cs)) t m
 
 (* apply2 : v -> v -> c -> t -> m -> v *)
 and apply2 v0 v1 c t m = match v0 with

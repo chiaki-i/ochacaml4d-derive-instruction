@@ -144,6 +144,7 @@ and apply1s v0 v2s c t m = match v2s with
                    apply1s v v2s c t m) t m
 
 (* apply1st : v -> v list -> c -> t -> m -> v *)
+(* apply1s と分ける意味ある？ *)
 and apply1st v0 v2s c t m = match v2s with
     [] -> c v0 t m
   | v1 :: v2s -> apply1 v0 v1 (fun v t m ->
