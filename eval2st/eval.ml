@@ -1,8 +1,7 @@
 open Syntax
 open Value
 
-(* actual calculation *)
-(* Defunctionalized from eval1st: eval2st *)
+(* interpreter with defunctionalized continuations: eval2st *)
 
 (* initial continuation *)
 let idc = C0
@@ -43,16 +42,15 @@ let rec run_c2 c v t m = match c with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | CApp0 (v2s, c) -> apply2s v v2s c t m
-  | CAppT0 (v2s, c) -> apply2st v v2s c t m
   | CAppS0 (v2s, cs) -> run_c2s cs (v :: v2s) t m
-  | CAppST0 (v2s, cs) -> run_c2s cs (v :: v2s) t m (* CAppST0 is currently identical to CAppS0 *)
+  | _ -> failwith "run_c2: unexpected c"
 
 (* run_c2s : cs -> v list -> t -> m -> v *)
 and run_c2s c v2s t m = match c with
-    CApp2 (e0, xs, vs, c) -> f2 e0 xs vs (CApp0 (v2s, c)) t m
+    (* CAppT1: 再帰的に関数部分を呼び出すときに tail の規則を用いることにする (eval1st から) *)
+    CAppT1 (e0, xs, vs, c) -> f2t e0 xs vs (CApp0 (v2s, c)) t m
   | CAppS1 (e, xs, vs, c) -> f2 e xs vs (CAppS0 (v2s, c)) t m
-  | CAppST1 (e, xs, vs, c) -> f2t e xs vs (CAppST0 (v2s, c)) t m (* f2st recursively calls f2t *)
-  | CAppT2 (e0, xs, vs, c) -> f2 e0 xs vs (CAppT0 (v2s, c)) t m
+  | _ -> failwith "run_c2s: unexpected c"
 
 (* f2: defunctionalized interpreter *)
 (* f2 : e -> string list -> v list -> c -> t -> m -> v *)
@@ -64,7 +62,7 @@ and f2 e xs vs c t m = match e with
     run_c2 c (VFun (fun v1 c' t' m' ->
       f2t e (x :: xs) (v1 :: vs) c' t' m')) t m
   | App (e0, e2s) ->
-    f2s e2s xs vs (CApp2 (e0, xs, vs, c)) t m
+    f2s e2s xs vs (CAppT1 (e0, xs, vs, c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -80,6 +78,7 @@ and f2 e xs vs c t m = match e with
   | Reset (e) -> f2 e xs vs idc TNil (MCons ((c, t), m))
 
 (* f2s : e list -> string list -> v list -> cs -> t -> m -> v list *)
+(* f2s は関数適用の引数部分を実行しているので、f2t を再帰的に呼び出す必要はない *)
 and f2s e2s xs vs cs t m = match e2s with
     [] -> run_c2s cs [] t m
   | e :: e2s ->
@@ -97,7 +96,7 @@ and f2t e xs vs c t m = match e with
         f2t e (x :: xs) (v1 :: vs) c' t' m')) t m
     end
   | App (e0, e2s) ->
-    f2st e2s xs vs (CApp2 (e0, xs, vs, c)) t m
+    f2s e2s xs vs (CAppT1 (e0, xs, vs, c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -112,12 +111,6 @@ and f2t e xs vs c t m = match e with
     end
   | Reset (e) -> f2 e xs vs idc TNil (MCons ((c, t), m))
 
-(* f2st : e list -> string list -> v list -> c -> t -> m -> v list *)
-and f2st e2s xs vs cs t m = match e2s with
-    [] -> run_c2s cs [] t m
-  | e :: e2s ->
-    f2st e2s xs vs (CAppST1 (e, xs, vs, cs)) t m
-
 (* apply2 : v -> v -> c -> t -> m -> v *)
 and apply2 v0 v1 c t m = match v0 with
     VFun (f) -> f v1 c t m
@@ -130,11 +123,6 @@ and apply2 v0 v1 c t m = match v0 with
 and apply2s v0 v2s c t m = match v2s with
     [] -> run_c2 c v0 t m
   | v1 :: v2s -> apply2 v0 v1 (CApp0 (v2s, c)) t m
-
-(* apply2st : v -> v list -> c -> t -> m -> v *)
-and apply2st v0 v2s c t m = match v2s with
-    [] -> run_c2 c v0 t m
-  | v1 :: v2s -> apply2 v0 v1 (CAppT0 (v2s, c)) t m
 
 (* f : e -> v *)
 let f expr = f2 expr [] [] idc TNil MNil
