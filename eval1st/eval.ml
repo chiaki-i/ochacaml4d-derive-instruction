@@ -1,8 +1,8 @@
 open Syntax
 open Value
 
-(* actual calculation *)
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1 *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations
+  with tail optimization : eval1st *)
 
 (* initial continuation : v -> t -> m -> v *)
 let idc v t m = match t with
@@ -24,7 +24,6 @@ let apnd t0 t1 = match t0 with
   | Trail (h) -> cons h t1
 
 (* f1: definitional interpreter *)
-
 (* f1 : e -> string list -> v list -> c -> t -> m -> v *)
 let rec f1 e xs vs c t m =
   match e with
@@ -51,7 +50,7 @@ let rec f1 e xs vs c t m =
               f1t e (x :: xs) (v1 :: vs) c' t' m')) t m
   | App (e0, e2s) ->
     f1s e2s xs vs (fun v2s t2 m2 ->
-      f1 e0 xs vs (fun v0 t0 m0 ->
+      f1t e0 xs vs (fun v0 t0 m0 -> (* 試験的に、関数部分は f1t で再帰 *)
         apply1s v0 v2s c t0 m0) t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
@@ -70,6 +69,7 @@ let rec f1 e xs vs c t m =
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, t), m))
 
 (* f1s : e list -> string list -> v list -> c -> t -> m -> v list *)
+(* f1s は関数適用の引数部分を実行しているので、f1t を再帰呼び出しする必要はない *)
 and f1s e2s xs vs c t m = match e2s with
     [] -> c [] t m
   | e :: e2s ->
@@ -102,9 +102,9 @@ and f1t e xs vs c t m =
     c (VFun (fun v1 c' t' m' ->
               f1t e (x :: xs) (v1 :: vs) c' t' m')) t m
   | App (e0, e2s) ->
-    f1st e2s xs vs (fun v2s t2 m2 ->
-      f1 e0 xs vs (fun v0 t0 m0 ->
-        apply1st v0 v2s c t0 m0) t2 m2) t m
+    f1s e2s xs vs (fun v2s t2 m2 ->
+      f1t e0 xs vs (fun v0 t0 m0 -> (* 関数適用の関数部分を f1t で最適化 *)
+        apply1s v0 v2s c t0 m0) t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -121,14 +121,6 @@ and f1t e xs vs c t m =
     end
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, t), m))
 
-(* f1st : e list -> string list -> v list -> c -> t -> m -> v list *)
-and f1st e2s xs vs c t m = match e2s with
-    [] -> c [] t m
-  | e :: e2s ->
-    f1st e2s xs vs (fun v2s t2 m2 ->
-      f1t e xs vs (fun v1 t1 m1 -> (* f1t? *)
-        c (v1 :: v2s) t1 m1) t2 m2) t m
-
 (* apply1 : v -> v -> c -> t -> m -> v *)
 and apply1 v0 v1 c t m = match v0 with
     VFun (f) -> f v1 c t m
@@ -142,13 +134,6 @@ and apply1s v0 v2s c t m = match v2s with
     [] -> c v0 t m
   | v1 :: v2s -> apply1 v0 v1 (fun v t m ->
                    apply1s v v2s c t m) t m
-
-(* apply1st : v -> v list -> c -> t -> m -> v *)
-(* apply1s と分ける意味ある？ *)
-and apply1st v0 v2s c t m = match v2s with
-    [] -> c v0 t m
-  | v1 :: v2s -> apply1 v0 v1 (fun v t m ->
-                   apply1st v v2s c t m) t m
 
 (* f : e -> v *)
 let f expr = f1 expr [] [] idc TNil MNil

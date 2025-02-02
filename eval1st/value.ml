@@ -1,6 +1,7 @@
 open Syntax
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval1 *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations
+  with tail optimization : eval1st *)
 
 (* Value *)
 type v = VNum of int
