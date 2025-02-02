@@ -1,6 +1,6 @@
 open Syntax
 
-(* Defunctionalized interpreter : eval2 *)
+(* Defunctionalized interpreter with argument stack: eval5st *)
 
 (* Value *)
 type v = VNum of int

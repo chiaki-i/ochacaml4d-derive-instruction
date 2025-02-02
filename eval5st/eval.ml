@@ -1,8 +1,8 @@
 open Syntax
 open Value
 
-(* actual calculation *)
-(* Defunctionalized from eval1st: eval2st *)
+(* defunctionalized interpreter with argument stack: eval5st *)
+(* eval5st is without explicit return stack since c will represent one instead *)
 
 (* initial continuation *)
 let idc = C0
