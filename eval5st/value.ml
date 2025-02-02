@@ -4,27 +4,26 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> c -> s -> r -> t -> m -> v)
-       | VContS of c * s * r * t
-       | VContC of c * s * r * t
+       | VFun of (v -> c -> s -> t -> m -> v)
+       | VContS of c * s * t
+       | VContC of c * s * t
        | VArgs of v list
 
 and c = C0
       | CApp0 of c | CAppT0 of c
-      | CAppS0 of c
+      | CAppS0 of c | CAppST0 of c
       | COp0 of op * c
       | COp1 of e * string list * op * v list * c
       | CApp2 of e * string list * v list * c
       | CAppT2 of e * string list * v list * c
       | CAppS1 of e * string list * v list * c
+      | CAppST1 of e * string list * v list * c
 
 and s = v list
 
-and r = (c * v list) list
-
 and t = TNil | Trail of (v -> t -> m -> v)
 
-and m = MNil | MCons of (c * s * r * t) * m
+and m = MNil | MCons of (c * s * t) * m
 
 
 (* to_string : v -> string *)
