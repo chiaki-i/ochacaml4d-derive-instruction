@@ -47,14 +47,15 @@ let rec run_c7 c s t m = match (c, s) with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | (CApp0 (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
-  | (CAppS0 (cs), v :: VArgs (v2s) :: s) -> run_c7s cs (VArgs (v :: v2s) :: s) t m
+  | (CAppS0 (cs), v :: VArgs (v2s) :: s) ->
+    run_c7s cs (VArgs (v :: v2s) :: s) t m  (* introduced new VArgs (v2s) to put value on stack 1 *)
   | _ -> failwith "run_c7: unexpected c"
 
 (* run_c7s : cs -> s -> t -> m -> v *)
 and run_c7s c s t m = match (c, s) with
-    (CAppT1 (e0, xs, vs, c), VArgs (v2s) :: s) ->
+    (CAppT1 (e0, xs, vs, c), VArgs (v2s) :: s) -> (* 2 *)
     f7 e0 xs vs (CApp0 (c)) (VArgs (v2s) :: s) t m
-  | (CAppS1 (e, xs, vs, c), VArgs (v2s) :: s) ->
+  | (CAppS1 (e, xs, vs, c), VArgs (v2s) :: s) -> (* 3 *)
     f7 e xs vs (CAppS0 (c)) (VArgs (v2s) :: s) t m
   | _ -> failwith "run_c7s: unexpected c"
 
@@ -87,7 +88,7 @@ and f7 e xs vs c s t m = match e with
 
 (* f7s : e list -> string list -> v list -> cs -> s -> t -> m -> v list *)
 and f7s e2s xs vs cs s t m = match e2s with
-    [] -> run_c7s cs (mark :: s) t m
+    [] -> run_c7s cs (mark :: s) t m (* 4 (mark = VArgs ([])) *)
   | e :: e2s ->
     f7s e2s xs vs (CAppS1 (e, xs, vs, cs)) s t m
 
