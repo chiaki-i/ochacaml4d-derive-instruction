@@ -30,36 +30,6 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* run_c7 : c -> s -> t -> m -> v *)
-(* let rec run_c7 c s t m =
-  | (COp1 (e0, xs, op, vs, c), v :: s) ->
-    f7 e0 xs vs (fun (v :: v0 :: s) t m ->
-      begin match (v, v0) with
-          (VNum (n0), VNum (n1)) ->
-          begin match op with
-              Plus -> c (VNum (n0 + n1) :: s) t m
-            | Minus -> c (VNum (n0 - n1) :: s) t m
-            | Times -> c (VNum (n0 * n1) :: s) t m
-            | Divide ->
-              if n1 = 0 then failwith "Division by zero"
-              else c (VNum (n0 / n1) :: s) t m
-          end
-        | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
-      end) (v :: s) t m
-  | (CApp0 (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
-  | (CAppS0 (cs), v :: VArgs (v2s) :: s) ->
-    run_c7s cs (VArgs (v :: v2s) :: s) t m
-  | _ -> failwith "run_c7: unexpected c" *)
-
-(* run_c7s : cs -> s -> t -> m -> v *)
-(* and run_c7s c s t m = match (c, s) with
-    (CAppT1 (e0, xs, vs, c), VArgs (v2s) :: s) ->
-    f7 e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply7s v v2s c s t m) (VArgs (v2s) :: s) t m
-  | (CAppS1 (e, xs, vs, c), VArgs (v2s) :: s) ->
-    f7 e xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply7s v v2s c s t m) (VArgs (v2s) :: s) t m
-  | _ -> failwith "run_c7s: unexpected c"
- *)
-
 (* f7: defunctionalized interpreter *)
 (* f7: e -> string list -> v list -> c' -> s -> t -> m -> v *)
 let rec f7 e xs vs c s t m = match e with
@@ -134,7 +104,7 @@ and f7t e xs vs c s t m = match e with
         end) (v :: s) t m) s t m
   | Fun (x, e) ->
     begin match s with
-(*         (CApp0 (c'), VArgs (v1 :: v2s) :: s') -> (* ZINC's Grab 2nd case *)
+      (* (CApp0 (c'), VArgs (v1 :: v2s) :: s') -> (* ZINC's Grab 2nd case *)
         f7 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') t m *)
       | _ ->
         c ((VFun (fun c' (v1 :: s') t' m' ->
