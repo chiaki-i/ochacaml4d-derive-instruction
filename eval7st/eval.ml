@@ -66,7 +66,7 @@ and f7 e xs vs c s t m = match e with
   | Var (x) -> run_c7 c ((List.nth vs (Env.offset x xs)) :: s) t m
   | Op (e0, op, e1) -> f7 e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
   | Fun (x, e) ->
-    run_c7 c ((VFun (fun v1 c' s' t' m' ->
+    run_c7 c ((VFun (fun c' (v1 :: s') t' m' ->
       f7t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
   | App (e0, e2s) ->
     f7s e2s xs vs (CAppT1 (e0, xs, vs, c)) s t m
@@ -102,7 +102,7 @@ and f7t e xs vs c s t m = match e with
         (CApp0 (c'), VArgs (v1 :: v2s) :: s') -> (* ZINC's Grab 2nd case *)
         f7 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') t m
       | _ ->
-        run_c7 c ((VFun (fun v1 c' s' t' m' ->
+        run_c7 c ((VFun (fun c' (v1 :: s') t' m' ->
         f7t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
     end
   | App (e0, e2s) ->
@@ -125,7 +125,7 @@ and f7t e xs vs c s t m = match e with
 
   (* apply7 : v -> v -> c -> s -> t -> m -> v *)
 and apply7 v0 v1 c s t m = match v0 with
-    VFun (f) -> f v1 c s t m
+    VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') -> run_c7 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     run_c7 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c7 c (v :: s) t m) t)) m
