@@ -4,18 +4,12 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> c -> s -> t -> m -> v)
+       | VFun of (c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
        | VArgs of v list
 
-and c = C0
-      | CApp0 of c
-      | CAppS0 of c
-      | COp0 of op * c
-      | COp1 of e * string list * op * v list * c
-      | CAppT1 of e * string list * v list * c
-      | CAppS1 of e * string list * v list * c
+and c = s -> t -> m -> v
 
 and s = v list
 
