@@ -1,6 +1,6 @@
 open Syntax
 
-(* Defunctionalized interpreter with argument stack: eval5st *)
+(* interpreter with defunctionalized continuations: eval2st *)
 
 (* Value *)
 type v = VNum of int
@@ -10,12 +10,12 @@ type v = VNum of int
        | VArgs of v list
 
 and c = C0
-      | CApp0 of c
+      | CRet of c
+      | CAppT0 of e * string list * v list * c
       | CAppS0 of c
+      | CAppS1 of e * string list * v list * c
       | COp0 of op * c
       | COp1 of e * string list * op * v list * c
-      | CAppT1 of e * string list * v list * c
-      | CAppS1 of e * string list * v list * c
 
 and s = v list
 
@@ -41,6 +41,16 @@ let rec s_to_string s =
     List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
   end
   ^ "]"
+
+(* c_to_string : c -> string *)
+let rec c_to_string cont = match cont with
+    C0 -> "<C0>"
+  | CRet (_) -> "<CRet>"
+  | CAppT0 (_, _, _, _) -> "<CAppT0>"
+  | CAppS1 (_, _, _, _) -> "<CAppS1>"
+  | CAppS0 (_) -> "<CAppS0>"
+  | COp0 (_, _) -> "<COp0>"
+  | COp1 (_, _, _, _, _) -> "<COp1>"
 
 (* Value.print : v -> unit *)
 let print exp =
