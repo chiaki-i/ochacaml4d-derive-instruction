@@ -9,12 +9,12 @@ type v = VNum of int
        | VContC of c * t
 
 and c = C0
-      | CApp0 of v list * c
+      | CRet of v list * c
+      | CAppT0 of e * string list * v list * c
       | CAppS0 of v list * c
+      | CAppS1 of e * string list * v list * c
       | COp0 of v * op * c
       | COp1 of e * string list * op * v list * c
-      | CAppT1 of e * string list * v list * c
-      | CAppS1 of e * string list * v list * c
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
