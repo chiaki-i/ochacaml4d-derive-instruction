@@ -56,8 +56,24 @@ let operation op = fun vs c (v :: v0 :: s) t m ->
 let cur i = fun vs c s t m ->
   c ((VFun (fun c' (v1 :: s') t' m' -> i (v1 :: vs) c' s' t' m')) :: s) t m
 
-let return i = fun vs c (VArgs (v2s) :: s) t m ->
+let apply i = fun vs c (VArgs (v2s) :: s) t m ->
   i vs c (VArgs (v2s) :: s) t m
+
+(* apply8 : v -> v -> c -> s -> t -> m -> v *)
+let apply8 v0 v1 c s t m = match v0 with
+    VFun (f) -> f c (v1 :: s) t m
+  | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
+  | VContC (c', s', t') ->
+    c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
+
+(* apply8s : v -> v list -> c -> s -> t -> m -> v *)
+let rec apply8s v0 v2s c s t m = match v2s with
+    [] -> c (v0 :: s) t m
+  | v1 :: v2s ->
+    apply8 v0 v1 (fun (v :: VArgs (v2s) :: s) t m ->
+      apply8s v v2s c s t m) (VArgs (v2s) :: s) t m
 
 (* shift : i -> i *)
 let shift i = fun vs c s t m ->
@@ -87,6 +103,9 @@ let pushmark = fun vs c s t m -> c (mark :: s) t m
 let push = fun vs c (v :: VArgs (v2s) :: s) t m ->
   c (VArgs (v :: v2s) :: s) t m
 
+let return = fun vs c (v :: VArgs (v2s) :: s) t m ->
+  apply8s v v2s c s t m
+
 (* f8: e -> string list -> i *)
 let rec f8 e xs = match e with
     Num (n) -> num n
@@ -95,7 +114,7 @@ let rec f8 e xs = match e with
     f8 e1 xs >> f8 e0 xs >> operation op
   | Fun (x, e) -> cur (f8 e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> return (f8t e0 xs)
+    f8s e2s xs >> apply (f8t e0 xs) (* shold be like: f8t e0 xs >> apply *)
   | Shift (x, e) -> shift (f8 e (x :: xs))
   | Control (x, e) -> control (f8 e (x :: xs))
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
@@ -108,12 +127,12 @@ and f8s e2s xs = match e2s with
   | e :: e2s -> f8s e2s xs >> f8 e xs >> push
 
 (* f8t : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f8t e xs vs c s t m = match s with VArgs (v2s) :: s ->
+and f8t e xs vs c s t m = (* match s with VArgs (v2s) :: s -> *)
   let ret_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
-  let ret_s = VArgs (v2s) :: s in
+  (* let ret_s = VArgs (v2s) :: s in *)
   match e with
-    Num (n) -> ret_c (VNum (n) :: ret_s) t m
-  | Var (x) -> ret_c (List.nth vs (Env.offset x xs) :: ret_s) t m
+    Num (n) -> ret_c (VNum (n) :: s) t m
+  | Var (x) -> ret_c (List.nth vs (Env.offset x xs) :: s) t m
   | Op (e0, op, e1) ->
     f8 e1 xs vs (fun (v :: s) t m ->
       f8 e0 xs vs (fun (v :: v0 :: s) t m ->
@@ -128,50 +147,38 @@ and f8t e xs vs c s t m = match s with VArgs (v2s) :: s ->
                 else ret_c (VNum (n0 / n1) :: s) t m
             end
           | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
-        end) (v :: s) t m) ret_s t m
+        end) (v :: s) t m) s t m
   | Fun (x, e) ->
-    begin match v2s with
-      [] ->
-      c ((VFun (fun c' (v1 :: s') t' m' ->
-        f8 e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
-    | v1 :: v2s -> f8t e (x :: xs) (v1 :: vs) c (VArgs (v2s) :: s) t m
+    begin match s with VArgs (v2s) :: s ->
+      begin match v2s with
+        [] ->
+        c ((VFun (fun c' (v1 :: s') t' m' ->
+          f8 e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
+      | v1 :: v2s -> f8t e (x :: xs) (v1 :: vs) c (VArgs (v2s) :: s) t m
+      end
     end
   | App (e0, e2s) ->
-    f8s e2s xs vs (fun (VArgs (v2s) :: s) t m ->
-      f8t e0 xs vs c (VArgs (v2s) :: s) t m) s t m
+    begin match s with VArgs (v2s) :: s ->
+      f8s e2s xs vs (fun (VArgs (v2s) :: s) t m ->
+        f8t e0 xs vs c (VArgs (v2s) :: s) t m) s t m
+    end
   | Shift (x, e) ->
-    f8 e (x :: xs) (VContS (ret_c, ret_s, t) :: vs) idc [] TNil m
+    f8 e (x :: xs) (VContS (ret_c, s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
-    f8 e (x :: xs) (VContC (ret_c, ret_s, t) :: vs) idc [] TNil m
+    f8 e (x :: xs) (VContC (ret_c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f8 e (x :: xs) (VContS (ret_c, ret_s, t) :: vs) c0 s0 t0 m0
+        f8 e (x :: xs) (VContS (ret_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f8 e (x :: xs) (VContC (ret_c, ret_s, t) :: vs) c0 s0 t0 m0
+        f8 e (x :: xs) (VContC (ret_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f8 e xs vs idc [] TNil (MCons ((ret_c, ret_s, t), m))
-
-  (* apply8 : v -> v -> c -> s -> t -> m -> v *)
-and apply8 v0 v1 c s t m = match v0 with
-    VFun (f) -> f c (v1 :: s) t m
-  | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
-  | VContC (c', s', t') ->
-    c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
-
-(* apply8s : v -> v list -> c -> s -> t -> m -> v *)
-and apply8s v0 v2s c s t m = match v2s with
-    [] -> c (v0 :: s) t m
-  | v1 :: v2s ->
-    apply8 v0 v1 (fun (v :: VArgs (v2s) :: s) t m ->
-      apply8s v v2s c s t m) (VArgs (v2s) :: s) t m
+  | Reset (e) -> f8 e xs vs idc [] TNil (MCons ((ret_c, s, t), m))
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] idc [] TNil MNil
