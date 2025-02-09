@@ -11,6 +11,8 @@ type v = VNum of int
 
 and c = s -> t -> m -> v
 
+and i = v list -> c -> s -> t -> m -> v
+
 and s = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
