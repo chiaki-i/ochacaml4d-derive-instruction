@@ -206,6 +206,41 @@ and f8t e xs = match e with
     (* fun vs c -> (f8s e2s xs) vs
       (f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m)) *)
     f8s e2s xs >> appterm (f8t e0 xs)
+
+    (* f8s e2s xs >> f8 e0 xs >> apply >> apply *)
+    (* f8s e2s xs >> f8 e0 xs >> (fun vs c -> apply vs (apply vs c)) *)
+    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
+         apply8s v v2s (apply vs c) s t m) *)
+    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
+       match v2s with
+         [] -> apply vs c (v :: s) t m
+       | v1 :: v2s ->
+         apply8 v v1 (fun (v :: VArgs (v2s) :: s) t m ->
+           apply8s v v2s (apply vs c) s t m) (VArgs (v2s) :: s) t m
+       ) *)
+    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
+       match v2s with
+         [] -> apply vs c (v :: s) t m
+       | v1 :: v2s ->
+         apply8 v v1 (fun (v :: VArgs (v2s) :: s) t m ->
+           apply8s v v2s (apply vs c) s t m) (VArgs (v2s) :: s) t m
+       ) *)
+    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
+       match v2s with
+         [] -> apply vs c (v :: s) t m
+       | v1 :: v2s ->
+         let c = apply vs (apply vs c) in
+         begin match v with
+           VFun (f) -> f c (v1 :: VArgs (v2s) :: s) t m
+         | VContS (c', s', t') ->
+           c' (v1 :: s') t' (MCons ((c, VArgs (v2s) :: s, t), m))
+         | VContC (c', s', t') ->
+           c' (v1 :: s')
+              (apnd t' (cons (fun v t m -> c (v :: VArgs (v2s) :: s) t m) t)) m
+         | _ -> failwith (to_string v
+                          ^ " is not a function; it can not be applied.")
+         end
+       ) *)
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> apply
   | Control (x, e) -> control (f8 e (x :: xs)) >> apply
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> apply
