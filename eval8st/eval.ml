@@ -103,6 +103,9 @@ let push = fun vs c (v :: VArgs (v2s) :: s) t m ->
 let apply = fun vs c (v :: VArgs (v2s) :: s) t m ->
   apply8s v v2s c s t m
 
+let appterm i = fun vs c s t m ->
+  i vs (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m) s t m
+
 let pop_mark i = fun vs c (VArgs (v2s) :: s) t m -> i vs c s t m
 
 (* grab: i -> i -> i *)
@@ -140,9 +143,35 @@ and f8t e xs = match e with
   | Var (x) -> access (Env.offset x xs) >> apply
   | Op (e0, op, e1) ->
     f8 e1 xs >> f8 e0 xs >> operation op >> apply
-  | Fun (x, e) -> cur (f8 e (x :: xs)) >> apply
+  | Fun (x, e) ->
+    (* cur (f8 e (x :: xs)) >> apply *)
+    (* fun vs c -> (cur (f8 e (x :: xs)) >> apply) vs c *)
+    (* fun vs c -> (fun vs c ->
+      cur (f8 e (x :: xs)) vs (apply vs c)) vs c *)
+    (* fun vs c s t m -> (fun vs c s t m ->
+      cur (f8 e (x :: xs)) vs (apply vs c) s t m) vs c s t m *)
+    (* fun vs c s t m -> (fun vs c s t m ->
+      (apply vs c) ((VFun (fun c' (v1 :: s') t' m' ->
+        (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m) vs c s t m *)
+    (* fun vs c s t m ->
+      (fun vs c s t m ->
+        (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m)
+        ((VFun (fun c' (v1 :: s') t' m' ->
+          (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m) vs c s t m *)
+    fun vs c s t m ->
+      (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m)
+      ((VFun (fun c' (v1 :: s') t' m' ->
+        (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m
+    (* grab (f8 e (x :: xs)) (f8t e (x :: xs)) *)
   | App (e0, e2s) ->
-    f8s e2s xs >> f8t e0 xs >> apply
+    (* f8s e2s xs >> f8t e0 xs >> apply *)
+    (* f8s e2s xs >> (fun vs c -> f8t e0 xs vs (apply vs c)) *)
+    (* f8s e2s xs >> (fun vs c -> f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m)) *)
+    (* f8s e2s xs >> (fun vs c s t m -> f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m) s t m) *) (* これを利用して Appterm を作る *)
+    (* fun vs c -> (f8s e2s xs) vs (fun s t m -> f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m) s t m) *)
+    (* fun vs c -> (f8s e2s xs) vs
+      (f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m)) *)
+    f8s e2s xs >> appterm (f8t e0 xs)
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> apply
   | Control (x, e) -> control (f8 e (x :: xs)) >> apply
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> apply
