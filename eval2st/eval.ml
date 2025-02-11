@@ -100,7 +100,7 @@ and f2t e xs vs v2s c t m =
     | v1 :: v2s -> f2t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e2s) ->
-    f2s e2s xs vs (CAppT0 (e0, xs, vs, c)) t m
+    f2s e2s xs vs (CAppT0 (e0, xs, vs, ret_c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (ret_c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (ret_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
