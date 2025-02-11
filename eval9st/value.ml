@@ -9,9 +9,22 @@ type v = VNum of int
        | VContC of c * s * t
        | VArgs of v list
 
-and c = s -> t -> m -> v
+and c = C0
+      | CSeq of i * v list * c
 
-and i = v list -> c -> s -> t -> m -> v
+and i = IPush
+      | IPushmark
+      | INum of int
+      | IAccess of int
+      | IOp of op
+      | IApply
+      | IAppterm of i
+      | ICur of i
+      | IGrab of i
+      | ISeq of i * i
+      | IShift of i | IControl of i
+      | IShift0 of i | IControl0 of i
+      | IReset of i
 
 and s = v list
 
