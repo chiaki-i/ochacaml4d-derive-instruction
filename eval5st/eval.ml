@@ -105,7 +105,7 @@ and f5t e xs vs v2s c s t m =
     | v1 :: v2s -> f5t e (x :: xs) (v1 :: vs) v2s c s t m
     end
   | App (e0, e2s) ->
-    f5s e2s xs vs (CAppT0 (e0, xs, vs, c)) s t m
+    f5s e2s xs vs (CAppT0 (e0, xs, vs, ret_c)) ret_s t m
   | Shift (x, e) ->
     f5 e (x :: xs) (VContS (ret_c, ret_s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
