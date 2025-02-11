@@ -135,22 +135,19 @@ and f8s e2s xs = match e2s with
   | e :: e2s -> f8s e2s xs >> f8 e xs >> push
 
 (* f8t : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f8t e xs = (* match s with VArgs (v2s) :: s -> *)
-  (* let ret_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in *)
-  (* let ret_s = VArgs (v2s) :: s in *)
-  match e with
+and f8t e xs = match e with
     Num (n) -> num n >> apply
   | Var (x) -> access (Env.offset x xs) >> apply
   | Op (e0, op, e1) ->
     f8 e1 xs >> f8 e0 xs >> operation op >> apply
-  | Fun (x, e) -> grab (f8 e (x :: xs)) (f8t e (x :: xs))
+  | Fun (x, e) -> cur (f8 e (x :: xs)) >> apply
   | App (e0, e2s) ->
-    pop_mark (f8s e2s xs) >> f8t e0 xs
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+    f8s e2s xs >> f8t e0 xs >> apply
+  | Shift (x, e) -> shift (f8 e (x :: xs)) >> apply
+  | Control (x, e) -> control (f8 e (x :: xs)) >> apply
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> apply
+  | Control0 (x, e) -> control0 (f8 e (x :: xs)) >> apply
+  | Reset (e) -> reset (f8 e xs) >> apply
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] idc [] TNil MNil
