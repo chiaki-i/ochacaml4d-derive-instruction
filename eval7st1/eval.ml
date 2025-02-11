@@ -112,7 +112,7 @@ and f7t e xs vs c s t m = match s with VArgs (v2s) :: s ->
     end
   | App (e0, e2s) ->
     f7s e2s xs vs (fun (VArgs (v2s) :: s) t m ->
-      f7t e0 xs vs c (VArgs (v2s) :: s) t m) s t m
+      f7t e0 xs vs ret_c (VArgs (v2s) :: ret_s) t m) s t m
   | Shift (x, e) ->
     f7 e (x :: xs) (VContS (ret_c, ret_s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
