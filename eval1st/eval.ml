@@ -99,7 +99,7 @@ and f1t e xs vs v2s c t m =
     end
   | App (e0, e2s) ->
     f1s e2s xs vs (fun v2s t2 m2 ->
-      f1t e0 xs vs v2s c t2 m2) t m
+      f1t e0 xs vs v2s ret_c t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (ret_c, t) :: vs) idc TNil m
   | Control (x, e) -> f1 e (x :: xs) (VContC (ret_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
