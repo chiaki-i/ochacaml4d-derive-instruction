@@ -19,9 +19,6 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* (>>) : i -> i -> i *)
-let (>>) i0 i1 = fun vs c -> i0 vs (i1 vs c)
-
 let rec run_c9 c s t m = match (c, s) with
     (C0, v :: []) ->
     begin match t with
@@ -68,18 +65,16 @@ let rec run_c9 c s t m = match (c, s) with
     end
   | IApply ->
     begin match s with (v :: VArgs (v2s) :: s) ->
-        apply9s v v2s c s t m
+        apply9s v v2s vs c s t m
       | _ -> failwith "IApply: unexpected s"
     end
   | IAppterm (i) ->
-    (* run_c9 (CSeq (i, vs, (fun (v :: VArgs (v2s) :: s) t m -> apply9s v v2s c s t m))) s t m *)
-    (* (fun ... apply9s ...) should be defuntionalized; inline-expand of apply9s necessary *)
-    run_c9 (CSeq (i, vs, (fun (v :: VArgs (v2s) :: s) t m -> apply9s v v2s c s t m))) s t m
-  | IPushmark -> c (mark :: s) t m
+    run_c9 (CSeq (i, vs, CSeq (IApply, vs, c))) s t m
+  | IPushmark -> run_c9 c (mark :: s) t m
   | IPush ->
     begin match s with v :: VArgs (v2s) :: s ->
         run_c9 c (VArgs (v :: v2s) :: s) t m
-      | _ -> "IPush: unexpected s"
+      | _ -> failwith "IPush: unexpected s"
     end
   | IShift (i) ->
     run_c9 (CSeq (i, VContS (c, s, t) :: vs, idc)) [] TNil m
@@ -109,16 +104,15 @@ and apply9 v0 v1 c s t m = match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
-    run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
+    run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* apply9s : v -> v list -> c -> s -> t -> m -> v *)
-and apply9s v0 v2s c s t m = match v2s with
+and apply9s v0 v2s vs c s t m = match v2s with
     [] -> run_c9 c (v0 :: s) t m
   | v1 :: v2s ->
-    apply9 v0 v1 (fun (v :: VArgs (v2s) :: s) t m ->
-      apply9s v v2s c s t m) (VArgs (v2s) :: s) t m
+    apply9 v0 v1 (CSeq (IApply, vs, c)) (VArgs (v2s) :: s) t m
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
