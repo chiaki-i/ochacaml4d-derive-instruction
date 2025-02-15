@@ -66,32 +66,26 @@ let rec run_c10 c s t m = match (c, s) with
         end
       | _ -> failwith "IGrab: unexpected s"
     end
-  | ((IApply :: is, vs) :: c, s) ->
-    begin match s with (v0 :: VArgs (v2s) :: s) ->
-        begin match (v0, v2s) with
-            (v0, []) -> run_c10 ((is, vs) :: c) (v0 :: s) t m
-          | (VFun (i, vs), v1 :: v2s) ->
-            run_c10 ((i, (v1 :: vs)) :: ([IApply], vs) :: (is, vs) :: c) (VArgs (v2s) :: s) t m
-          | (VContS (c', s', t'), v1 :: v2s) ->
-            run_c10 c' (v1 :: s') t' (MCons ((([IApply], vs) :: (is, vs) :: c, (VArgs (v2s) :: s), t), m))
-          | (VContC (c', s', t'), v1 :: v2s) ->
-            run_c10 c' (v1 :: s')
-              (apnd t' (cons (fun v t m -> run_c10 (([IApply], vs) :: (is, vs) :: c) (v :: VArgs (v2s) :: s) t m) t)) m
-          | (v0, v1 :: v2s) ->
-            failwith (to_string v0
-                          ^ " is not a function; it can not be applied.")
-        end
-      | _ -> failwith "IApply: unexpected s"
+  | ((IApply :: is, vs) :: c, v0 :: VArgs (v2s) :: s) ->
+    begin match (v0, v2s) with
+        (v0, []) -> run_c10 ((is, vs) :: c) (v0 :: s) t m
+      | (VFun (i, vs), v1 :: v2s) ->
+        run_c10 ((i, (v1 :: vs)) :: (IApply :: is, vs) :: c) (VArgs (v2s) :: s) t m
+      | (VContS (c', s', t'), v1 :: v2s) ->
+        run_c10 c' (v1 :: s') t' (MCons (((IApply :: is, vs) :: c, (VArgs (v2s) :: s), t), m))
+      | (VContC (c', s', t'), v1 :: v2s) ->
+        run_c10 c' (v1 :: s')
+          (apnd t' (cons (fun v t m -> run_c10 ((IApply :: is, vs) :: c) (v :: VArgs (v2s) :: s) t m) t)) m
+      | (v0, v1 :: v2s) ->
+        failwith (to_string v0
+                      ^ " is not a function; it can not be applied.")
     end
   | ((IAppterm (i) :: is, vs) :: c, s) ->
     run_c10 ((i @ [IApply], vs) :: c) s t m
   | ((IPushmark :: is, vs) :: c, s) ->
     run_c10 ((is, vs) :: c) (mark :: s) t m
-  | ((IPush :: is, vs) :: c, s) ->
-    begin match s with v :: VArgs (v2s) :: s ->
-        run_c10 ((is, vs) :: c) (VArgs (v :: v2s) :: s) t m
-      | _ -> failwith "IPush: unexpected s"
-    end
+  | ((IPush :: is, vs) :: c, v :: VArgs (v2s) :: s) ->
+    run_c10 ((is, vs) :: c) (VArgs (v :: v2s) :: s) t m
   | ((IShift (i) :: is, vs) :: c, s) ->
     run_c10
       ((i, VContS (((is, vs) :: c), s, t) :: vs) :: idc)
