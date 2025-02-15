@@ -10,7 +10,7 @@ Derive OchaCaml4D virtual machine instructions from the  definitional interprete
 ## Which directory is for which derivation path?
 
 ### Tail version revived (2025 Feb)
-- Eval1st's f1st recursively calls f1t instead of f1.
+- At first, Eval1st included f1st to handle multi-arg tail call, but it was integrated with f1s.
 - Eval1st, 2st, 5st, 7st, 7st1, 8st, 9st, 9st1, 10st
 
 ### part of c represents return stack (Jan 19-25)

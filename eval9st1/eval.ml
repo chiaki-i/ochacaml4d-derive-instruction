@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* defunctionalize eval8st: eval9st *)
+(* defunctionalize VFun from eval9st: eval9st1 *)
 
 (* initial continuation *)
 let idc = C0
@@ -50,14 +50,11 @@ let rec run_c9 c s t m = match (c, s) with
       | _ -> failwith "IOp: unexpected s"
     end
   | ICur (i) ->
-    run_c9 c ((VFun (fun c' (v1 :: s') t' m' ->
-      run_c9 (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
+    run_c9 c ((VFun (i, vs)) :: s) t m
   | IGrab (i) ->
     begin match s with (VArgs (v2s) :: s) ->
         begin match v2s with
-          [] ->
-          run_c9 c ((VFun (fun c' (v1 :: s') t' m' ->
-            run_c9 (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
+          [] -> run_c9 c ((VFun (i, vs)) :: s) t m
         | v1 :: v2s ->
           run_c9 (CSeq (i, (v1 :: vs), (CSeq (IApply, vs, c)))) (VArgs (v2s) :: s) t m
         end
@@ -101,7 +98,7 @@ let rec run_c9 c s t m = match (c, s) with
 
 (* apply9 : v -> v -> c -> s -> t -> m -> v *)
 and apply9 v0 v1 c s t m = match v0 with
-    VFun (f) -> f c (v1 :: s) t m
+    VFun (i, vs) -> run_c9 (CSeq (i, (v1 :: vs), c)) s t m
   | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 c (v :: s) t m) t)) m
