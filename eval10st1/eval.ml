@@ -67,8 +67,20 @@ let rec run_c10 c s t m = match (c, s) with
       | _ -> failwith "IGrab: unexpected s"
     end
   | ((IApply :: is, vs) :: c, s) ->
-    begin match s with (v :: VArgs (v2s) :: s) ->
-        apply10s v v2s vs ((is, vs) :: c) s t m
+    begin match s with (v0 :: VArgs (v2s) :: s) ->
+        begin match (v0, v2s) with
+            (v0, []) -> run_c10 ((is, vs) :: c) (v0 :: s) t m
+          | (VFun (i, vs), v1 :: v2s) ->
+            run_c10 ((i, (v1 :: vs)) :: ([IApply], vs) :: (is, vs) :: c) (VArgs (v2s) :: s) t m
+          | (VContS (c', s', t'), v1 :: v2s) ->
+            run_c10 c' (v1 :: s') t' (MCons ((([IApply], vs) :: (is, vs) :: c, (VArgs (v2s) :: s), t), m))
+          | (VContC (c', s', t'), v1 :: v2s) ->
+            run_c10 c' (v1 :: s')
+              (apnd t' (cons (fun v t m -> run_c10 (([IApply], vs) :: (is, vs) :: c) (v :: VArgs (v2s) :: s) t m) t)) m
+          | (v0, v1 :: v2s) ->
+            failwith (to_string v0
+                          ^ " is not a function; it can not be applied.")
+        end
       | _ -> failwith "IApply: unexpected s"
     end
   | ((IAppterm (i) :: is, vs) :: c, s) ->
@@ -109,30 +121,6 @@ let rec run_c10 c s t m = match (c, s) with
       ((i, vs) :: idc)
       [] TNil (MCons ((((is, vs) :: c), s, t), m))
   | _ -> failwith "run_c10: stack error"
-
-(* apply10 : v -> v -> c -> s -> t -> m -> v *)
-(* and apply10 v0 v1 c s t m = match v0 with
-    VFun (i, vs) ->
-    run_c10 ((i, (v1 :: vs)) :: c) s t m
-  | VContS (c', s', t') -> run_c10 c' (v1 :: s') t' (MCons ((c, s, t), m))
-  | VContC (c', s', t') ->
-    run_c10 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c10 c (v :: s) t m) t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.") *)
-
-(* apply10s : v -> v list -> c -> s -> t -> m -> v *)
-and apply10s v0 v2s vs c s t m = match (v0, v2s) with
-    (v0, []) -> run_c10 c (v0 :: s) t m
-  | (VFun (i, vs), v1 :: v2s) ->
-    run_c10 ((i, (v1 :: vs)) :: ([IApply], vs) :: c) (VArgs (v2s) :: s) t m
-  | (VContS (c', s', t'), v1 :: v2s) ->
-    run_c10 c' (v1 :: s') t' (MCons ((([IApply], vs) :: c, (VArgs (v2s) :: s), t), m))
-  | (VContC (c', s', t'), v1 :: v2s) ->
-    run_c10 c' (v1 :: s')
-      (apnd t' (cons (fun v t m -> run_c10 (([IApply], vs) :: c) (v :: VArgs (v2s) :: s) t m) t)) m
-  | (v0, v1 :: v2s) ->
-    failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
 
 (* f10: e -> string list -> i *)
 let rec f10 e xs = match e with
