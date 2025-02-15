@@ -9,18 +9,23 @@ let idc = []
 (* mark on arg stack *)
 let mark = VArgs ([])
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* run_h10 : h -> v -> t -> m -> v *)
+let rec run_h10 h v t m = match h with
+    Hold (c, s) -> run_c10 c (v :: s) t m
+  | Append (h, h') -> run_h10 h v (cons h' t) m
+
 (* run_c10: c -> s -> t -> m -> v *)
-let rec run_c10 c s t m = match (c, s) with
+and run_c10 c s t m = match (c, s) with
     ([], v :: []) ->
     begin match t with
         TNil ->
@@ -28,7 +33,7 @@ let rec run_c10 c s t m = match (c, s) with
             MNil -> v
           | MCons ((c, s, t), m) -> run_c10 c (v :: s) t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h10 h v TNil m
     end
   | ((([], vs) :: c), s) -> run_c10 c s t m
   (* is = instructions, vs = env, c = ret stack *)
@@ -69,7 +74,7 @@ let rec run_c10 c s t m = match (c, s) with
         run_c10 c' (v1 :: s') t' (MCons (((IApply :: is, vs) :: c, (VArgs (v2s) :: s), t), m))
       | (VContC (c', s', t'), v1 :: v2s) ->
         run_c10 c' (v1 :: s')
-          (apnd t' (cons (fun v t m -> run_c10 ((IApply :: is, vs) :: c) (v :: VArgs (v2s) :: s) t m) t)) m
+          (apnd t' (cons (Hold ((IApply :: is, vs) :: c, VArgs (v2s) :: s)) t)) m
       | (v0, v1 :: v2s) ->
         failwith (to_string v0
                       ^ " is not a function; it can not be applied.")
