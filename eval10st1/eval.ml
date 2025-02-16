@@ -69,8 +69,8 @@ let rec run_c10 c s t m = match (c, s) with
   | ((IApply :: is, vs) :: c, v0 :: VArgs (v2s) :: s) ->
     begin match (v0, v2s) with
         (v0, []) -> run_c10 ((is, vs) :: c) (v0 :: s) t m
-      | (VFun (i, vs), v1 :: v2s) ->
-        run_c10 ((i, (v1 :: vs)) :: (IApply :: is, vs) :: c) (VArgs (v2s) :: s) t m
+      | (VFun (i, vs2), v1 :: v2s) ->
+        run_c10 ((i, (v1 :: vs2)) :: (IApply :: is, vs) :: c) (VArgs (v2s) :: s) t m
       | (VContS (c', s', t'), v1 :: v2s) ->
         run_c10 c' (v1 :: s') t' (MCons (((IApply :: is, vs) :: c, (VArgs (v2s) :: s), t), m))
       | (VContC (c', s', t'), v1 :: v2s) ->
