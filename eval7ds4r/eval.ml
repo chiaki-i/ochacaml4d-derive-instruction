@@ -30,7 +30,7 @@ let rec run_c7 c s r t m = match (c, s, r) with
 
 (* apply7 : v -> v -> c -> s -> r -> t -> m -> v *)
 let apply7 v0 v1 c s r t m = match v0 with
-    VFun (f) -> f C0 (* dummy *) (v1 :: s) (c :: r) t m
+    VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') ->
     run_c7 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
@@ -76,11 +76,8 @@ let rec f7 e xs vs c s r t m = match e with
       (CSeq (i', vs', c'), VArgs (v1 :: v2s) :: s', r') when i' == apply ->
              f7 e (x :: xs) (v1 :: vs) (*Grab*)
                   (CSeq (i', vs', c')) (VArgs (v2s) :: s') r' t m
-    | _ -> run_c7 c (VFun (fun _ (v1 :: s') (c' :: r') t' m' ->
-             f7 e (x :: xs) (v1 :: vs)
-                  (CSeq ((fun vs c (v :: s) (c' :: r') t m ->
-                    run_c7 c' (v :: s) r' t m), [], C0))
-                  s' (c' :: r') t' m') :: s) r t m
+    | _ -> run_c7 c (VFun (fun c' (v1 :: s') r' t' m' ->
+             f7 e (x :: xs) (v1 :: vs) c' s' r' t' m') :: s) r t m
     end
   | App (e0, e2s) ->
     f7s e2s xs vs (CSeq ((fun vs c (VArgs (v2s) :: s) r t m ->

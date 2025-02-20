@@ -40,7 +40,6 @@ let rec run_c3 c v t m = match c with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | COp1 (e0, xs, op, vs) :: c -> f3 e0 xs vs (COp0 (v, op) :: c) t m
-  | CRet :: c -> run_c3 c v t m
 
 (* run_c3s : c -> v list -> t -> m -> v *)
 and run_c3s c v2s t m = match c with
@@ -83,7 +82,7 @@ and f3s e2s xs vs c t m = match e2s with
 
 (* apply3 : v -> v -> c -> t -> m -> v *)
 and apply3 v0 v1 c t m = match v0 with
-    VFun (f) -> f v1 (CRet :: c) t m
+    VFun (f) -> f v1 c t m
   | VContS (c', t') -> run_c3 c' v1 t' (MCons ((c, t), m))
   | VContC (c', t') ->
     run_c3 c' v1 (apnd t' (cons (fun v t m -> run_c3 c v t m) t)) m

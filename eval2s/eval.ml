@@ -45,7 +45,7 @@ let rec run_c2 c v t m = match c with
   | COp1 (e0, xs, op, vs, c) -> f2 e0 xs vs (COp0 (v, op, c)) t m
 
 (* run_c2s : cs -> v list -> t -> m -> v *)
-and run_c2s c v2s t m = match cs with
+and run_c2s c v2s t m = match c with
     CApp2 (e0, xs, vs, c) -> f2 e0 xs vs (CApp0 (v2s, c)) t m
   | CAppS1 (e, xs, vs, c) -> f2 e xs vs (CAppS0 (v2s, c)) t m
 

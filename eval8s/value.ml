@@ -9,8 +9,7 @@ type v = VNum of int
        | VContC of c * s * t
        | VArgs of v list
 
-and c = C0
-      | CSeq of i * v list * c
+and c = s -> t -> m -> v
 
 and i = v list -> c -> s -> t -> m -> v
 

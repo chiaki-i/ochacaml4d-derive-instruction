@@ -20,7 +20,6 @@ and s = v list
 and r = rv list
 
 and rv = VS of v list
-       | VK of c * r
 
 and t = TNil | Trail of (v -> t -> m -> v)
 

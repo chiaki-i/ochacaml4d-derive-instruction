@@ -64,7 +64,7 @@ and run_i9 i rv c s r t m = match (i, rv) with
         v0 :: VArgs ([]) :: s ->
         run_c9 c (v0 :: s) r t m
       | VFun (f) :: VArgs (v1 :: v2s) :: s ->
-        f idc (* dummy *) (v1 :: VArgs (v2s) :: s) (VK (IApply :: c) :: VS (vs) :: r) t m
+        f (IApply :: c) (v1 :: VArgs (v2s) :: s) (VS (vs) :: r) t m
       | VContS (c', s', r', t') :: VArgs (v1 :: v2s) :: s ->
         run_c9 c' (v1 :: s') r' t' (MCons ((IApply :: c, VArgs (v2s) :: s, VS (vs) :: r, t), m))
       | VContC (c', s', r', t') :: VArgs (v1 :: v2s) :: s ->
@@ -72,10 +72,6 @@ and run_i9 i rv c s r t m = match (i, rv) with
               (apnd t' (cons (fun v t m -> run_c9 (IApply :: c) (v :: VArgs (v2s) :: s) (VS (vs) :: r) t m) t)) m
       | v0 :: VArgs (v1 :: v2s) :: s ->
         failwith (to_string v0 ^ " is not a function; it can not be applied.")
-    end
-  | (IReturn, VK (c')) ->
-    begin match s with v :: s ->
-      run_c9 c' (v :: s) r t m
     end
   | (IFun (i), VS (vs)) ->
     begin match (c, s, r) with
@@ -85,11 +81,9 @@ and run_i9 i rv c s r t m = match (i, rv) with
           run_i9 i (VS (v1 :: vs)) (i' :: c') (VArgs (v2s) :: s')
             (VS (vs') :: r') t m
       | _ ->
-          let vfun = VFun (fun _ s' (VK (c') :: r') t' m' ->
+          let vfun = VFun (fun c' s' r' t' m' ->
             begin match s' with
-              v1 :: s' -> (*(i >> return) (v1 :: vs) idc s' (VK (c') :: r') t' m'*)
-                          run_i9 i (VS (v1 :: vs)) (IReturn :: idc)
-                            s' (VK (c') :: r') t' m'
+              v1 :: s' -> run_i9 i (VS (v1 :: vs)) c' s' r' t' m'
             | _ -> failwith "stack error"
             end) in
           run_c9 c (vfun :: s) r t m

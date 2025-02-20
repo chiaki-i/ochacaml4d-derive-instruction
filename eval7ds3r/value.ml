@@ -19,7 +19,6 @@ and c' = CApp0
        | COp1 of e * string list * op
        | CAppS0
        | CAppS1 of e * string list
-       | CRet
 
 and s = v list
 

@@ -13,7 +13,6 @@ and f = CApp0
       | CAppS0
       | COp0 of op
       | COp1 of e * string list * op * v list
-      | CRet
       | CApp2 of e * string list * v list
       | CAppS1 of e * string list * v list
 

@@ -17,7 +17,6 @@ and c = C0
       | CAppS1 of e * string list * v list * c
       | COp0 of op * v list * c
       | COp1 of e * string list * op * v list * c
-      | CRet of v list * c
 
 and s = v list
 
