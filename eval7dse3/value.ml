@@ -1,21 +1,24 @@
 open Syntax
 
-(* Delinearized interpreter : eval5 (without return stack) *)
+(* Defunctionalized interpreter with values passed via stack : eval7d wo r.s.*)
+(* Introduce CSeq *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> c -> s -> t -> m -> v)
+       | VFun of (c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
        | VArgs of v list
+       | VEnv of v list
 
-and c = C0
-      | CApp0 of c
-      | CApp2 of e * string list * v list * c
-      | CAppS0 of c
-      | CAppS1 of e * string list * v list * c
-      | COp0 of op * c
-      | COp1 of e * string list * op * v list * c
+and c = C0 | CSeq of c' * c
+
+and c' = CApp0
+        | CApp2 of e * string list
+        | CAppS0
+        | CAppS1 of e * string list
+        | COp0 of op
+        | COp1 of e * string list * op
 
 and s = v list
 
@@ -34,7 +37,7 @@ let rec to_string value = match value with
   | VArgs (v :: vs) ->
     "[" ^ List.fold_left (fun s v -> s ^ "; " ^ to_string v)
                          (to_string v) vs ^ "]"
-
+  | VEnv (_) -> "<VEnv>"
 
 (* Value.print : v -> unit *)
 let print exp =

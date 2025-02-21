@@ -1,21 +1,19 @@
 open Syntax
 
-(* Delinearized interpreter : eval5 (without return stack) *)
+(* Defunctionalized interpreter with values passed via stack : eval7d wo r.s.*)
+(* refunctionalize c' *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> c -> s -> t -> m -> v)
+       | VFun of (c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
        | VArgs of v list
 
 and c = C0
-      | CApp0 of c
-      | CApp2 of e * string list * v list * c
-      | CAppS0 of c
-      | CAppS1 of e * string list * v list * c
-      | COp0 of op * c
-      | COp1 of e * string list * op * v list * c
+      | CSeq of c' * v list * c
+
+and c' = v list -> c -> s -> t -> m -> v
 
 and s = v list
 
