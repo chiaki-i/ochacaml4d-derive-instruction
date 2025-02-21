@@ -46,8 +46,8 @@ let rec f1 e xs vs c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    c (VFun (fun v1 c' t' m' ->
-              f1 e (x :: xs) (v1 :: vs) c' t' m')) t m
+    c (VFun (fun v1 v2s c' t' m' ->
+              f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
     f1s e2s xs vs (fun v2s t2 m2 ->
       f1t e0 xs vs v2s c t2 m2) t m
@@ -91,10 +91,8 @@ and f1t e xs vs v2s c t m =
             end) t0 m0) t m
   | Fun (x, e) ->
     begin match v2s with
-      [] -> c (VFun (fun v1 c' t' m' -> f1 e (x :: xs) (v1 :: vs) c' t' m'))
-              t m
- (* | v1 :: v2s -> f1 e (x :: xs) (v1 :: vs)
-                      (fun v t m -> apply1s v v2s c t m) t m *)
+      [] -> c (VFun (fun v1 v2s c' t' m' ->
+                       f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
     | v1 :: v2s -> f1t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e2s) ->
@@ -125,18 +123,19 @@ and f1s e2s xs vs c t m = match e2s with
         c (v1 :: v2s) t1 m1) t2 m2) t m
 
 (* apply1 : v -> v -> c -> t -> m -> v *)
-and apply1 v0 v1 c t m = match v0 with
-    VFun (f) -> f v1 c t m
-  | VContS (c', t') -> c' v1 t' (MCons ((c, t), m))
-  | VContC (c', t') -> c' v1 (apnd t' (cons c t)) m
+and apply1 v0 v1 v2s c t m =
+  let app_c = fun v t m -> apply1s v v2s c t m in
+  match v0 with
+    VFun (f) -> f v1 v2s c t m
+  | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
+  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* apply1s : v -> v list -> c -> t -> m -> v *)
 and apply1s v0 v2s c t m = match v2s with
     [] -> c v0 t m
-  | v1 :: v2s -> apply1 v0 v1 (fun v t m ->
-                   apply1s v v2s c t m) t m
+  | v1 :: v2s -> apply1 v0 v1 v2s c t m
 
 (* f : e -> v *)
 let f expr = f1 expr [] [] idc TNil MNil
