@@ -10,7 +10,7 @@ type v = VNum of int
        | VArgs of v list
 
 and c = C0
-      | CRet of c
+      | CApp of c
       | CAppT0 of e * string list * v list * c
       | CAppS0 of c
       | CAppS1 of e * string list * v list * c
@@ -45,7 +45,7 @@ let rec s_to_string s =
 (* c_to_string : c -> string *)
 let rec c_to_string cont = match cont with
     C0 -> "<C0>"
-  | CRet (_) -> "<CRet>"
+  | CApp (_) -> "<CApp>"
   | CAppT0 (_, _, _, _) -> "<CAppT0>"
   | CAppS1 (_, _, _, _) -> "<CAppS1>"
   | CAppS0 (_) -> "<CAppS0>"
