@@ -54,23 +54,26 @@ let operation op = fun vs c (v :: v0 :: s) t m ->
   end
 
 let cur i = fun vs c s t m ->
-  c ((VFun (fun c' (v1 :: s') t' m' -> i (v1 :: vs) c' s' t' m')) :: s) t m
+  c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
+    i (v1 :: vs) c' (VArgs (v2s) :: s') t' m')) :: s) t m
 
 (* apply8 : v -> v -> c -> s -> t -> m -> v *)
-let apply8 v0 v1 c s t m = match v0 with
-    VFun (f) -> f c (v1 :: s) t m
-  | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((c, s, t), m))
+let rec apply8 v0 v1 c (VArgs (v2s) :: s) t m =
+  let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
+  let app_s = VArgs (v2s) :: s in
+  match v0 with
+    VFun (f) -> f c (v1 :: VArgs (v2s) :: s) t m
+  | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
   | VContC (c', s', t') ->
-    c' (v1 :: s') (apnd t' (cons (fun v t m -> c (v :: s) t m) t)) m
+    c' (v1 :: s') (apnd t' (cons (fun v t m -> app_c (v :: app_s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* apply8s : v -> v list -> c -> s -> t -> m -> v *)
-let rec apply8s v0 v2s c s t m = match v2s with
+and apply8s v0 v2s c s t m = match v2s with
     [] -> c (v0 :: s) t m
   | v1 :: v2s ->
-    apply8 v0 v1 (fun (v :: VArgs (v2s) :: s) t m ->
-      apply8s v v2s c s t m) (VArgs (v2s) :: s) t m
+    apply8 v0 v1 c (VArgs (v2s) :: s) t m
 
 (* shift : i -> i *)
 let shift i = fun vs c s t m ->
@@ -101,20 +104,20 @@ let push = fun vs c (v :: VArgs (v2s) :: s) t m ->
   c (VArgs (v :: v2s) :: s) t m
 
 let apply = fun vs c (v :: VArgs (v2s) :: s) t m ->
-  apply8s v v2s c s t m
+  apply8s v v2s c s t m (* ZINC's return? *)
 
-let appterm i = fun vs c s t m ->
-  i vs (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m) s t m
+let appterm i = fun vs c (v :: VArgs (v2s) :: s) t m ->
+  let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
+  let app_s = VArgs (v2s) :: s in
+  i vs app_c (VArgs (v2s) :: app_s) t m
 
-let pop_mark i = fun vs c (VArgs (v2s) :: s) t m -> i vs c s t m
-
-(* grab: i -> i -> i *)
+(* grab: i -> i *)
 let grab i = fun vs c (VArgs (v2s) :: s) t m ->
   begin match v2s with
     [] ->
-    c ((VFun (fun c' (v1 :: s') t' m' ->
-      i (v1 :: vs) c' s' t' m')) :: s) t m
-  | v1 :: v2s -> i (v1 :: vs) (apply vs c) (VArgs (v2s) :: s) t m
+    c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
+      i (v1 :: vs) c' (VArgs (v2s) :: s') t' m')) :: s) t m
+  | v1 :: v2s -> i (v1 :: vs) c (VArgs (v2s) :: s) t m
   end
 
 (* f8: e -> string list -> i *)
@@ -123,7 +126,7 @@ let rec f8 e xs = match e with
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
     f8 e1 xs >> f8 e0 xs >> operation op
-  | Fun (x, e) -> cur (f8 e (x :: xs))
+  | Fun (x, e) -> cur (f8t e (x :: xs))
   | App (e0, e2s) ->
     f8s e2s xs >> f8t e0 xs
   | Shift (x, e) -> shift (f8 e (x :: xs))
@@ -144,103 +147,9 @@ and f8t e xs = match e with
   | Op (e0, op, e1) ->
     f8 e1 xs >> f8 e0 xs >> operation op >> apply
   | Fun (x, e) ->
-    (* cur (f8 e (x :: xs)) >> apply *)
-    (* fun vs c -> (cur (f8 e (x :: xs)) >> apply) vs c *)
-    (* fun vs c -> (fun vs c ->
-      cur (f8 e (x :: xs)) vs (apply vs c)) vs c *)
-    (* fun vs c s t m -> (fun vs c s t m ->
-      cur (f8 e (x :: xs)) vs (apply vs c) s t m) vs c s t m *)
-    (* fun vs c s t m -> (fun vs c s t m ->
-      (apply vs c) ((VFun (fun c' (v1 :: s') t' m' ->
-        (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m) vs c s t m *)
-    (* fun vs c s t m ->
-      (fun vs c s t m ->
-        (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m)
-        ((VFun (fun c' (v1 :: s') t' m' ->
-          (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m) vs c s t m *)
-    (* fun vs c s t m ->
-      (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m)
-      ((VFun (fun c' (v1 :: s') t' m' ->
-        (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m *)
-    (* fun vs c (VArgs (v2s) :: s) t m ->
-      (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m)
-      ((VFun (fun c' (v1 :: s') t' m' ->
-        (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: VArgs (v2s) :: s) t m *)
-    (* fun vs c (VArgs (v2s) :: s) t m ->
-      apply8s (VFun (fun c' (v1 :: s') t' m' ->
-        (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) v2s c s t m *)
-    (* fun vs c (VArgs (v2s) :: s) t m ->
-      begin match v2s with
-          [] -> c ((VFun (fun c' (v1 :: s') t' m' ->
-            (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m
-        | v1 :: v2s ->
-          apply8
-            (VFun (fun c' (v1 :: s') t' m' -> (f8 e (x :: xs)) (v1 :: vs) c' s' t' m'))
-            v1
-            (fun (v :: VArgs (v2s) :: s) t m -> apply8s v v2s c s t m)
-            (VArgs (v2s) :: s) t m
-      end *)
-    (* fun vs c (VArgs (v2s) :: s) t m ->
-      begin match v2s with
-          [] -> c ((VFun (fun c' (v1 :: s') t' m' ->
-            (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m
-        | v1 :: v2s ->
-            (fun c' (v1 :: s') t' m' -> (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')
-            (apply vs c)
-            (v1 :: VArgs (v2s) :: s) t m
-      end *)
-    (* fun vs c (VArgs (v2s) :: s) t m ->
-      begin match v2s with
-          [] -> c ((VFun (fun c' (v1 :: s') t' m' ->
-            (f8 e (x :: xs)) (v1 :: vs) c' s' t' m')) :: s) t m
-        | v1 :: v2s ->
-            (f8 e (x :: xs)) (v1 :: vs) (apply vs c) (VArgs (v2s) :: s) t m
-      end *)
-    grab (f8 e (x :: xs))
+    grab (f8t e (x :: xs))
   | App (e0, e2s) ->
-    (* f8s e2s xs >> f8t e0 xs >> apply *)
-    (* f8s e2s xs >> (fun vs c -> f8t e0 xs vs (apply vs c)) *)
-    (* f8s e2s xs >> (fun vs c -> f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m)) *)
-    (* f8s e2s xs >> (fun vs c s t m -> f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m) s t m) *) (* これを利用して Appterm を作る *)
-    (* fun vs c -> (f8s e2s xs) vs (fun s t m -> f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m) s t m) *)
-    (* fun vs c -> (f8s e2s xs) vs
-      (f8t e0 xs vs (fun (v :: VArgs (v2s) :: s) t m -> apply vs c (v :: VArgs (v2s) :: s) t m)) *)
     f8s e2s xs >> appterm (f8t e0 xs)
-
-    (* f8s e2s xs >> f8 e0 xs >> apply >> apply *)
-    (* f8s e2s xs >> f8 e0 xs >> (fun vs c -> apply vs (apply vs c)) *)
-    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
-         apply8s v v2s (apply vs c) s t m) *)
-    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
-       match v2s with
-         [] -> apply vs c (v :: s) t m
-       | v1 :: v2s ->
-         apply8 v v1 (fun (v :: VArgs (v2s) :: s) t m ->
-           apply8s v v2s (apply vs c) s t m) (VArgs (v2s) :: s) t m
-       ) *)
-    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
-       match v2s with
-         [] -> apply vs c (v :: s) t m
-       | v1 :: v2s ->
-         apply8 v v1 (fun (v :: VArgs (v2s) :: s) t m ->
-           apply8s v v2s (apply vs c) s t m) (VArgs (v2s) :: s) t m
-       ) *)
-    (* f8s e2s xs >> f8 e0 xs >> (fun vs c (v :: VArgs (v2s) :: s) t m ->
-       match v2s with
-         [] -> apply vs c (v :: s) t m
-       | v1 :: v2s ->
-         let c = apply vs (apply vs c) in
-         begin match v with
-           VFun (f) -> f c (v1 :: VArgs (v2s) :: s) t m
-         | VContS (c', s', t') ->
-           c' (v1 :: s') t' (MCons ((c, VArgs (v2s) :: s, t), m))
-         | VContC (c', s', t') ->
-           c' (v1 :: s')
-              (apnd t' (cons (fun v t m -> c (v :: VArgs (v2s) :: s) t m) t)) m
-         | _ -> failwith (to_string v
-                          ^ " is not a function; it can not be applied.")
-         end
-       ) *)
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> apply
   | Control (x, e) -> control (f8 e (x :: xs)) >> apply
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> apply
