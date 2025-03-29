@@ -18,7 +18,6 @@ and i = IPush
       | IAccess of int
       | IOp of op
       | IApply
-      | IAppterm of i
       | ICur of i
       | IGrab of i
       | ISeq of i * i
