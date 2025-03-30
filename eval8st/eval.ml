@@ -59,12 +59,15 @@ let cur i = fun vs c s t m ->
 
 (* apply8 : v -> v -> c -> s -> t -> m -> v *)
 let rec apply8 v0 v1 c (VArgs (v2s) :: s) t m =
-  let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
-  let app_s = VArgs (v2s) :: s in
   match v0 with
     VFun (f) -> f c (v1 :: VArgs (v2s) :: s) t m
-  | VContS (c', s', t') -> c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
+  | VContS (c', s', t') ->
+    let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
+    let app_s = VArgs (v2s) :: s in
+    c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
   | VContC (c', s', t') ->
+    let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
+    let app_s = VArgs (v2s) :: s in
     c' (v1 :: s') (apnd t' (cons (fun v t m -> app_c (v :: app_s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
