@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* defunctionalize eval8st: eval9st *)
+(* defunctionalize VFun from eval9st: eval9st1 *)
 
 (* initial continuation *)
 let idc = C0
