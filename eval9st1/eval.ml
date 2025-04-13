@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* defunctionalize VFun from eval9st: eval9st1 *)
+(* defunctionalize eval8st: eval9st *)
 
 (* initial continuation *)
 let idc = C0
@@ -50,13 +50,14 @@ let rec run_c9 c s t m = match (c, s) with
       | _ -> failwith "IOp: unexpected s"
     end
   | ICur (i) ->
-    run_c9 c ((VFun (i, vs)) :: s) t m
+    run_c9 c (VFun (i, vs) :: s) t m
   | IGrab (i) ->
     begin match s with (VArgs (v2s) :: s) ->
         begin match v2s with
-          [] -> run_c9 c ((VFun (i, vs)) :: s) t m
+          [] ->
+          run_c9 c (VFun (i, vs) :: s) t m
         | v1 :: v2s ->
-          run_c9 (CSeq (i, (v1 :: vs), (CSeq (IApply, vs, c)))) (VArgs (v2s) :: s) t m
+          run_c9 (CSeq (i, (v1 :: vs), c)) (VArgs (v2s) :: s) t m
         end
       | _ -> failwith "IGrab: unexpected s"
     end
@@ -65,8 +66,6 @@ let rec run_c9 c s t m = match (c, s) with
         apply9s v v2s vs c s t m
       | _ -> failwith "IApply: unexpected s"
     end
-  | IAppterm (i) ->
-    run_c9 (CSeq (i, vs, CSeq (IApply, vs, c))) s t m
   | IPushmark -> run_c9 c (mark :: s) t m
   | IPush ->
     begin match s with v :: VArgs (v2s) :: s ->
@@ -96,12 +95,15 @@ let rec run_c9 c s t m = match (c, s) with
   end
   | _ -> failwith "run_c9: stack error"
 
-(* apply9 : v -> v -> c -> s -> t -> m -> v *)
-and apply9 v0 v1 c s t m = match v0 with
-    VFun (i, vs) -> run_c9 (CSeq (i, (v1 :: vs), c)) s t m
-  | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' (MCons ((c, s, t), m))
+(* apply9 : v -> v -> v list -> c -> s -> t -> m -> v *)
+and apply9 v0 v1 vs c (VArgs (v2s) :: s) t m =
+  let app_c = CSeq (IApply, vs, c) in
+  let app_s = VArgs (v2s) :: s in
+  match v0 with
+    VFun (i, vs') -> run_c9 (CSeq (i, (v1 :: vs'), c)) (VArgs (v2s) :: s) t m
+  | VContS (c', s', t') -> run_c9 c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
   | VContC (c', s', t') ->
-    run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 c (v :: s) t m) t)) m
+    run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 app_c (v :: app_s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
@@ -109,7 +111,7 @@ and apply9 v0 v1 c s t m = match v0 with
 and apply9s v0 v2s vs c s t m = match v2s with
     [] -> run_c9 c (v0 :: s) t m
   | v1 :: v2s ->
-    apply9 v0 v1 (CSeq (IApply, vs, c)) (VArgs (v2s) :: s) t m
+    apply9 v0 v1 vs c (VArgs (v2s) :: s) t m
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
@@ -120,7 +122,7 @@ let rec f9 e xs = match e with
   | Var (x) -> IAccess (Env.offset x xs)
   | Op (e0, op, e1) ->
     f9 e1 xs >> f9 e0 xs >> IOp (op)
-  | Fun (x, e) -> ICur (f9 e (x :: xs))
+  | Fun (x, e) -> ICur (f9t e (x :: xs))
   | App (e0, e2s) ->
     f9s e2s xs >> f9t e0 xs
   | Shift (x, e) -> IShift (f9 e (x :: xs))
@@ -140,8 +142,8 @@ and f9t e xs = match e with
   | Var (x) -> IAccess (Env.offset x xs) >> IApply
   | Op (e0, op, e1) ->
     f9 e1 xs >> f9 e0 xs >> IOp (op) >> IApply
-  | Fun (x, e) -> IGrab (f9 e (x :: xs))
-  | App (e0, e2s) -> f9s e2s xs >> IAppterm (f9t e0 xs)
+  | Fun (x, e) -> IGrab (f9t e (x :: xs))
+  | App (e0, e2s) -> f9s e2s xs >> f9t e0 xs >> IApply
   | Shift (x, e) -> IShift (f9 e (x :: xs)) >> IApply
   | Control (x, e) -> IControl (f9 e (x :: xs)) >> IApply
   | Shift0 (x, e) -> IShift0 (f9 e (x :: xs)) >> IApply

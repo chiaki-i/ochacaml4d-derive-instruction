@@ -1,6 +1,6 @@
 open Syntax
 
-(* defunctionalize VFun from eval9st: eval9st1 *)
+(* defunctionalize eval8st: eval9st *)
 
 (* Value *)
 type v = VNum of int
@@ -18,7 +18,6 @@ and i = IPush
       | IAccess of int
       | IOp of op
       | IApply
-      | IAppterm of i
       | ICur of i
       | IGrab of i
       | ISeq of i * i
