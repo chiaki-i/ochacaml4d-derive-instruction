@@ -102,7 +102,8 @@ let rec run_c10 c s t m = match (c, s) with
   | ((IReset (i) :: is, vs) :: c, s) ->
     run_c10
       ((i, vs) :: idc)
-      [] TNil (MCons ((((is, vs) :: c), s, t), m))  | _ -> failwith "run_c10: stack error"
+      [] TNil (MCons ((((is, vs) :: c), s, t), m))
+  | _ -> failwith "run_c10: stack error"
 
 (* apply10 : v -> v -> v list -> c -> s -> t -> m -> v *)
 and apply10 v0 v1 vs c (VArgs (v2s) :: s) t m =
