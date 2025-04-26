@@ -42,13 +42,18 @@ let rec run_c2 c v t m = match c with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | CApp (v2s, c) -> apply2s v v2s c t m
+  | CApp1 (v1, v2s, c) -> apply2 v v1 v2s c t m
   | CAppS0 (v2s, cs) -> run_c2s cs (v :: v2s) t m
   | _ -> failwith "run_c2: unexpected c"
 
 (* run_c2s : cs -> v list -> t -> m -> v *)
 and run_c2s c v2s t m = match c with
-    CAppT0 (e0, xs, vs, c) -> f2t e0 xs vs v2s c t m
-  | CAppS1 (e, xs, vs, c) -> f2 e xs vs (CAppS0 (v2s, c)) t m
+    CAppS1 (e, xs, vs, c) -> f2 e xs vs (CAppS0 (v2s, c)) t m
+  | CAppS2 (e, xs, vs, c) ->
+    begin match v2s with (v1 :: v2s) ->
+        f2 e xs vs (CApp1 (v1, v2s, c)) t m
+      | _ -> failwith "run_c2s: unexpected v2s"
+    end
   | _ -> failwith "run_c2s: unexpected c"
 
 (* f2: defunctionalized interpreter *)
@@ -61,7 +66,7 @@ and f2 e xs vs c t m = match e with
     run_c2 c (VFun (fun v1 v2s c' t' m' ->
       f2t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
-    f2s e2s xs vs (CAppT0 (e0, xs, vs, c)) t m
+    f2s e2s xs vs (CAppS2 (e0, xs, vs, c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -97,7 +102,7 @@ and f2t e xs vs v2s c t m =
     | v1 :: v2s -> f2t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e2s) ->
-    f2s e2s xs vs (CAppT0 (e0, xs, vs, app_c)) t m
+    f2s e2s xs vs (CAppS2 (e0, xs, vs, app_c)) t m
   | Shift (x, e) -> f2 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -114,7 +119,7 @@ and f2t e xs vs v2s c t m =
     end
   | Reset (e) -> f2 e xs vs idc TNil (MCons ((app_c, t), m))
 
-(* apply2 : v -> v -> c -> t -> m -> v *)
+(* apply2 : v -> v -> v list -> c -> t -> m -> v *)
 and apply2 v0 v1 v2s c t m =
   let app_c = CApp (v2s, c) in
   match v0 with
