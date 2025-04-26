@@ -124,7 +124,7 @@ and f1s e2s xs vs c t m = match e2s with
       f1 e xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
 
-(* apply1 : v -> v -> c -> t -> m -> v *)
+(* apply1 : v -> v -> v list -> c -> t -> m -> v *)
 and apply1 v0 v1 v2s c t m =
   let app_c = fun v t m -> apply1s v v2s c t m in
   match v0 with
