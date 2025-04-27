@@ -47,16 +47,21 @@ let rec run_c7 c s t m = match (c, s) with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | (CApp (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
+  | (CApp1 (c), v :: v1 :: VArgs (v2s) :: s) ->
+    apply7 v v1 c (VArgs (v2s) :: s) t m
   | (CAppS0 (cs), v :: VArgs (v2s) :: s) ->
     run_c7s cs (VArgs (v :: v2s) :: s) t m
   | _ -> failwith "run_c7: unexpected c"
 
 (* run_c7s : cs -> v list -> s -> t -> m -> v *)
 and run_c7s c s t m = match (c, s) with
-    (CAppT0 (e0, xs, vs, c), VArgs (v2s) :: s) ->
-    f7t e0 xs vs c (VArgs (v2s) :: s) t m
-  | (CAppS1 (e, xs, vs, c), VArgs (v2s) :: s) ->
+    (CAppS1 (e, xs, vs, c), VArgs (v2s) :: s) ->
     f7 e xs vs (CAppS0 (c)) (VArgs (v2s) :: s) t m
+  | (CAppS2 (e, xs, vs, c), VArgs (v2s) :: s) ->
+    begin match v2s with (v1 :: v2s) ->
+        f7 e xs vs (CApp1 (c)) (v1 :: VArgs (v2s) :: s) t m
+      | _ -> failwith "run_c7s: unexpected v2s"
+    end
   | _ -> failwith "run_c7s: unexpected c"
 
 (* f7: defunctionalized interpreter *)
@@ -69,7 +74,7 @@ and f7 e xs vs c s t m = match e with
     run_c7 c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
       f7t e (x :: xs) (v1 :: vs) c' (VArgs (v2s) :: s') t' m')) :: s) t m
   | App (e0, e2s) ->
-    f7s e2s xs vs (CAppT0 (e0, xs, vs, c)) s t m
+    f7s e2s xs vs (CAppS2 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -107,7 +112,7 @@ and f7t e xs vs c s t m = match s with VArgs (v2s) :: s ->
     | v1 :: v2s -> f7t e (x :: xs) (v1 :: vs) c (VArgs (v2s) :: s) t m
     end
   | App (e0, e2s) ->
-    f7s e2s xs vs (CAppT0 (e0, xs, vs, app_c)) app_s t m
+    f7s e2s xs vs (CAppS2 (e0, xs, vs, app_c)) app_s t m
   | Shift (x, e) ->
     f7 e (x :: xs) (VContS (app_c, app_s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
