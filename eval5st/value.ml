@@ -11,9 +11,10 @@ type v = VNum of int
 
 and c = C0
       | CApp of c
-      | CAppT0 of e * string list * v list * c
+      | CApp1 of c
       | CAppS0 of c
       | CAppS1 of e * string list * v list * c
+      | CAppS2 of e * string list * v list * c
       | COp0 of op * c
       | COp1 of e * string list * op * v list * c
 
@@ -46,8 +47,8 @@ let rec s_to_string s =
 let rec c_to_string cont = match cont with
     C0 -> "<C0>"
   | CApp (_) -> "<CApp>"
-  | CAppT0 (_, _, _, _) -> "<CAppT0>"
   | CAppS1 (_, _, _, _) -> "<CAppS1>"
+  | CAppS2 (_, _, _, _) -> "<CAppS2>"
   | CAppS0 (_) -> "<CAppS0>"
   | COp0 (_, _) -> "<COp0>"
   | COp1 (_, _, _, _, _) -> "<COp1>"

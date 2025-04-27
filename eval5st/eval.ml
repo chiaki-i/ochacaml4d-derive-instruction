@@ -44,15 +44,20 @@ let rec run_c5 c v s t m = match (c, s) with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | (CApp (c), VArgs (v2s) :: s) -> apply5s v v2s c s t m
+  | (CApp1 (c), v1 :: VArgs (v2s) :: s) ->
+    apply5 v v1 c (VArgs (v2s) :: s) t m
   | (CAppS0 (cs), VArgs (v2s) :: s) -> run_c5s cs (v :: v2s) s t m
   | _ -> failwith "run_c5: unexpected c"
 
 (* run_c5s : cs -> v list -> s -> t -> m -> v *)
 and run_c5s c v2s s t m = match (c, s) with
-    (CAppT0 (e0, xs, vs, c), s) ->
-    f5t e0 xs vs v2s c s t m
-  | (CAppS1 (e, xs, vs, c), s) ->
+    (CAppS1 (e, xs, vs, c), s) ->
     f5 e xs vs (CAppS0 (c)) (VArgs (v2s) :: s) t m
+  | (CAppS2 (e, xs, vs, c), s) ->
+    begin match v2s with (v1 :: v2s) ->
+        f5 e xs vs (CApp1 (c)) (v1 :: VArgs (v2s) :: s) t m
+      | _ -> failwith "run_c5s: unexpected v2s"
+    end
   | _ -> failwith "run_c5s: unexpected c"
 
 (* f5: defunctionalized interpreter *)
@@ -65,7 +70,7 @@ and f5 e xs vs c s t m = match e with
     run_c5 c (VFun (fun v1 c' s' t' m' ->
       f5t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
   | App (e0, e2s) ->
-    f5s e2s xs vs (CAppT0 (e0, xs, vs, c)) s t m
+    f5s e2s xs vs (CAppS2 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -103,7 +108,7 @@ and f5t e xs vs v2s c s t m =
     | v1 :: v2s -> f5t e (x :: xs) (v1 :: vs) v2s c s t m
     end
   | App (e0, e2s) ->
-    f5s e2s xs vs (CAppT0 (e0, xs, vs, app_c)) app_s t m
+    f5s e2s xs vs (CAppS2 (e0, xs, vs, app_c)) app_s t m
   | Shift (x, e) ->
     f5 e (x :: xs) (VContS (app_c, app_s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
