@@ -55,7 +55,12 @@ let rec f7 e xs vs c s t m = match e with
       f7t e (x :: xs) (v1 :: vs) c' (VArgs (v2s) :: s') t' m')) :: s) t m
   | App (e0, e2s) ->
     f7s e2s xs vs (fun (VArgs (v2s) :: s) t m ->
-      f7t e0 xs vs c (VArgs (v2s) :: s) t m) s t m
+      begin match v2s with
+          v1 :: v2s' ->
+            f7 e0 xs vs (fun (v :: s') t' m' ->
+              apply7 v v1 c (VArgs (v2s') :: s) t m) (v1 :: VArgs (v2s') :: s) t m
+        | _ -> failwith "App: unexpected v2s"
+      end) s t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -112,7 +117,13 @@ and f7t e xs vs c s t m = match s with VArgs (v2s) :: s ->
     end
   | App (e0, e2s) ->
     f7s e2s xs vs (fun (VArgs (v2s) :: s) t m ->
-      f7t e0 xs vs app_c (VArgs (v2s) :: app_s) t m) s t m
+      begin match v2s with
+          v1 :: v2s' ->
+            f7 e0 xs vs (fun (v :: s') t' m' ->
+              apply7 v v1 app_c (VArgs (v2s') :: app_s) t m)
+              (v1 :: VArgs (v2s') :: app_s) t m
+        | _ -> failwith "App: unexpected v2s"
+      end) s t m
   | Shift (x, e) ->
     f7 e (x :: xs) (VContS (app_c, app_s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
