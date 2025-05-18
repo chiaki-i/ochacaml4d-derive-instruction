@@ -103,11 +103,19 @@ let reset i = fun vs c s t m ->
   i vs idc [] TNil (MCons ((c, s, t), m))
 
 let pushmark = fun vs c s t m -> c (mark :: s) t m
+
 let push = fun vs c (v :: VArgs (v2s) :: s) t m ->
   c (VArgs (v :: v2s) :: s) t m
 
-let apply = fun vs c (v :: VArgs (v2s) :: s) t m ->
-  apply8s v v2s c s t m (* ZINC's return? *)
+(* return : i *)
+(* 2nd case of ZINC's return *)
+let return = fun vs c (v :: VArgs (v2s) :: s) t m ->
+  apply8s v v2s c s t m
+
+(* apply: i *)
+(* Directly calls apply8 *)
+let apply = fun vs c (v :: VArgs (v1 :: v2s) :: s) t m ->
+  apply8 v v1 c (VArgs (v2s) :: s) t m
 
 (* let appterm i = fun vs c (v :: VArgs (v2s) :: s) t m ->
   let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
@@ -123,6 +131,14 @@ let grab i = fun vs c (VArgs (v2s) :: s) t m ->
   | v1 :: v2s -> i (v1 :: vs) c (VArgs (v2s) :: s) t m
   end
 
+(* return case1 : i *)
+(* let temp = fun vs c (VArgs (v2s) :: s) t m ->
+  begin match v2s with
+    v1 :: v2s' ->
+      c (VArgs (v1 :: v2s') :: s) t m
+    | _ -> failwith "apply: unexpected v2s"
+  end *)
+
 (* f8: e -> string list -> i *)
 let rec f8 e xs = match e with
     Num (n) -> num n
@@ -131,7 +147,7 @@ let rec f8 e xs = match e with
     f8 e1 xs >> f8 e0 xs >> operation op
   | Fun (x, e) -> cur (f8t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8t e0 xs
+    f8s e2s xs >> f8 e0 xs >> apply
   | Shift (x, e) -> shift (f8 e (x :: xs))
   | Control (x, e) -> control (f8 e (x :: xs))
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
@@ -145,19 +161,19 @@ and f8s e2s xs = match e2s with
 
 (* f8t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f8t e xs = match e with
-    Num (n) -> num n >> apply
-  | Var (x) -> access (Env.offset x xs) >> apply
+    Num (n) -> num n >> return
+  | Var (x) -> access (Env.offset x xs) >> return
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation op >> apply
+    f8 e1 xs >> f8 e0 xs >> operation op >> return
   | Fun (x, e) ->
     grab (f8t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8t e0 xs >> apply
-  | Shift (x, e) -> shift (f8 e (x :: xs)) >> apply
-  | Control (x, e) -> control (f8 e (x :: xs)) >> apply
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> apply
-  | Control0 (x, e) -> control0 (f8 e (x :: xs)) >> apply
-  | Reset (e) -> reset (f8 e xs) >> apply
+    f8s e2s xs >> f8 e0 xs >> apply
+  | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
+  | Control (x, e) -> control (f8 e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f8 e (x :: xs)) >> return
+  | Reset (e) -> reset (f8 e xs) >> return
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] idc [] TNil MNil
