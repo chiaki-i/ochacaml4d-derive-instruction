@@ -46,7 +46,7 @@ let rec run_c7 c s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (CApp (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m
+  | (CApp (c), v :: VArgs (v2s) :: s) -> apply7s v v2s c s t m (* return *)
   | (CApp1 (c), v :: v1 :: VArgs (v2s) :: s) ->
     apply7 v v1 c (VArgs (v2s) :: s) t m
   | (CAppS0 (cs), v :: VArgs (v2s) :: s) ->
@@ -143,6 +143,7 @@ and apply7 v0 v1 c (VArgs (v2s) :: s) t m =
                    ^ " is not a function; it can not be applied.")
 
 (* apply7s : v -> v list -> c -> s -> t -> m -> v *)
+(* return and apply *)
 and apply7s v0 v2s c s t m = match v2s with
     [] -> run_c7 c (v0 :: s) t m
   | v1 :: v2s -> apply7 v0 v1 c (VArgs (v2s) :: s) t m
