@@ -145,7 +145,7 @@ let rec f8 e xs = match e with
   | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
     f8 e1 xs >> f8 e0 xs >> operation op
-  | Fun (x, e) -> cur (f8 e (x :: xs) >> return)
+  | Fun (x, e) -> cur (f8t e (x :: xs))
   | App (e0, e2s) ->
     f8s e2s xs >> f8 e0 xs >> apply
   | Shift (x, e) -> shift (f8 e (x :: xs))
@@ -166,9 +166,9 @@ and f8t e xs = match e with
   | Op (e0, op, e1) ->
     f8 e1 xs >> f8 e0 xs >> operation op >> return
   | Fun (x, e) ->
-    grab (f8t e (x :: xs))
+    cur (f8t e (x :: xs)) >> return
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> apply
+    f8s e2s xs >> f8 e0 xs >> apply >> return
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
   | Control (x, e) -> control (f8 e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> return
