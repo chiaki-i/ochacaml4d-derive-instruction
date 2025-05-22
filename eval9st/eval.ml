@@ -138,7 +138,7 @@ let rec f9 e xs = match e with
   | Var (x) -> IAccess (Env.offset x xs)
   | Op (e0, op, e1) ->
     f9 e1 xs >> f9 e0 xs >> IOp (op)
-  | Fun (x, e) -> ICur (f9 e (x :: xs) >> IReturn)
+  | Fun (x, e) -> ICur (f9t e (x :: xs))
   | App (e0, e2s) ->
     f9s e2s xs >> f9 e0 xs >> IApply
   | Shift (x, e) -> IShift (f9 e (x :: xs))
@@ -159,7 +159,7 @@ and f9t e xs = match e with
   | Op (e0, op, e1) ->
     f9 e1 xs >> f9 e0 xs >> IOp (op) >> IReturn
   | Fun (x, e) -> IGrab (f9t e (x :: xs))
-  | App (e0, e2s) -> f9s e2s xs >> f9t e0 xs >> IAppterm
+  | App (e0, e2s) -> f9s e2s xs >> f9 e0 xs >> IAppterm
   | Shift (x, e) -> IShift (f9 e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f9 e (x :: xs)) >> IReturn
   | Shift0 (x, e) -> IShift0 (f9 e (x :: xs)) >> IReturn
