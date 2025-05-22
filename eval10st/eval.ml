@@ -64,9 +64,20 @@ let rec run_c10 c s t m = match (c, s) with
       | _ -> failwith "IGrab: unexpected s"
     end
   | ((IApply :: is, vs) :: c, s) ->
+    begin match s with (v :: VArgs (v1 :: v2s) :: s) ->
+        apply10 v v1 vs ((is, vs) :: c) (VArgs (v2s) :: s) t m
+      | _ -> failwith "IApply: unexpected s"
+    end
+  | ((IAppterm :: is, vs) :: c, s) ->
+    begin match s with (v :: VArgs (v1 :: v2s) :: s) ->
+        let app_c = ([IReturn], vs) :: ((is, vs) :: c) in
+        apply10 v v1 vs app_c (VArgs (v2s) :: s) t m
+      | _ -> failwith "IAppterm: unexpected s"
+    end
+  | ((IReturn :: is, vs) :: c, s) ->
     begin match s with (v :: VArgs (v2s) :: s) ->
         apply10s v v2s vs ((is, vs) :: c) s t m
-      | _ -> failwith "IApply: unexpected s"
+      | _ -> failwith "IReturn: unexpected s"
     end
   | ((IPushmark :: is, vs) :: c, s) ->
     run_c10 ((is, vs) :: c) (mark :: s) t m
@@ -107,12 +118,15 @@ let rec run_c10 c s t m = match (c, s) with
 
 (* apply10 : v -> v -> v list -> c -> s -> t -> m -> v *)
 and apply10 v0 v1 vs c (VArgs (v2s) :: s) t m =
-  let app_c = ([IApply], vs) :: c in
-  let app_s = VArgs (v2s) :: s in
   match v0 with
     VFun (is, vs') -> run_c10 ((is, (v1 :: vs')) :: c) (VArgs (v2s) :: s) t m
-  | VContS (c', s', t') -> run_c10 c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
+  | VContS (c', s', t') ->
+    let app_c = ([IReturn], vs) :: c in
+    let app_s = VArgs (v2s) :: s in
+    run_c10 c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
   | VContC (c', s', t') ->
+    let app_c = ([IReturn], vs) :: c in
+    let app_s = VArgs (v2s) :: s in
     run_c10 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c10 app_c (v :: app_s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
@@ -131,7 +145,7 @@ let rec f10 e xs = match e with
     f10 e1 xs @ f10 e0 xs @ [IOp (op)]
   | Fun (x, e) -> [ICur (f10t e (x :: xs))]
   | App (e0, e2s) ->
-    f10s e2s xs @ f10t e0 xs
+    f10s e2s xs @ f10 e0 xs @ [IApply]
   | Shift (x, e) -> [IShift (f10 e (x :: xs))]
   | Control (x, e) -> [IControl (f10 e (x :: xs))]
   | Shift0 (x, e) -> [IShift0 (f10 e (x :: xs))]
@@ -145,17 +159,17 @@ and f10s e2s xs = match e2s with
 
 (* f10t : e -> string list -> i list *)
 and f10t e xs = match e with
-    Num (n) -> [INum n; IApply]
-  | Var (x) -> [IAccess (Env.offset x xs); IApply]
+    Num (n) -> [INum n; IReturn]
+  | Var (x) -> [IAccess (Env.offset x xs); IReturn]
   | Op (e0, op, e1) ->
-    f10 e1 xs @ f10 e0 xs @ [IOp (op); IApply]
+    f10 e1 xs @ f10 e0 xs @ [IOp (op); IReturn]
   | Fun (x, e) -> [IGrab (f10t e (x :: xs))]
-  | App (e0, e2s) -> f10s e2s xs @ f10t e0 xs @ [IApply]
-  | Shift (x, e) -> [IShift (f10 e (x :: xs)); IApply]
-  | Control (x, e) -> [IControl (f10 e (x :: xs)); IApply]
-  | Shift0 (x, e) -> [IShift0 (f10 e (x :: xs)); IApply]
-  | Control0 (x, e) -> [IControl0 (f10 e (x :: xs)); IApply]
-  | Reset (e) -> [IReset (f10 e xs); IApply]
+  | App (e0, e2s) -> f10s e2s xs @ f10 e0 xs @ [IAppterm]
+  | Shift (x, e) -> [IShift (f10 e (x :: xs)); IReturn]
+  | Control (x, e) -> [IControl (f10 e (x :: xs)); IReturn]
+  | Shift0 (x, e) -> [IShift0 (f10 e (x :: xs)); IReturn]
+  | Control0 (x, e) -> [IControl0 (f10 e (x :: xs)); IReturn]
+  | Reset (e) -> [IReset (f10 e xs); IReturn]
 
 (* f : e -> v *)
 let f expr = run_c10 ((f10 expr [], []) :: []) [] TNil MNil

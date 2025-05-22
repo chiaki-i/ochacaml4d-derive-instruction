@@ -17,6 +17,8 @@ and i = IPush
       | IAccess of int
       | IOp of op
       | IApply
+      | IReturn
+      | IAppterm
       | ICur of i list
       | IGrab of i list
       | IShift of i list | IControl of i list
