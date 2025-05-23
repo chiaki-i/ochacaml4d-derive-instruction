@@ -6,7 +6,7 @@ open Syntax
 (* Value *)
 type v = VNum of int
        | VFun of (v -> v list -> c -> t -> m -> v)
-       | VContS of c * t
+       | VContS of c * t (*(v -> v list -> c -> t -> m -> v) *)
        | VContC of c * t
 
 and c = v -> t -> m -> v

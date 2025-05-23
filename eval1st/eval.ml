@@ -101,6 +101,7 @@ and f1t e xs vs v2s c t m =
       f1 e0 xs vs (fun v0 t0 m0 ->
         apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
+    (* VContST のような、tail 用のコンストラクタを作る。VContST を実行する時に最適化をかけられるかも？ *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
@@ -130,6 +131,9 @@ and apply1 v0 v1 v2s c t m =
   match v0 with
     VFun (f) -> f v1 v2s c t m
   | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
+    (* c’の最後に return 的なことができないか？
+      関数化して、VFun (f) のように、直接 f を呼び出す格好になると、shift の実装の中で展開して最適化できそう
+      MCons なども f の中で実装（というか適用）すれば良い *)
   | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
