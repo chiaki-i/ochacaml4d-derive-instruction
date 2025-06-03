@@ -47,8 +47,7 @@ let rec f1 e xs vs c t m =
             end) t0 m0) t m
   | Fun (x, e) ->
     c (VFun (fun v1 v2s c' t' m' ->
-              f1t e (x :: xs) (v1 :: vs) v2s
-                (fun v t m -> apply1s v v2s c' t m) t' m')) t m
+              f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
     f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
@@ -71,7 +70,7 @@ let rec f1 e xs vs c t m =
 
 (* f1t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f1t e xs vs v2s c t m =
-  let app_c v0 t0 m0 = apply1s v0 v2s c t0 m0 in
+  let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
   match e with
     Num (n) -> c (VNum (n)) t m
     (* これは、何もしてないのではなくて、v2s = [] という前提のもとで
@@ -95,7 +94,7 @@ and f1t e xs vs v2s c t m =
             end) t0 m0) t m
   | Fun (x, e) ->
     app_c (VFun (fun v1 v2s c' t' m' ->
-              f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
     f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
