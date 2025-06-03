@@ -72,22 +72,24 @@ let rec f1 e xs vs c t m =
 and f1t e xs vs v2s c t m =
   let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
   match e with
-    Num (n) -> c (VNum (n)) t m
-    (* これは、何もしてないのではなくて、v2s = [] という前提のもとで
-       app_c (VNum (n)) t m をインライン展開した形 *)
-  | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
+    Num (n) -> app_c (VNum (n)) t m
+    (* v2s = [] という前提のもとで app_c (VNum (n)) t m をインライン展開すれば、
+       c (VNum (n)) t m になる。しかし、数値を返したからといって、終わり（v2s が空になる）ではなく、
+       まだ後ろに application が残っている可能性がある。
+       本当は、イプシロンのような特殊なマークを積んでいれば、ZINC と完全に同じになる *)
+  | Var (x) -> app_c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
     f1 e1 xs vs (fun v1 t0 m0 ->
         f1 e0 xs vs (fun v0 t1 m1 ->
             begin match (v0, v1) with
                 (VNum (n0), VNum (n1)) ->
                 begin match op with
-                    Plus -> c (VNum (n0 + n1)) t1 m1
-                  | Minus -> c (VNum (n0 - n1)) t1 m1
-                  | Times -> c (VNum (n0 * n1)) t1 m1
+                    Plus -> app_c (VNum (n0 + n1)) t1 m1
+                  | Minus -> app_c (VNum (n0 - n1)) t1 m1
+                  | Times -> app_c (VNum (n0 * n1)) t1 m1
                   | Divide ->
                     if n1 = 0 then failwith "Division by zero"
-                    else c (VNum (n0 / n1)) t1 m1
+                    else app_c (VNum (n0 / n1)) t1 m1
                 end
               | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                                ^ " are not numbers")
