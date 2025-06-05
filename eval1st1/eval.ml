@@ -120,7 +120,7 @@ and f1t e xs vs v2s c t m =
 
 (* f1s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f1s e2s xs vs c t m = match e2s with
-    [] -> c [] t m
+    [] -> c [VEmpty] t m
   | e :: e2s ->
     f1s e2s xs vs (fun v2s t2 m2 ->
       f1 e xs vs (fun v1 t1 m1 ->
@@ -143,8 +143,9 @@ and apply1 v0 v1 v2s c t m = match v0 with
 
 (* apply1s : v -> v list -> c -> t -> m -> v *)
 and apply1s v0 v2s c t m = match v2s with
-    [] -> c v0 t m
+    VEmpty :: _ -> c v0 t m
   | v1 :: v2s -> apply1 v0 v1 v2s c t m
+  | [] -> failwith "empty v2s is unexpescted"
 
 (* f : e -> v *)
 let f expr = f1 expr [] [] idc TNil MNil

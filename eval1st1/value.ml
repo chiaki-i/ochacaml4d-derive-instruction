@@ -8,6 +8,7 @@ type v = VNum of int
        | VFun of (v -> v list -> c -> t -> m -> v)
        | VContS of c * t (*(v -> v list -> c -> t -> m -> v) *)
        | VContC of c * t
+       | VEmpty
 
 and c = v -> t -> m -> v
 
@@ -22,6 +23,7 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
+  | VEmpty -> "<ε>"
 
 
 (* Value.print : v -> unit *)
