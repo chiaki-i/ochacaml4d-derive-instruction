@@ -72,7 +72,7 @@ let rec f1 e xs vs c t m =
 and f1t e xs vs v2s c t m =
   let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
   match e with
-    Num (n) -> app_c (VNum (n)) t m
+    Num (n) -> c (VNum (n)) t m
     (* v2s = [] という前提のもとで app_c (VNum (n)) t m をインライン展開すれば、
        c (VNum (n)) t m になる。しかし、数値を返したからといって、終わり（v2s が空になる）ではなく、
        まだ後ろに application が残っている可能性がある。
@@ -84,19 +84,24 @@ and f1t e xs vs v2s c t m =
             begin match (v0, v1) with
                 (VNum (n0), VNum (n1)) ->
                 begin match op with
-                    Plus -> app_c (VNum (n0 + n1)) t1 m1
-                  | Minus -> app_c (VNum (n0 - n1)) t1 m1
-                  | Times -> app_c (VNum (n0 * n1)) t1 m1
+                    Plus -> c (VNum (n0 + n1)) t1 m1
+                  | Minus -> c (VNum (n0 - n1)) t1 m1
+                  | Times -> c (VNum (n0 * n1)) t1 m1
                   | Divide ->
                     if n1 = 0 then failwith "Division by zero"
-                    else app_c (VNum (n0 / n1)) t1 m1
+                    else c (VNum (n0 / n1)) t1 m1
                 end
               | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    app_c (VFun (fun v1 v2s c' t' m' ->
-        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+    (* app_c (VFun (fun v1 v2s c' t' m' ->
+        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m を展開すると以下になる *)
+    begin match v2s with
+        VEmpty :: _ -> c (VFun (fun v1 v2s c' t' m' ->
+                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+      | v1 :: v2s -> f1t e (x :: xs) (v1 :: vs) v2s c t m
+    end
   | App (e0, e2s) ->
     f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
@@ -124,7 +129,7 @@ and f1s e2s xs vs c t m = match e2s with
   | e :: e2s ->
     f1s e2s xs vs (fun v2s t2 m2 ->
       f1 e xs vs (fun v1 t1 m1 ->
-        c (v1 :: v2s) t1 m1) t2 m2) t m
+        c (v1 :: v2s) t1 m1) t2 m2) t m (* v2s は、現在のクロージャの引数列 *)
 
 (* apply1 : v -> v -> v list -> c -> t -> m -> v *)
 and apply1 v0 v1 v2s c t m = match v0 with
@@ -145,7 +150,7 @@ and apply1 v0 v1 v2s c t m = match v0 with
 and apply1s v0 v2s c t m = match v2s with
     VEmpty :: _ -> c v0 t m
   | v1 :: v2s -> apply1 v0 v1 v2s c t m
-  | [] -> failwith "empty v2s is unexpescted"
+  | [] -> failwith "apply1s: empty v2s is unexpected"
 
 (* f : e -> v *)
 let f expr = f1 expr [] [] idc TNil MNil
