@@ -43,19 +43,18 @@ let rec run_c5 c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (CApp (c), VArgs (v2s) :: s) -> apply5s v v2s c s t m
-  | (CApp1 (c), v1 :: VArgs (v2s) :: s) ->
-    apply5 v v1 c (VArgs (v2s) :: s) t m
-  | (CAppS0 (cs), VArgs (v2s) :: s) -> run_c5s cs (v :: v2s) s t m
+  | (CApp (c), s) -> apply5s v c s t m
+  | (CApp1 (c), v1 :: s) -> apply5 v v1 c s t m
+  | (CAppS0 (cs), s) -> run_c5s cs (v :: s) t m
   | _ -> failwith "run_c5: unexpected c"
 
 (* run_c5s : cs -> v list -> s -> t -> m -> v *)
-and run_c5s c v2s s t m = match (c, s) with
+and run_c5s c s t m = match (c, s) with
     (CAppS1 (e, xs, vs, c), s) ->
-    f5 e xs vs (CAppS0 (c)) (VArgs (v2s) :: s) t m
+    f5 e xs vs (CAppS0 (c)) s t m
   | (CAppS2 (e, xs, vs, c), s) ->
-    begin match v2s with (v1 :: v2s) ->
-        f5 e xs vs (CApp1 (c)) (v1 :: VArgs (v2s) :: s) t m
+    begin match s with (v1 :: s) ->
+        f5 e xs vs (CApp1 (c)) (v1 :: s) t m
       | _ -> failwith "run_c5s: unexpected v2s"
     end
   | _ -> failwith "run_c5s: unexpected c"
@@ -89,59 +88,63 @@ and f5 e xs vs c s t m = match e with
 
 (* f5s : e list -> string list -> v list -> cs -> s -> t -> m -> v list *)
 and f5s e2s xs vs cs s t m = match e2s with
-    [] -> run_c5s cs [] s t m
+    [] -> run_c5s cs (VEmpty :: s) t m
   | e :: e2s ->
     f5s e2s xs vs (CAppS1 (e, xs, vs, cs)) s t m
 
 (* f5t : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f5t e xs vs v2s c s t m =
-  let (app_c, app_s) = (CApp (c), VArgs (v2s) :: s) in
+and f5t e xs vs c s t m =
+  let app_c = CApp (c) in
   match e with
-    Num (n) -> run_c5 app_c (VNum (n)) app_s t m
-  | Var (x) -> run_c5 app_c (List.nth vs (Env.offset x xs)) app_s t m
-  | Op (e0, op, e1) -> f5 e1 xs vs (COp1 (e0, xs, op, vs, app_c)) app_s t m
+    Num (n) -> run_c5 app_c (VNum (n)) s t m
+  | Var (x) -> run_c5 app_c (List.nth vs (Env.offset x xs)) s t m
+  | Op (e0, op, e1) -> f5 e1 xs vs (COp1 (e0, xs, op, vs, app_c)) s t m
   | Fun (x, e) ->
-    begin match v2s with
-      [] ->
-      run_c5 c (VFun (fun v1 c' t' m' ->
-        f5t e (x :: xs) (v1 :: vs) c' t' m')) s t m
-    | v1 :: v2s -> f5t e (x :: xs) (v1 :: vs) v2s c s t m
+    begin match s with
+      VEmpty :: s ->
+        run_c5 c (VFun (fun v1 c' t' m' ->
+          f5t e (x :: xs) (v1 :: vs) c' t' m')) s t m
+    | v1 :: s -> f5t e (x :: xs) (v1 :: vs) c s t m
+    | _ -> failwith "apply5s: stack is empty"
     end
   | App (e0, e2s) ->
-    f5s e2s xs vs (CAppS2 (e0, xs, vs, app_c)) app_s t m
+    f5s e2s xs vs (CAppS2 (e0, xs, vs, app_c)) s t m
   | Shift (x, e) ->
-    f5 e (x :: xs) (VContS (app_c, app_s, t) :: vs) idc [] TNil m
+    f5 e (x :: xs) (VContS (app_c, s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
-    f5 e (x :: xs) (VContC (app_c, app_s, t) :: vs) idc [] TNil m
+    f5 e (x :: xs) (VContC (app_c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f5 e (x :: xs) (VContS (app_c, app_s, t) :: vs) c0 s0 t0 m0
+        f5 e (x :: xs) (VContS (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f5 e (x :: xs) (VContC (app_c, app_s, t) :: vs) c0 s0 t0 m0
+        f5 e (x :: xs) (VContC (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f5 e xs vs idc [] TNil (MCons ((app_c, app_s, t), m))
+  | Reset (e) -> f5 e xs vs idc [] TNil (MCons ((app_c, s, t), m))
 
 (* apply5 : v -> v -> c -> s -> t -> m -> v *)
-and apply5 v0 v1 c (VArgs (v2s) :: s) t m =
-  let (app_c, app_s) = (CApp (c), VArgs (v2s) :: s) in
+and apply5 v0 v1 c s t m =
   match v0 with
-    VFun (f) -> f v1 v2s c s t m
-  | VContS (c', s', t') -> run_c5 c' v1 s' t' (MCons ((app_c, app_s, t), m))
+    VFun (f) -> f v1 c s t m (* VFun は v2s を受け取らないと不都合がある？ *)
+  | VContS (c', s', t') ->
+    let app_c = CApp (c) in
+    run_c5 c' v1 s' t' (MCons ((app_c, s, t), m))
   | VContC (c', s', t') ->
-    run_c5 c' v1 s' (apnd t' (cons (fun v t m -> run_c5 app_c v app_s t m) t)) m
+    let app_c = CApp (c) in
+    run_c5 c' v1 s' (apnd t' (cons (fun v t m -> run_c5 app_c v s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* apply5s : v -> v list -> c -> s -> t -> m -> v *)
-and apply5s v0 v2s c s t m = match v2s with
-    [] -> run_c5 c v0 s t m
-  | v1 :: v2s -> apply5 v0 v1 c (VArgs (v2s) :: s) t m
+and apply5s v0 c s t m = match s with
+    VEmpty :: s -> run_c5 c v0 s t m
+  | v1 :: s -> apply5 v0 v1 c s t m
+  | _ -> failwith "apply5s: stack is empty" (* そもそもこれはあり得ないことなのか？ Application 以外でおわることはありそうだけど *)
 
 (* f : e -> v *)
 let f expr = f5 expr [] [] idc [] TNil MNil
