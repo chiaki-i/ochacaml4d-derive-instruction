@@ -46,7 +46,7 @@ let rec run_c5 c v s t m = match (c, s) with
   | (CApp (c), s) -> apply5s v c s t m
   | (CApp1 (c), v1 :: s) -> apply5 v v1 c s t m
   | (CAppS0 (cs), s) -> run_c5s cs (v :: s) t m
-  | _ -> failwith "run_c5: unexpected c"
+  | _ -> failwith "run_c5: unexpected c or s"
 
 (* run_c5s : cs -> v list -> s -> t -> m -> v *)
 and run_c5s c s t m = match (c, s) with
@@ -103,7 +103,7 @@ and f5t e xs vs c s t m =
     begin match s with
       VEmpty :: s ->
         run_c5 c (VFun (fun v1 c' t' m' ->
-          f5t e (x :: xs) (v1 :: vs) c' t' m')) s t m
+          f5t e (x :: xs) (v1 :: vs) (CApp (c')) t' m')) s t m
     | v1 :: s -> f5t e (x :: xs) (v1 :: vs) c s t m
     | _ -> failwith "apply5s: stack is empty"
     end
@@ -142,9 +142,9 @@ and apply5 v0 v1 c s t m =
 
 (* apply5s : v -> v list -> c -> s -> t -> m -> v *)
 and apply5s v0 c s t m = match s with
-    VEmpty :: s -> run_c5 c v0 s t m
+    [] -> run_c5 c v0 s t m
+  | VEmpty :: s -> run_c5 c v0 s t m
   | v1 :: s -> apply5 v0 v1 c s t m
-  | _ -> failwith "apply5s: stack is empty" (* そもそもこれはあり得ないことなのか？ Application 以外でおわることはありそうだけど *)
 
 (* f : e -> v *)
 let f expr = f5 expr [] [] idc [] TNil MNil
