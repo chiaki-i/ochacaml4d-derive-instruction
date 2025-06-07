@@ -11,7 +11,8 @@ Derive OchaCaml4D virtual machine instructions from the  definitional interprete
 
 ### Tail version revived (2025 Feb)
 - At first, Eval1st included f1st to handle multi-arg tail call, but it was integrated with f1s.
-- Eval1st, 2st, 5st, 7st, 7st1, 8st, 9st, 9st1, 10st
+- Eval1st, 2st, 5st, 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st
+- Eval1st1, 5st2 is experimental
 
 ### part of c represents return stack (Jan 19-25)
 - Eval1s, 2s, 4s, 5s, 5s2, 7ds, 7ds1, 7ds4 (w/o CSeq), 8s, 9s2, eval10s
