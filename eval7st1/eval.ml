@@ -109,7 +109,7 @@ and f7t e xs vs c s t m =
         c ((VFun (fun c' (v1 :: s') t' m' ->
           f7t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
       | v1 :: s -> f7t e (x :: xs) (v1 :: vs) c s t m
-      | _ -> failwith "apply5s: stack is empty"
+      | _ -> failwith "f7t: Fun: stack is empty"
     end
   | App (e0, e2s) ->
     f7s e2s xs vs (fun s t m ->

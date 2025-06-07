@@ -16,9 +16,6 @@ let idc = fun s t m -> match s with
     end
   | _ -> failwith ("idc: stack error: " ^ s_to_string s)
 
-(* mark on arg stack *)
-let mark = VArgs ([])
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -54,29 +51,26 @@ let operation op = fun vs c (v :: v0 :: s) t m ->
   end
 
 let cur i = fun vs c s t m ->
-  c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
-    i (v1 :: vs) c' (VArgs (v2s) :: s') t' m')) :: s) t m
+  c ((VFun (fun c' (v1 :: s') t' m' ->
+    i (v1 :: vs) c' s' t' m')) :: s) t m
 
 (* apply8 : v -> v -> c -> s -> t -> m -> v *)
-let rec apply8 v0 v1 c (VArgs (v2s) :: s) t m =
+let rec apply8 v0 v1 c s t m =
   match v0 with
-    VFun (f) -> f c (v1 :: VArgs (v2s) :: s) t m
+    VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
-    let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
-    let app_s = VArgs (v2s) :: s in
-    c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
+    let app_c = fun (v :: s) t m -> apply8s v c s t m in
+    c' (v1 :: s') t' (MCons ((app_c, s, t), m))
   | VContC (c', s', t') ->
-    let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
-    let app_s = VArgs (v2s) :: s in
-    c' (v1 :: s') (apnd t' (cons (fun v t m -> app_c (v :: app_s) t m) t)) m
+    let app_c = fun (v :: s) t m -> apply8s v c s t m in
+    c' (v1 :: s') (apnd t' (cons (fun v t m -> app_c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* apply8s : v -> v list -> c -> s -> t -> m -> v *)
-and apply8s v0 v2s c s t m = match v2s with
-    [] -> c (v0 :: s) t m
-  | v1 :: v2s ->
-    apply8 v0 v1 c (VArgs (v2s) :: s) t m
+and apply8s v0 c s t m = match s with
+  VEmpty :: s -> c (v0 :: s) t m
+| v1 :: s -> apply8 v0 v1 c s t m
 
 (* shift : i -> i *)
 let shift i = fun vs c s t m ->
@@ -102,45 +96,36 @@ let control0 i = fun vs c s t m -> match m with
 let reset i = fun vs c s t m ->
   i vs idc [] TNil (MCons ((c, s, t), m))
 
-let pushmark = fun vs c s t m -> c (mark :: s) t m
+let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
 
-let push = fun vs c (v :: VArgs (v2s) :: s) t m ->
-  c (VArgs (v :: v2s) :: s) t m
+let push = fun vs c (v :: s) t m ->
+  c (v :: s) t m
 
 (* return : i *)
-(* 2nd case of ZINC's return *)
-let return = fun vs c (v :: VArgs (v2s) :: s) t m ->
-  apply8s v v2s c s t m
+let return = fun vs c (v :: s) t m ->
+  apply8s v c s t m
 
 (* apply : i *)
 (* Directly calls apply8 *)
-let apply = fun vs c (v :: VArgs (v1 :: v2s) :: s) t m ->
-  apply8 v v1 c (VArgs (v2s) :: s) t m
+let apply = fun vs c (v0 :: v1 :: s) t m ->
+  apply8 v0 v1 c s t m
 
 (* appterm : i *)
 (* appterm = apply >> return *)
 (* no need to add app_s = this means stack ops optimization? *)
-let appterm = fun vs c (v :: VArgs (v1 :: v2s) :: s) t m ->
-  let app_c (v :: VArgs (v2s) :: s) t m = apply8s v v2s c s t m in
-  (* let app_s = VArgs (v2s) :: s in *)
-  apply8 v v1 app_c (VArgs (v2s) :: s) t m
+let appterm = fun vs c (v0 :: v1 :: s) t m ->
+  let app_c = fun (v :: s) t m -> apply8s v c s t m in
+  apply8 v0 v1 app_c s t m
 
 (* grab: i -> i *)
-let grab i = fun vs c (VArgs (v2s) :: s) t m ->
-  begin match v2s with
-    [] ->
-    c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
-      i (v1 :: vs) c' (VArgs (v2s) :: s') t' m')) :: s) t m
-  | v1 :: v2s -> i (v1 :: vs) c (VArgs (v2s) :: s) t m
+let grab i = fun vs c s t m ->
+  begin match s with
+    VEmpty :: s ->
+    c ((VFun (fun c' (v1 :: s') t' m' ->
+      i (v1 :: vs) c' s' t' m')) :: s) t m
+  | v1 :: s -> i (v1 :: vs) c s t m
+  | _ -> failwith "grab: stack is empty"
   end
-
-(* return case1 : i *)
-(* let temp = fun vs c (VArgs (v2s) :: s) t m ->
-  begin match v2s with
-    v1 :: v2s' ->
-      c (VArgs (v1 :: v2s') :: s) t m
-    | _ -> failwith "apply: unexpected v2s"
-  end *)
 
 (* f8: e -> string list -> i *)
 let rec f8 e xs = match e with
