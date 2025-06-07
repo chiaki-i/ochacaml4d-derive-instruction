@@ -2,7 +2,7 @@ open Syntax
 open Value
 
 (* defunctionalized interpreter with argument stack: eval5st *)
-(* eval5st is without explicit return stack since c will represent one instead *)
+(* v2s used to represent arguments of current closure, now integrated into s, delimited with VEmpty *)
 
 (* initial continuation *)
 let idc = C0
@@ -130,7 +130,7 @@ and f5t e xs vs c s t m =
 (* apply5 : v -> v -> c -> s -> t -> m -> v *)
 and apply5 v0 v1 c s t m =
   match v0 with
-    VFun (f) -> f v1 c s t m (* VFun は v2s を受け取らないと不都合がある？ *)
+    VFun (f) -> f v1 c s t m
   | VContS (c', s', t') ->
     let app_c = CApp (c) in
     run_c5 c' v1 s' t' (MCons ((app_c, s, t), m))
@@ -144,7 +144,7 @@ and apply5 v0 v1 c s t m =
 and apply5s v0 c s t m = match s with
     VEmpty :: s -> run_c5 c v0 s t m
   | v1 :: s -> apply5 v0 v1 c s t m
-  | _ -> failwith "apply5s: stack is empty" (* そもそもこれはあり得ないことなのか？ Application 以外でおわることはありそうだけど *)
+  | _ -> failwith "apply5s: stack is empty"
 
 (* f : e -> v *)
 let f expr = f5 expr [] [] idc [] TNil MNil
