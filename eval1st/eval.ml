@@ -46,6 +46,8 @@ let rec f1 e xs vs c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
+    (* c (VFun (fun v1 v2s c' t' m' ->
+              f1 e (x :: xs) (v1 :: vs) (fun v0 t0 m0 -> apply1s v0 v2s c' t0 m0) t' m')) t m *)
     c (VFun (fun v1 v2s c' t' m' ->
               f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
@@ -97,9 +99,9 @@ and f1t e xs vs v2s c t m =
   | Fun (x, e) ->
     (* app_c (VFun (fun v1 v2s c' t' m' ->
         f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m *)
-        begin match v2s with
-        VEmpty :: _ -> c (VFun (fun v1 v2s c' t' m' ->
-                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+    begin match v2s with
+        [] -> c (VFun (fun v1 v2s c' t' m' ->
+          f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
       | v1 :: v2s -> f1t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e2s) ->
