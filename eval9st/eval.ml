@@ -6,9 +6,6 @@ open Value
 (* initial continuation *)
 let idc = C0
 
-(* mark on arg stack *)
-let mark = VArgs ([])
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -50,40 +47,33 @@ let rec run_c9 c s t m = match (c, s) with
       | _ -> failwith "IOp: unexpected s"
     end
   | ICur (i) ->
-    run_c9 c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
-      run_c9 (CSeq (i, (v1 :: vs), c')) (VArgs (v2s) :: s') t' m')) :: s) t m
+    run_c9 c ((VFun (fun c' (v1 :: s') t' m' ->
+      run_c9 (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
   | IGrab (i) ->
-    begin match s with (VArgs (v2s) :: s) ->
-        begin match v2s with
-          [] ->
-          run_c9 c ((VFun (fun c' (v1 :: VArgs (v2s) :: s') t' m' ->
-            run_c9 (CSeq (i, (v1 :: vs), c')) (VArgs (v2s) :: s') t' m')) :: s) t m
-        | v1 :: v2s ->
-          run_c9 (CSeq (i, (v1 :: vs), c)) (VArgs (v2s) :: s) t m
-        end
+    begin match s with
+        VEmpty :: s ->
+        run_c9 c ((VFun (fun c' (v1 :: s') t' m' ->
+          run_c9 (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
+      | v1 :: s ->
+        run_c9 (CSeq (i, (v1 :: vs), c)) s t m
       | _ -> failwith "IGrab: unexpected s"
     end
   | IApply ->
-    begin match s with (v :: VArgs (v1 :: v2s) :: s) ->
-        apply9 v v1 vs c (VArgs (v2s) :: s) t m
+    begin match s with (v :: v1 :: s) ->
+        apply9 v v1 vs c s t m
       | _ -> failwith "IApply: unexpected s"
     end
   | IAppterm ->
-    begin match s with (v :: VArgs (v1 :: v2s) :: s) ->
+    begin match s with (v :: v1 :: s) ->
         let app_c = CSeq (IReturn, vs, c) in
-        apply9 v v1 vs app_c (VArgs (v2s) :: s) t m
+        apply9 v v1 vs app_c s t m
       | _ -> failwith "IAppterm: unexpected s"
     end
-  | IPushmark -> run_c9 c (mark :: s) t m
+  | IPushmark -> run_c9 c (VEmpty :: s) t m
   | IReturn ->
-    begin match s with (v :: VArgs (v2s) :: s) ->
-        apply9s v v2s vs c s t m
+    begin match s with (v :: s) ->
+        apply9s v vs c s t m
       | _ -> failwith "IReturn: unexpected s"
-    end
-  | IPush ->
-    begin match s with v :: VArgs (v2s) :: s ->
-        run_c9 c (VArgs (v :: v2s) :: s) t m
-      | _ -> failwith "IPush: unexpected s"
     end
   | IShift (i) ->
     run_c9 (CSeq (i, VContS (c, s, t) :: vs, idc)) [] TNil m
@@ -109,25 +99,22 @@ let rec run_c9 c s t m = match (c, s) with
   | _ -> failwith "run_c9: stack error"
 
 (* apply9 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply9 v0 v1 vs c (VArgs (v2s) :: s) t m =
+and apply9 v0 v1 vs c s t m =
   match v0 with
-    VFun (f) -> f c (v1 :: VArgs (v2s) :: s) t m
+    VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
     let app_c = CSeq (IReturn, vs, c) in
-    let app_s = VArgs (v2s) :: s in
-    run_c9 c' (v1 :: s') t' (MCons ((app_c, app_s, t), m))
+    run_c9 c' (v1 :: s') t' (MCons ((app_c, s, t), m))
   | VContC (c', s', t') ->
     let app_c = CSeq (IReturn, vs, c) in
-    let app_s = VArgs (v2s) :: s in
-    run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 app_c (v :: app_s) t m) t)) m
+    run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 app_c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* apply9s : v -> v list -> c -> s -> t -> m -> v *)
-and apply9s v0 v2s vs c s t m = match v2s with
-    [] -> run_c9 c (v0 :: s) t m
-  | v1 :: v2s ->
-    apply9 v0 v1 vs c (VArgs (v2s) :: s) t m
+and apply9s v0 vs c s t m = match s with
+    VEmpty :: s -> run_c9 c (v0 :: s) t m
+  | v1 :: s -> apply9 v0 v1 vs c s t m
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
@@ -150,7 +137,7 @@ let rec f9 e xs = match e with
 (* f9s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f9s e2s xs = match e2s with
     [] -> IPushmark
-  | e :: e2s -> f9s e2s xs >> f9 e xs >> IPush
+  | e :: e2s -> f9s e2s xs >> f9 e xs
 
 (* f9t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f9t e xs = match e with
