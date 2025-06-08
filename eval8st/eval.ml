@@ -98,9 +98,6 @@ let reset i = fun vs c s t m ->
 
 let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
 
-let push = fun vs c (v :: s) t m ->
-  c (v :: s) t m
-
 (* return : i *)
 let return = fun vs c (v :: s) t m ->
   apply8s v c s t m
@@ -145,7 +142,7 @@ let rec f8 e xs = match e with
 (* f8s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f8s e2s xs = match e2s with
     [] -> pushmark
-  | e :: e2s -> f8s e2s xs >> f8 e xs >> push
+  | e :: e2s -> f8s e2s xs >> f8 e xs
 
 (* f8t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f8t e xs = match e with
