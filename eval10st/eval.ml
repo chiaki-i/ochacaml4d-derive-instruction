@@ -121,7 +121,11 @@ and apply10 v0 v1 vs c s t m =
 
 (* apply10s : v -> v list -> c -> s -> t -> m -> v *)
 and apply10s v0 vs c s t m = match s with
-    VEmpty :: s -> run_c10 c (v0 :: s) t m
+    VEmpty :: s ->
+    begin match c with
+        (([], vs) :: c) -> run_c10 c (v0 :: s) t m
+      | _ -> failwith "when VEmpty the current closure's instructions have to be empty as well"
+    end
   | v1 :: s -> apply10 v0 v1 vs c s t m
 
 (* f10: e -> string list -> i list *)
