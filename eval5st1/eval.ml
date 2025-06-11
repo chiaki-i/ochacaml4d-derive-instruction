@@ -102,8 +102,8 @@ and f5t e xs vs c s t m =
   | Fun (x, e) ->
     begin match s with
       VEmpty :: s ->
-        run_c5 c (VFun (fun v1 c' t' m' ->
-          f5t e (x :: xs) (v1 :: vs) c' t' m')) s t m
+        run_c5 c (VFun (fun v1 c' s' t' m' ->
+          f5t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
     | v1 :: s -> f5t e (x :: xs) (v1 :: vs) c s t m
     | _ -> failwith "apply5s: stack is empty"
     end
