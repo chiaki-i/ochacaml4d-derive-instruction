@@ -1,8 +1,14 @@
 # ochacaml4d-derive-instruction
 
-Derive OchaCaml4D virtual machine instructions from the  definitional interpreter
+> [!WARNING]
+> This is a development repository containing code under verification.
+> The complete artifact is published at https://github.com/chiaki-i/ochacaml4d-instruction.
 
-## How to run
+This repository contains implementations of Delimited continuation operators' Abstract Machine (DAM).
+DAM extends the ZINC Abstract Machine instruction set with four delimited continuation operators.
+The step-by-step derivation process is organized in each `eval*` folder.
+
+## How to run the code
 
 - Save [OcamlMakefile](https://github.com/mmottl/ocaml-makefile/blob/master/OCamlMakefile) as `~/include/OCamlMakefile`, or modify `OCAMLMAKEFILE` value in each `eval*/Makefile` to the desired local path.
 - Under `eval*` directory, run `make test` to compile and test the interpreter. After every test, all executables are cleaned up.
