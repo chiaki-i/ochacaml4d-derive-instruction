@@ -6,19 +6,71 @@
 
 This repository contains implementations of Delimited continuation operators' Abstract Machine (DAM).
 DAM extends the ZINC Abstract Machine instruction set with four delimited continuation operators.
-The step-by-step derivation process is organized in each `eval*` folder.
 
-## How to run the code
+## Structure of this repository
+The repository contains multiple implementation versions that follow different derivation paths.
+Each implementation represents a specific stage in the development of DAM.
+The folders are organized chronologically and by feature implementation, allowing you to trace the evolution of the abstract machine design.
 
-- Save [OcamlMakefile](https://github.com/mmottl/ocaml-makefile/blob/master/OCamlMakefile) as `~/include/OCamlMakefile`, or modify `OCAMLMAKEFILE` value in each `eval*/Makefile` to the desired local path.
-- Under `eval*` directory, run `make test` to compile and test the interpreter. After every test, all executables are cleaned up.
+## Installation and usage
+
+### Prerequisites
+
+- Save [OcamlMakefile](https://github.com/mmottl/ocaml-makefile/blob/master/OCamlMakefile) as `~/include/OCamlMakefile`
+  - If you want to save OcamlMakefile in a different location, modify the `OCAMLMAKEFILE` value in each `step*/Makefile` to the desired local path.
+
+### Running the interpreter
+
+- Navigate to the implementation folder you want to run (e.g., `step1a`).
+```bash
+$ cd step1a
+```
+- Compile the code, which will create an executable file named `./interpreter` in the same folder.
+```bash
+$ make
+```
+- Launch the interpreter and input the code you want to execute, then press Control-D at the end of your input, to run the code.
+  - The supported syntax includes:
+    - Integers and their basic arithmetic operations (`+`, `-`, `*`, `/`)
+    - Function abstraction (`fun x -> ...`; the same as the anonymous functions in OCaml)
+    - Function application
+    - Delimited continuation operators (`shift k -> ...`, `control k -> ...`, `shift0 k -> ...`, `control0 k -> ...`, `reset ...`)
+```bash
+$ ./interpreter
+(fun f -> (fun z -> f (z + 4)) 2 3) (fun x -> fun y -> x * y) # press Control-D at the end of your input
+Parsed : ((fun f -> ((fun z -> (f (z + 4))) 2 3)) (fun x -> (fun y -> (x * y))))
+Result : 18
+$ ./interpreter
+reset (2 * reset (1 + (shift h -> (shift f -> h (f 3))))) # press Control-D at the end of your input
+Parsed : reset ((2 * reset ((1 + (shift h -> (shift f -> (h (f 3))))))))
+Result : 8
+```
+- To remove the interpreter executables:
+```bash
+$ make clean
+```
+
+### Running the automated test suite for the interpreter
+
+The `test-suite` folder contains code for testing the behavior of this interpreter.
+- To run all test cases at once, navigate to the folder you want to test (e.g., `step1a`) and execute the `make test` command.
+  - This will run all the prepared test cases and output their logs.
+```bash
+$ cd step1a
+$ make test
+Passed: /.../ochacaml4d-derive-instruction/test-suite/0/appterm.ml
+Passed: /.../ochacaml4d-derive-instruction/test-suite/0/nested-app.ml
+...
+Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
+34 test(s) passed
+0 test(s) failed
+```
 
 ## Which directory is for which derivation path?
 
-### Tail version revived (2025 Feb)
-- At first, Eval1st included f1st to handle multi-arg tail call, but it was integrated with f1s.
-- Eval1st, 2st, 5st, 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st
-- Eval1st1, 5st2 is experimental
+### Tail interpreter revived (Journal ver.)
+- Eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1
+  - Eval1st1, 5st2 is experimental
 
 ### part of c represents return stack (Jan 19-25)
 - Eval1s, 2s, 4s, 5s, 5s2, 7ds, 7ds1, 7ds4 (w/o CSeq), 8s, 9s2, eval10s

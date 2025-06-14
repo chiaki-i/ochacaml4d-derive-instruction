@@ -63,12 +63,6 @@ let rec run_c10 c s t m = match (c, s) with
         apply10 v v1 vs ((is, vs) :: c) s t m
       | _ -> failwith "IApply: unexpected s"
     end
-  | ((IAppterm :: is, vs) :: c, s) ->
-    begin match s with (v :: v1 :: s) ->
-        let app_c = ([IReturn], vs) :: ((is, vs) :: c) in
-        apply10 v v1 vs app_c s t m
-      | _ -> failwith "IAppterm: unexpected s"
-    end
   | ((IReturn :: is, vs) :: c, s) ->
     begin match s with (v :: s) ->
         apply10s v vs ((is, vs) :: c) s t m
@@ -155,7 +149,7 @@ and f10t e xs = match e with
   | Op (e0, op, e1) ->
     f10 e1 xs @ f10 e0 xs @ [IOp (op); IReturn]
   | Fun (x, e) -> [IGrab (f10t e (x :: xs))]
-  | App (e0, e2s) -> f10s e2s xs @ f10 e0 xs @ [IAppterm]
+  | App (e0, e2s) -> f10s e2s xs @ f10 e0 xs @ [IApply; IReturn]
   | Shift (x, e) -> [IShift (f10 e (x :: xs)); IReturn]
   | Control (x, e) -> [IControl (f10 e (x :: xs)); IReturn]
   | Shift0 (x, e) -> [IShift0 (f10 e (x :: xs)); IReturn]

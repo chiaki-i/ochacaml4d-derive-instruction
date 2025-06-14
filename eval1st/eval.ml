@@ -23,7 +23,6 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* f1: definitional interpreter *)
 (* f1 : e -> string list -> v list -> c -> t -> m -> v *)
 let rec f1 e xs vs c t m =
   match e with
@@ -46,8 +45,6 @@ let rec f1 e xs vs c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    (* c (VFun (fun v1 v2s c' t' m' ->
-              f1 e (x :: xs) (v1 :: vs) (fun v0 t0 m0 -> apply1s v0 v2s c' t0 m0) t' m')) t m *)
     c (VFun (fun v1 v2s c' t' m' ->
               f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
@@ -75,10 +72,6 @@ and f1t e xs vs v2s c t m =
   let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
   match e with
     Num (n) -> app_c (VNum (n)) t m
-    (* v2s = [] という前提のもとで app_c (VNum (n)) t m をインライン展開すれば、
-       c (VNum (n)) t m になる。しかし、数値を返したからといって、終わり（v2s が空になる）ではなく、
-       まだ後ろに application が残っている可能性がある。
-       本当は、イプシロンのような特殊なマークを積んでいれば、ZINC と完全に同じになる *)
   | Var (x) -> app_c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
     f1 e1 xs vs (fun v1 t0 m0 ->
@@ -97,8 +90,6 @@ and f1t e xs vs v2s c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    (* app_c (VFun (fun v1 v2s c' t' m' ->
-        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m *)
     begin match v2s with
         [] -> c (VFun (fun v1 v2s c' t' m' ->
           f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
@@ -109,7 +100,6 @@ and f1t e xs vs v2s c t m =
       f1 e0 xs vs (fun v0 t0 m0 ->
         apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
-    (* VContST のような、tail 用のコンストラクタを作る。VContST を実行する時に最適化をかけられるかも？ *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
@@ -137,9 +127,6 @@ and f1s e2s xs vs c t m = match e2s with
 and apply1 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
   | VContS (c', t') ->
-    (* c’の最後に return 的なことができないか？
-      関数化して、VFun (f) のように、直接 f を呼び出す格好になると、shift の実装の中で展開して最適化できそう
-      MCons なども f の中で実装（というか適用）すれば良い *)
     let app_c = fun v t m -> apply1s v v2s c t m in
     c' v1 t' (MCons ((app_c, t), m))
   | VContC (c', t') ->

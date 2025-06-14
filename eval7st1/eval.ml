@@ -51,12 +51,9 @@ let rec f7 e xs vs c s t m = match e with
     c ((VFun (fun c' (v1 :: s') t' m' ->
       f7t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
   | App (e0, e2s) ->
-    f7s e2s xs vs (fun s t m ->
-      begin match s with v1 :: s ->
-          f7 e0 xs vs (fun (v :: v1 :: s) t m ->
-            apply7 v v1 c s t m) (v1 :: s) t m
-        | _ -> failwith "run_c7s: unexpected s"
-      end) s t m
+    f7s e2s xs vs (fun (v1 :: s) t m ->
+      f7 e0 xs vs (fun (v :: v1 :: s) t m ->
+        apply7 v v1 c s t m) (v1 :: s) t m) s t m
   | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->

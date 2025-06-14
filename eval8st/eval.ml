@@ -103,16 +103,8 @@ let return = fun vs c (v :: s) t m ->
   apply8s v c s t m
 
 (* apply : i *)
-(* Directly calls apply8 *)
 let apply = fun vs c (v0 :: v1 :: s) t m ->
   apply8 v0 v1 c s t m
-
-(* appterm : i *)
-(* appterm = apply >> return *)
-(* no need to add app_s = this means stack ops optimization? *)
-let appterm = fun vs c (v0 :: v1 :: s) t m ->
-  let app_c = fun (v :: s) t m -> apply8s v c s t m in
-  apply8 v0 v1 app_c s t m
 
 (* grab: i -> i *)
 let grab i = fun vs c s t m ->
@@ -153,7 +145,7 @@ and f8t e xs = match e with
   | Fun (x, e) ->
     grab (f8t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> appterm
+    f8s e2s xs >> f8 e0 xs >> apply >> return
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
   | Control (x, e) -> control (f8 e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> return

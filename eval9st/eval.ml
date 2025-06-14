@@ -63,12 +63,6 @@ let rec run_c9 c s t m = match (c, s) with
         apply9 v v1 vs c s t m
       | _ -> failwith "IApply: unexpected s"
     end
-  | IAppterm ->
-    begin match s with (v :: v1 :: s) ->
-        let app_c = CSeq (IReturn, vs, c) in
-        apply9 v v1 vs app_c s t m
-      | _ -> failwith "IAppterm: unexpected s"
-    end
   | IPushmark -> run_c9 c (VEmpty :: s) t m
   | IReturn ->
     begin match s with (v :: s) ->
@@ -146,7 +140,7 @@ and f9t e xs = match e with
   | Op (e0, op, e1) ->
     f9 e1 xs >> f9 e0 xs >> IOp (op) >> IReturn
   | Fun (x, e) -> IGrab (f9t e (x :: xs))
-  | App (e0, e2s) -> f9s e2s xs >> f9 e0 xs >> IAppterm
+  | App (e0, e2s) -> f9s e2s xs >> f9 e0 xs >> IApply >> IReturn
   | Shift (x, e) -> IShift (f9 e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f9 e (x :: xs)) >> IReturn
   | Shift0 (x, e) -> IShift0 (f9 e (x :: xs)) >> IReturn

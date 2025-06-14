@@ -6,7 +6,7 @@ open Syntax
 (* Value *)
 type v = VNum of int
        | VFun of (v -> v list -> c -> t -> m -> v)
-       | VContS of c * t (*(v -> v list -> c -> t -> m -> v) *)
+       | VContS of c * t
        | VContC of c * t
 
 and c = v -> t -> m -> v
@@ -22,7 +22,6 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-
 
 (* Value.print : v -> unit *)
 let print exp =

@@ -7,7 +7,6 @@ type v = VNum of int
        | VFun of (v -> v list -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
 
 and c = C0
       | CApp of v list * c
@@ -30,7 +29,6 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEmpty -> "<ε>"
 
 (* s_to_string : s -> string *)
 let rec s_to_string s =
