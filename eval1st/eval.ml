@@ -52,6 +52,8 @@ let rec f1 e xs vs c t m =
       f1 e0 xs vs (fun v0 t0 m0 ->
         apply1 v0 v1 v2s c t0 m0) t2 m2) t m
   | Shift (x, e) -> f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
+    (* 継続実行におけるリターンスタックの最適化：
+       (fun v t m app_c -> c v t (MCons (app_c, t, m))) のように、 app_c を メタ継続の中に入れられればよいのではないか？ *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
