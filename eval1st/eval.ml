@@ -57,8 +57,14 @@ let rec f1 e xs vs c t m =
         apply1 v0 v1 v2s c t0 m0) t2 m2) t m
   | Shift (x, e) ->
     (* f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m *) (* VContS - step1 *)
-    (* f1 e (x :: xs) (VContS ((fun v v2s t (MCons ((c', t'), m'))-> apply1s v v2s c' t' m'), t) :: vs) idc TNil m *) (* step2 の検討オプション; これは c の型そのものを変更せねばならず影響範囲が大きすぎる *)
-    begin match m with (* VContS - step2: v2s を MCons に積む *)
+    (* f1 e (x :: xs) (VContS ((fun v v2s t (MCons ((c', t'), m'))-> apply1s v v2s c' t' m'), t) :: vs) idc TNil m *)
+    (* 上は step2 のボツ案; これは c そのものを変更せねばならず影響範囲が大きすぎる *)
+    (* begin match m with (* VContS - step2 採用案: v2s を MCons に積む *)
+        MCons ((_, v2s, _), _) -> (* v2s を取り出して *)
+        f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m (* v2s を apply1s に渡す *)
+      | MNil -> failwith "shift: unexpected m"
+    end *)
+    begin match m with
         MCons ((_, v2s, _), _) -> (* v2s を取り出して *)
         f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m (* v2s を apply1s に渡す *)
       | MNil -> failwith "shift: unexpected m"
@@ -110,12 +116,15 @@ and f1t e xs vs v2s c t m =
     f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
         apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
-  | Shift (x, e) -> f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
+  | Shift (x, e) ->
+    (* f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m *)
+    f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m (* VContS - step 2 *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, _, t0), m0) ->
-          f1 e (x :: xs) (VContS (app_c, t) :: vs) c0 t0 m0
+        MCons ((c0, v2s', t0), m0) ->
+          f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s' c t' m'), t) :: vs) c0 t0 m0
+          (* ↑ VContS - step 2: v2s' でも v2s でも結果同じなのでテストケース拡充した方が良いかも *)
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
