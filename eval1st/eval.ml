@@ -9,7 +9,11 @@ let idc v t m = match t with
     TNil ->
     begin match m with
         MNil -> v
-      | MCons ((c, t), m) -> c v t m
+      | MCons ((c, v2s, t), m) ->
+        begin match v2s with
+            [] -> c v t m
+          | _ -> failwith "idc: unexpected v2s"
+        end
     end
   | Trail (h) -> h v TNil m
 
@@ -51,23 +55,28 @@ let rec f1 e xs vs c t m =
     f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
         apply1 v0 v1 v2s c t0 m0) t2 m2) t m
-  | Shift (x, e) -> f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
-    (* 継続実行におけるリターンスタックの最適化：
-       (fun v t m app_c -> c v t (MCons (app_c, t, m))) のように、 app_c を メタ継続の中に入れられればよいのではないか？ *)
+  | Shift (x, e) ->
+    (* f1 e (x :: xs) (VContS (c, t) :: vs) idc TNil m *) (* VContS - step1 *)
+    (* f1 e (x :: xs) (VContS ((fun v v2s t (MCons ((c', t'), m'))-> apply1s v v2s c' t' m'), t) :: vs) idc TNil m *) (* step2 の検討オプション; これは c の型そのものを変更せねばならず影響範囲が大きすぎる *)
+    begin match m with (* VContS - step2: v2s を MCons に積む *)
+        MCons ((_, v2s, _), _) -> (* v2s を取り出して *)
+        f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m (* v2s を apply1s に渡す *)
+      | MNil -> failwith "shift: unexpected m"
+    end
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
+        MCons ((c0, v2s, t0), m0) ->
           f1 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
-    end
+  end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
+        MCons ((c0, v2s, t0), m0) ->
           f1 e (x :: xs) (VContC (c, t) :: vs) c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, t), m))
+  | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, [], t), m))
 
 (* f1t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f1t e xs vs v2s c t m =
@@ -105,17 +114,17 @@ and f1t e xs vs v2s c t m =
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
+        MCons ((c0, _, t0), m0) ->
           f1 e (x :: xs) (VContS (app_c, t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
+        MCons ((c0, _, t0), m0) ->
           f1 e (x :: xs) (VContC (app_c, t) :: vs) c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f1 e xs vs idc TNil (MCons ((app_c, t), m))
+  | Reset (e) -> f1 e xs vs idc TNil (MCons ((app_c, [], t), m))
 
 (* f1s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f1s e2s xs vs c t m = match e2s with
@@ -129,8 +138,8 @@ and f1s e2s xs vs c t m = match e2s with
 and apply1 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
   | VContS (c', t') ->
-    let app_c = fun v t m -> apply1s v v2s c t m in
-    c' v1 t' (MCons ((app_c, t), m))
+    (* c' v1 t' (MCons (((fun v t m -> apply1s v v2s c t m), t), m)) *) (* VContS - step1 *)
+    c' v1 t' (MCons ((c, v2s, t), m))
   | VContC (c', t') ->
     let app_c = fun v t m -> apply1s v v2s c t m in
     c' v1 (apnd t' (cons app_c t)) m
