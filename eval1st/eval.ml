@@ -65,16 +65,16 @@ let rec f1 e xs vs c t m =
       | MNil -> failwith "shift: unexpected m"
     end *)
     begin match m with
-        MCons ((_, v2s', _), _) -> (* v2s を取り出して *)
+        MCons ((_, v2s', _), _) -> (* v2s を取り出して ← これは何を意味する？ *)
         (* v2s' が VContS と f1sr の中に複製されてしまうが問題ないか？ *)
-        f1sr e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s' c t' m'), t) :: vs) v2s' idc TNil m
+        f1 e (x :: xs) (VContS (c, v2s', t) :: vs) idc TNil m
       | MNil -> failwith "shift: unexpected m"
     end
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, _, t0), m0) ->
-          f1 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+        MCons ((c0, v2s', t0), m0) ->
+          f1 e (x :: xs) (VContS (c, v2s', t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
   end
   | Control0 (x, e) ->
@@ -119,12 +119,13 @@ and f1t e xs vs v2s c t m =
         apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
   | Shift (x, e) ->
     (* f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m *)
-    f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m (* VContS - step 2 *)
+    (* f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m *) (* VContS - step 2 *)
+    f1 e (x :: xs) (VContS (c, v2s, t) :: vs) idc TNil m (* VContS - step 3 *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s', t0), m0) ->
-          f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s' c t' m'), t) :: vs) c0 t0 m0
+          f1 e (x :: xs) (VContS (c, v2s', t) :: vs) c0 t0 m0
           (* ↑ VContS - step 2: v2s' でも v2s でも結果同じなのでテストケース拡充した方が良いかも *)
       | _ -> failwith "shift0 is used without enclosing reset"
     end
@@ -169,12 +170,12 @@ and f1sr e xs vs v2s c t m =
         apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
   | Shift (x, e) ->
     (* f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m *)
-    f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) idc TNil m (* VContS - step 2 *)
+    f1 e (x :: xs) (VContS (c, v2s, t) :: vs) idc TNil m (* VContS - step 2 *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, _, t0), m0) ->
-          f1sr e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) v2s c0 t0 m0
+          f1sr e (x :: xs) (VContS (c, v2s, t) :: vs) v2s c0 t0 m0
           (* ↑ VContS - step 2: v2s' でも v2s でも結果同じなのでテストケース拡充した方が良いかも *)
       | _ -> failwith "shift0 is used without enclosing reset"
     end
@@ -198,9 +199,9 @@ and f1s e2s xs vs c t m = match e2s with
 (* apply1 : v -> v -> v list -> c -> t -> m -> v *)
 and apply1 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
-  | VContS (c', t') ->
+  | VContS (c', v2s', t') ->
     (* c' v1 t' (MCons (((fun v t m -> apply1s v v2s c t m), t), m)) *) (* VContS - step1 *)
-    c' v1 t' (MCons ((c, v2s, t), m)) (* MCons の v2s に実質的な中身を積んでいるのはここ *)
+    c' v1 t' (MCons ((c, v2s', t), m)) (* MCons の v2s に実質的な中身を積んでいるのはここ *)
   | VContC (c', t') ->
     let app_c = fun v t m -> apply1s v v2s c t m in
     c' v1 (apnd t' (cons app_c t)) m
