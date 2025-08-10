@@ -66,14 +66,14 @@ let rec f1 e xs vs c t m =
     end *)
     begin match m with
         MCons ((_, v2s', _), _) -> (* v2s を取り出して *)
-        f1sr e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s' c t' m'), t) :: vs) idc TNil m
-        (* v2s を f1sr に渡そうとしたが、肝心の v2s は VContS の中にいるので、外に出せなくない？ VFun の時とは事情が違う… *)
+        (* v2s' が VContS と f1sr の中に複製されてしまうが問題ないか？ *)
+        f1sr e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s' c t' m'), t) :: vs) v2s' idc TNil m
       | MNil -> failwith "shift: unexpected m"
     end
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, v2s, t0), m0) ->
+        MCons ((c0, _, t0), m0) ->
           f1 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
   end
@@ -173,8 +173,8 @@ and f1sr e xs vs v2s c t m =
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, v2s', t0), m0) ->
-          f1 e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s' c t' m'), t) :: vs) c0 t0 m0
+        MCons ((c0, _, t0), m0) ->
+          f1sr e (x :: xs) (VContS ((fun v t' m' -> apply1s v v2s c t' m'), t) :: vs) v2s c0 t0 m0
           (* ↑ VContS - step 2: v2s' でも v2s でも結果同じなのでテストケース拡充した方が良いかも *)
       | _ -> failwith "shift0 is used without enclosing reset"
     end
