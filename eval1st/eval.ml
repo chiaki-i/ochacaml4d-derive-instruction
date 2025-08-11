@@ -17,18 +17,20 @@ let idc v t m = match t with
     end
   | Trail (h) -> h v TNil m
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : (v -> t -> m -> v) -> v list -> t -> t *)
+let rec cons h v2s t =
+  let app_c = fun v t m -> apply1s v v2s h t m in
+  match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (fun v t' m -> app_c v (cons h' v2s t') m)
 
 (* apnd : t -> t -> t *)
-let apnd t0 t1 = match t0 with
+and apnd t0 v2s t1 = match t0 with
     TNil -> t1
-  | Trail (h) -> cons h t1
+  | Trail (h) -> cons h [] t1 (* ここで append すべき v2s は本当にからで良いのか *)
 
 (* f1 : e -> string list -> v list -> c -> t -> m -> v *)
-let rec f1 e xs vs c t m =
+and f1 e xs vs c t m =
   match e with
     Num (n) -> c (VNum (n)) t m
   | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
@@ -70,7 +72,8 @@ let rec f1 e xs vs c t m =
         f1sr e (x :: xs) (VContS (c, v2s', t) :: vs) v2s' idc TNil m
       | MNil -> failwith "shift: unexpected m"
     end
-  | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
+  | Control (x, e) ->
+    f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s', t0), m0) ->
@@ -203,8 +206,8 @@ and apply1 v0 v1 v2s c t m = match v0 with
     (* c' v1 t' (MCons (((fun v t m -> apply1s v v2s c t m), t), m)) *) (* VContS - step1 *)
     c' v1 t' (MCons ((c, v2s', t), m)) (* MCons の v2s に実質的な中身を積んでいるのはここ *)
   | VContC (c', t') ->
-    let app_c = fun v t m -> apply1s v v2s c t m in
-    c' v1 (apnd t' (cons app_c t)) m
+    (* c' v1 (apnd t' (cons (fun v t m -> apply1s v v2s c t m) t)) m *) (* VContC - step 1: inline expansion *)
+    c' v1 (apnd t' [] (cons c v2s t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
