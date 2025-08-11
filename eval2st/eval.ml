@@ -23,7 +23,11 @@ let rec run_c2 c v t m = match c with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, t), m) -> run_c2 c v t m
+          | MCons ((c, v2s, t), m) ->
+            begin match v2s with
+                [] -> run_c2 c v t m
+              | _ -> failwith "idc: unexpected v2s"
+            end
         end
       | Trail (h) -> h v TNil m
     end
@@ -67,19 +71,29 @@ and f2 e xs vs c t m = match e with
       f2t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
   | App (e0, e2s) ->
     f2s e2s xs vs (CAppS2 (e0, xs, vs, c)) t m
-  | Shift (x, e) -> f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
+  | Shift (x, e) -> (* f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m *)
+    begin match m with
+        MCons ((_, v2s', _), _) -> (* v2s を取り出して ← これは何を意味する？ *)
+        f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
+      | MNil -> failwith "shift: unexpected m"
+    end
   | Control (x, e) -> f2 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
-    begin match m with
+    (* begin match m with
         MCons ((c0, t0), m0) -> f2 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end *)
+    begin match m with
+        MCons ((c0, v2s', t0), m0) ->
+          f2 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) -> f2 e (x :: xs) (VContC (c, t) :: vs) c0 t0 m0
+        MCons ((c0, _, t0), m0) -> f2 e (x :: xs) (VContC (c, t) :: vs) c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f2 e xs vs idc TNil (MCons ((c, t), m))
+  | Reset (e) -> f2 e xs vs idc TNil (MCons ((c, [], t), m))
 
 (* f2s : e list -> string list -> v list -> cs -> t -> m -> v list *)
 and f2s e2s xs vs cs t m = match e2s with
@@ -103,28 +117,35 @@ and f2t e xs vs v2s c t m =
     end
   | App (e0, e2s) ->
     f2s e2s xs vs (CAppS2 (e0, xs, vs, app_c)) t m
-  | Shift (x, e) -> f2 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
+  | Shift (x, e) -> (* f2 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m *)
+    f2 e (x :: xs) (VContS (c, t) :: vs) idc TNil m
   | Control (x, e) -> f2 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
+        MCons ((c0, _, t0), m0) ->
+          f2 e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+    (* begin match m with
         MCons ((c0, t0), m0) ->
           f2 e (x :: xs) (VContS (app_c, t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
-    end
+    end *)
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
+        MCons ((c0, _, t0), m0) ->
           f2 e (x :: xs) (VContC (app_c, t) :: vs) c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f2 e xs vs idc TNil (MCons ((app_c, t), m))
+  | Reset (e) -> f2 e xs vs idc TNil (MCons ((app_c, v2s, t), m))
 
 (* apply2 : v -> v -> v list -> c -> t -> m -> v *)
 and apply2 v0 v1 v2s c t m =
   let app_c = CApp (v2s, c) in
   match v0 with
     VFun (f) -> f v1 v2s c t m
-  | VContS (c', t') -> run_c2 c' v1 t' (MCons ((app_c, t), m))
+  | VContS (c', t') -> (* run_c2 c' v1 t' (MCons ((app_c, t), m)) *)
+    run_c2 c' v1 t' (MCons ((c, v2s, t), m))
   | VContC (c', t') -> run_c2 c' v1 (apnd t' (cons (fun v t m -> run_c2 app_c v t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
