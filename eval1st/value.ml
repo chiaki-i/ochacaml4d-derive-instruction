@@ -13,7 +13,9 @@ and c = v -> t -> m -> v
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
-and m = MNil | MCons of (c * t) * m
+and m = MNil | MCons of (mcons_t * t) * m
+
+and mcons_t = C of c | CV2S of c * v list
 
 
 (* to_string : v -> string *)
