@@ -14,20 +14,14 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-let rec apply_c c v t m = match c with
-    C (c) ->
-    let app_c = fun v t m -> apply1s v [] c t m in
-    app_c v t m
-  | CV2S (c, v2s) ->
-    let app_c = fun v t m -> apply1s v v2s c t m in
-    app_c v t m
-
 (* initial continuation : v -> t -> m -> v *)
-and idc v t m = match t with
+let rec idc v t m = match t with
     TNil ->
     begin match m with
         MNil -> v
-      | MCons ((c, t), m) -> apply_c c v t m
+      | MCons ((c, v2s, t), m) ->
+          let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
+          app_c v t m
     end
   | Trail (h) -> h v TNil m
 
@@ -63,17 +57,19 @@ and f1 e xs vs c t m =
   | Control (x, e) -> f1 e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f1 e (x :: xs) (VContS (c, t) :: vs) (apply_c c0) t0 m0
+        MCons ((c0, v2s, t0), m0) ->
+          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
+          f1 e (x :: xs) (VContS (c, t) :: vs) app_c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f1 e (x :: xs) (VContC (c, t) :: vs) (apply_c c0) t0 m0
+        MCons ((c0, v2s, t0), m0) ->
+          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
+          f1 e (x :: xs) (VContC (c, t) :: vs) app_c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f1 e xs vs idc TNil (MCons ((C (c), t), m))
+  | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, [], t), m))
 
 (* f1t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f1t e xs vs v2s c t m =
@@ -111,17 +107,19 @@ and f1t e xs vs v2s c t m =
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f1 e (x :: xs) (VContS (app_c, t) :: vs) (apply_c c0) t0 m0
+        MCons ((c0, v2s', t0), m0) ->
+          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s' c0 t0 m0 in
+          f1 e (x :: xs) (VContS (app_c, t) :: vs) app_c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f1 e (x :: xs) (VContC (app_c, t) :: vs) (apply_c c0) t0 m0
+        MCons ((c0, v2s', t0), m0) ->
+          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s' c0 t0 m0 in
+          f1 e (x :: xs) (VContC (app_c, t) :: vs) app_c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f1 e xs vs idc TNil (MCons ((CV2S (c, v2s), t), m))
+  | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, v2s, t), m))
 
 (* f1s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f1s e2s xs vs c t m = match e2s with
@@ -135,7 +133,7 @@ and f1s e2s xs vs c t m = match e2s with
 and apply1 v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
   | VContS (c', t') ->
-    c' v1 t' (MCons ((CV2S (c, v2s), t), m))
+    c' v1 t' (MCons ((c, v2s, t), m))
   | VContC (c', t') ->
     let app_c = fun v t m -> apply1s v v2s c t m in
     c' v1 (apnd t' (cons app_c t)) m
