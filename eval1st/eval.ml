@@ -58,15 +58,13 @@ and f1 e xs vs c t m =
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
-          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
-          f1 e (x :: xs) (VContS (c, t) :: vs) app_c0 t0 m0
+          f1sr e (x :: xs) (VContS (c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
-          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
-          f1 e (x :: xs) (VContC (c, t) :: vs) app_c0 t0 m0
+          f1sr e (x :: xs) (VContC (c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, [], t), m))
@@ -108,18 +106,76 @@ and f1t e xs vs v2s c t m =
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s', t0), m0) ->
-          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s' c0 t0 m0 in
-          f1 e (x :: xs) (VContS (app_c, t) :: vs) app_c0 t0 m0
+          f1sr e (x :: xs) (VContS (app_c, t) :: vs) v2s' c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, v2s', t0), m0) ->
-          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s' c0 t0 m0 in
-          f1 e (x :: xs) (VContC (app_c, t) :: vs) app_c0 t0 m0
+          f1sr e (x :: xs) (VContC (app_c, t) :: vs) v2s' c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f1 e xs vs idc TNil (MCons ((c, v2s, t), m))
+
+(* f1sr : e -> string list -> v list -> v list -> c -> t -> m -> v *)
+(* copied from f1, change c to app_c0 *)
+and f1sr e xs vs v2s c t m =
+  let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
+  match e with
+    Num (n) -> app_c0 (VNum (n)) t m
+  | Var (x) -> app_c0 (List.nth vs (Env.offset x xs)) t m
+  | Op (e0, op, e1) ->
+    f1 e1 xs vs (fun v1 t0 m0 ->
+        f1 e0 xs vs (fun v0 t1 m1 ->
+            begin match (v0, v1) with
+                (VNum (n0), VNum (n1)) ->
+                begin match op with
+                    Plus -> app_c0 (VNum (n0 + n1)) t1 m1
+                  | Minus -> app_c0 (VNum (n0 - n1)) t1 m1
+                  | Times -> app_c0 (VNum (n0 * n1)) t1 m1
+                  | Divide ->
+                    if n1 = 0 then failwith "Division by zero"
+                    else app_c0 (VNum (n0 / n1)) t1 m1
+                end
+              | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                               ^ " are not numbers")
+            end) t0 m0) t m
+  | Fun (x, e) ->
+    app_c0 (VFun (fun v1 v2s c' t' m' ->
+              f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+  | App (e0, e2s) ->
+    f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
+      f1 e0 xs vs (fun v0 t0 m0 ->
+        apply1 v0 v1 v2s app_c0 t0 m0) t2 m2) t m
+  | Shift (x, e) -> f1 e (x :: xs) (VContS (app_c0, t) :: vs) idc TNil m
+  | Control (x, e) -> f1 e (x :: xs) (VContC (app_c0, t) :: vs) idc TNil m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          f1sr e (x :: xs) (VContS (app_c0, t) :: vs) v2s c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          f1sr e (x :: xs) (VContC (app_c0, t) :: vs) v2s c0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  (* | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          let app_c0' = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
+          f1 e (x :: xs) (VContS (app_c0, t) :: vs) app_c0' t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          let app_c0' = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
+          f1 e (x :: xs) (VContC (app_c0, t) :: vs) app_c0' t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end *)
+  | Reset (e) -> f1 e xs vs idc TNil (MCons ((app_c0, [], t), m))
 
 (* f1s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f1s e2s xs vs c t m = match e2s with
