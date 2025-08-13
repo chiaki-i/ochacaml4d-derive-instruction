@@ -19,9 +19,9 @@ let rec idc v t m = match t with
     TNil ->
     begin match m with
         MNil -> v
-      | MCons ((c, v2s, t), m) ->
-          let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
-          app_c v t m
+      | MCons ((c0, v2s, t), m) ->
+          let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
+          app_c0 v t m
     end
   | Trail (h) -> h v TNil m
 
