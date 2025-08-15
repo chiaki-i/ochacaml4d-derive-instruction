@@ -27,7 +27,9 @@ let rec run_c7 c s t m = match (c, s) with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> run_c7 c (v :: s) t m
+          | MCons ((c, s, t), m) ->
+            let app_c0 = CApp (c) in
+            run_c7 app_c0 (v :: s) t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -78,16 +80,17 @@ and f7 e xs vs c s t m = match e with
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f7 e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
+        f7sr e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f7 e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
+        f7sr e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f7 e xs vs idc [] TNil (MCons ((c, s, t), m))
+  | Reset (e) ->
+    f7 e xs vs idc [] TNil (MCons ((c, (VEmpty :: s), t), m))
 
 (* f7s : e list -> string list -> v list -> cs -> s -> t -> m -> v list *)
 and f7s e2s xs vs cs s t m = match e2s with
@@ -119,24 +122,58 @@ and f7t e xs vs c s t m =
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f7 e (x :: xs) (VContS (app_c, s, t) :: vs) c0 s0 t0 m0
+        f7sr e (x :: xs) (VContS (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f7 e (x :: xs) (VContC (app_c, s, t) :: vs) c0 s0 t0 m0
+        f7sr e (x :: xs) (VContC (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f7 e xs vs idc [] TNil (MCons ((app_c, s, t), m))
+  | Reset (e) ->
+    f7 e xs vs idc [] TNil (MCons ((c, s, t), m))
+
+(* f7sr : e -> string list -> v list -> c -> s -> t -> m -> v *)
+and f7sr e xs vs c s t m =
+  let app_c0 = CApp (c) in
+  match e with
+    Num (n) -> run_c7 app_c0 (VNum (n) :: s) t m
+  | Var (x) -> run_c7 app_c0 (List.nth vs (Env.offset x xs) :: s) t m
+  | Op (e0, op, e1) ->
+    f7 e1 xs vs (COp1 (e0, xs, op, vs, app_c0)) s t m
+  | Fun (x, e) ->
+    run_c7 app_c0 ((VFun (fun c' (v1 :: s') t' m' ->
+              f7t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
+  | App (e0, e2s) ->
+    f7s e2s xs vs (CAppS2 (e0, xs, vs, app_c0)) s t m
+  | Shift (x, e) ->
+    f7 e (x :: xs) (VContS (app_c0, s, t) :: vs) idc s TNil m
+  | Control (x, e) ->
+    f7 e (x :: xs) (VContC (app_c0, s, t) :: vs) idc s TNil m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+          f7sr e (x :: xs) (VContS (app_c0, s, t) :: vs) c0 s0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+          f7sr e (x :: xs) (VContC (app_c0, s, t) :: vs) c0 s0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) ->
+    f7 e xs vs idc [] TNil (MCons ((app_c0, (VEmpty :: s), t), m))
 
 (* apply7 : v -> v -> c -> s -> t -> m -> v *)
 and apply7 v0 v1 c s t m =
-  let app_c = CApp (c) in
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
-  | VContS (c', s', t') -> run_c7 c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+  | VContS (c', s', t') ->
+    run_c7 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
+    let app_c = CApp (c) in
     run_c7 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c7 app_c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
@@ -146,6 +183,7 @@ and apply7 v0 v1 c s t m =
 and apply7s v0 c s t m = match s with
     VEmpty :: s -> run_c7 c (v0 :: s) t m
   | v1 :: s -> apply7 v0 v1 c s t m
+  | _ -> failwith "apply7s: stack is empty"
 
 (* f : e -> v *)
 let f expr = f7 expr [] [] idc [] TNil MNil
