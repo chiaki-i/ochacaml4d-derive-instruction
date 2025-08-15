@@ -129,7 +129,7 @@ and f5t e xs vs v2s c s t m =
           f5sr e (x :: xs) (VContC (app_c, s, t) :: vs) v2s' c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f5 e xs vs idc s TNil (MCons ((app_c, v2s, s, t), m))
+  | Reset (e) -> f5 e xs vs idc s TNil (MCons ((c, v2s, s, t), m))
 
 (* f5sr : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f5sr e xs vs v2s c s t m =

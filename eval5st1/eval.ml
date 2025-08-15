@@ -86,7 +86,8 @@ and f5 e xs vs c s t m = match e with
         f5sr e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f5 e xs vs idc [] TNil (MCons ((c, (VEmpty :: s), t), m))
+  | Reset (e) ->
+    f5 e xs vs idc [] TNil (MCons ((c, (VEmpty :: s), t), m))
 
 (* f5s : e list -> string list -> v list -> cs -> s -> t -> m -> v list *)
 and f5s e2s xs vs cs s t m = match e2s with
@@ -128,8 +129,7 @@ and f5t e xs vs c s t m =
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) ->
-    (* s should be (VEmpty :: s) ? *)
-    f5 e xs vs idc [] TNil (MCons ((app_c, s, t), m))
+    f5 e xs vs idc [] TNil (MCons ((c, s, t), m))
 
 (* f5sr : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f5sr e xs vs c s t m =
@@ -160,7 +160,8 @@ and f5sr e xs vs c s t m =
           f5sr e (x :: xs) (VContC (app_c0, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f5 e xs vs idc s TNil (MCons ((app_c0, (VEmpty :: s), t), m))
+  | Reset (e) ->
+    f5 e xs vs idc [] TNil (MCons ((app_c0, (VEmpty :: s), t), m))
 
 (* apply5 : v -> v -> c -> s -> t -> m -> v *)
 and apply5 v0 v1 c s t m =
