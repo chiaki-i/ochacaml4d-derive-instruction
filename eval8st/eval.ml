@@ -3,19 +3,6 @@ open Value
 
 (* Interpreter using combinators factored as instructions : eval8st *)
 
-(* initial continuation *)
-let idc = fun s t m -> match s with
-    v :: [] ->
-    begin match t with
-        TNil ->
-        begin match m with
-            MNil -> v
-          | MCons ((c, s, t), m) -> c (v :: s) t m
-        end
-      | Trail (h) -> h v TNil m
-    end
-  | _ -> failwith ("idc: stack error: " ^ s_to_string s)
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -59,8 +46,7 @@ let rec apply8 v0 v1 c s t m =
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
-    let app_c = fun (v :: s) t m -> apply8s v c s t m in
-    c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+    c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     let app_c = fun (v :: s) t m -> apply8s v c s t m in
     c' (v1 :: s') (apnd t' (cons (fun v t m -> app_c (v :: s) t m) t)) m
@@ -69,8 +55,24 @@ let rec apply8 v0 v1 c s t m =
 
 (* apply8s : v -> v list -> c -> s -> t -> m -> v *)
 and apply8s v0 c s t m = match s with
-  VEmpty :: s -> c (v0 :: s) t m
-| v1 :: s -> apply8 v0 v1 c s t m
+    VEmpty :: s -> c (v0 :: s) t m
+  | v1 :: s -> apply8 v0 v1 c s t m
+  | _ -> failwith "apply8s: stack is empty"
+
+(* initial continuation *)
+let idc = fun s t m -> match s with
+    v :: [] ->
+    begin match t with
+        TNil ->
+        begin match m with
+            MNil -> v
+          | MCons ((c, s, t), m) ->
+            let app_c0 = fun (v :: s) t m -> apply8s v c s t m in
+            app_c0 (v :: s) t m
+        end
+      | Trail (h) -> h v TNil m
+    end
+  | _ -> failwith ("idc: stack error: " ^ s_to_string s)
 
 (* shift : i -> i *)
 let shift i = fun vs c s t m ->
@@ -95,6 +97,9 @@ let control0 i = fun vs c s t m -> match m with
 (* reset : i -> i *)
 let reset i = fun vs c s t m ->
   i vs idc [] TNil (MCons ((c, s, t), m))
+
+let resetmark i = fun vs c s t m ->
+  i vs idc [] TNil (MCons ((c, (VEmpty :: s), t), m))
 
 let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
 
@@ -127,9 +132,9 @@ let rec f8 e xs = match e with
     f8s e2s xs >> f8 e0 xs >> apply
   | Shift (x, e) -> shift (f8 e (x :: xs))
   | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+  | Shift0 (x, e) -> shift0 (f8sr e (x :: xs))
+  | Control0 (x, e) -> control0 (f8sr e (x :: xs))
+  | Reset (e) -> resetmark (f8 e xs)
 
 (* f8s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f8s e2s xs = match e2s with
@@ -148,9 +153,25 @@ and f8t e xs = match e with
     f8s e2s xs >> f8 e0 xs >> apply >> return
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
   | Control (x, e) -> control (f8 e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs)) >> return
-  | Control0 (x, e) -> control0 (f8 e (x :: xs)) >> return
-  | Reset (e) -> reset (f8 e xs) >> return
+  | Shift0 (x, e) -> shift0 (f8sr e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f8sr e (x :: xs)) >> return
+  | Reset (e) -> reset (f8 e xs)
+
+(* f8sr : e -> string list -> v list -> c -> s -> t -> m -> v *)
+and f8sr e xs = match e with
+    Num (n) -> num n >> return
+  | Var (x) -> access (Env.offset x xs) >> return
+  | Op (e0, op, e1) ->
+    f8 e1 xs >> f8 e0 xs >> operation op >> return
+  | Fun (x, e) ->
+    grab (f8t e (x :: xs))
+  | App (e0, e2s) ->
+    f8s e2s xs >> f8 e0 xs >> apply >> return
+  | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
+  | Control (x, e) -> control (f8 e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f8sr e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f8sr e (x :: xs)) >> return
+  | Reset (e) -> resetmark (f8 e xs) >> return
 
 (* f : e -> v *)
 let f expr = f8 expr [] [] idc [] TNil MNil
