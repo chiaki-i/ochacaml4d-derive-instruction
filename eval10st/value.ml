@@ -22,7 +22,7 @@ and i = IPush
       | IGrab of i list
       | IShift of i list | IControl of i list
       | IShift0 of i list | IControl0 of i list
-      | IReset of i list
+      | IReset of i list | IResetmark of i list
 
 and s = v list
 
