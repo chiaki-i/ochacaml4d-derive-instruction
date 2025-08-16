@@ -24,7 +24,7 @@ and i = IPush
       | ISeq of i * i
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i
-      | IReset of i
+      | IReset of i | IResetmark of i
 
 and s = v list
 
