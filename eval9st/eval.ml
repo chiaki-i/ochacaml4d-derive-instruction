@@ -22,7 +22,10 @@ let rec run_c9 c s t m = match (c, s) with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> run_c9 c (v :: s) t m
+          | MCons ((c, s, t), m) ->
+            (* CSeq receives empty vs (thus empty list) *)
+            let app_c0 = CSeq (IReturn, [], c) in
+            run_c9 app_c0 (v :: s) t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -87,6 +90,8 @@ let rec run_c9 c s t m = match (c, s) with
     end
   | IReset (i) ->
     run_c9 (CSeq (i, vs, C0)) [] TNil (MCons ((c, s, t), m))
+  | IResetmark (i) ->
+    run_c9 (CSeq (i, vs, C0)) [] TNil (MCons ((c, (VEmpty :: s), t), m))
   | ISeq (i0, i1) ->
     run_c9 (CSeq (i0, vs, (CSeq (i1, vs, c)))) s t m
   end
@@ -97,8 +102,7 @@ and apply9 v0 v1 vs c s t m =
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
-    let app_c = CSeq (IReturn, vs, c) in
-    run_c9 c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+    run_c9 c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     let app_c = CSeq (IReturn, vs, c) in
     run_c9 c' (v1 :: s') (apnd t' (cons (fun v t m -> run_c9 app_c (v :: s) t m) t)) m
@@ -109,6 +113,7 @@ and apply9 v0 v1 vs c s t m =
 and apply9s v0 vs c s t m = match s with
     VEmpty :: s -> run_c9 c (v0 :: s) t m
   | v1 :: s -> apply9 v0 v1 vs c s t m
+  | _ -> failwith "apply9s: stack is empty"
 
 (* (>>) : i -> i -> i *)
 let (>>) i0 i1 = ISeq (i0, i1)
@@ -124,9 +129,9 @@ let rec f9 e xs = match e with
     f9s e2s xs >> f9 e0 xs >> IApply
   | Shift (x, e) -> IShift (f9 e (x :: xs))
   | Control (x, e) -> IControl (f9 e (x :: xs))
-  | Shift0 (x, e) -> IShift0 (f9 e (x :: xs))
-  | Control0 (x, e) -> IControl0 (f9 e (x :: xs))
-  | Reset (e) -> IReset (f9 e xs)
+  | Shift0 (x, e) -> IShift0 (f9sr e (x :: xs))
+  | Control0 (x, e) -> IControl0 (f9sr e (x :: xs))
+  | Reset (e) -> IResetmark (f9 e xs)
 
 (* f9s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f9s e2s xs = match e2s with
@@ -143,9 +148,24 @@ and f9t e xs = match e with
   | App (e0, e2s) -> f9s e2s xs >> f9 e0 xs >> IApply >> IReturn
   | Shift (x, e) -> IShift (f9 e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f9 e (x :: xs)) >> IReturn
-  | Shift0 (x, e) -> IShift0 (f9 e (x :: xs)) >> IReturn
-  | Control0 (x, e) -> IControl0 (f9 e (x :: xs)) >> IReturn
-  | Reset (e) -> IReset (f9 e xs) >> IReturn
+  | Shift0 (x, e) -> IShift0 (f9sr e (x :: xs)) >> IReturn
+  | Control0 (x, e) -> IControl0 (f9sr e (x :: xs)) >> IReturn
+  | Reset (e) -> IReset (f9 e xs)
+
+(* f9sr: e -> string list -> i *)
+and f9sr e xs = match e with
+    Num (n) -> INum (n) >> IReturn
+  | Var (x) -> IAccess (Env.offset x xs) >> IReturn
+  | Op (e0, op, e1) ->
+    f9 e1 xs >> f9 e0 xs >> IOp (op) >> IReturn
+  | Fun (x, e) -> IGrab (f9t e (x :: xs))
+  | App (e0, e2s) ->
+    f9s e2s xs >> f9 e0 xs >> IApply >> IReturn
+  | Shift (x, e) -> IShift (f9 e (x :: xs)) >> IReturn
+  | Control (x, e) -> IControl (f9 e (x :: xs)) >> IReturn
+  | Shift0 (x, e) -> IShift0 (f9sr e (x :: xs)) >> IReturn
+  | Control0 (x, e) -> IControl0 (f9sr e (x :: xs)) >> IReturn
+  | Reset (e) -> IResetmark (f9 e xs) >> IReturn
 
 (* f : e -> v *)
 let f expr = run_c9 (CSeq (f9 expr [], [], C0)) [] TNil MNil
