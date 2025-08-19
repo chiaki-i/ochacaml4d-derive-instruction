@@ -1,0 +1,1 @@
+(reset ((shift0 k -> k) 1)) (fun x -> x + 2)
