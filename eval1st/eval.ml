@@ -7,12 +7,17 @@ open Value
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
+
+(* run_h1 : h -> v -> t -> m -> v *)
+let rec run_h1 h v t m = match h with
+    Hold (c) -> c v t m
+  | Append (h, h') -> run_h1 h v (cons h' t) m
 
 (* initial continuation : v -> t -> m -> v *)
 let rec idc v t m = match t with
@@ -23,7 +28,7 @@ let rec idc v t m = match t with
           let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
           app_c0 v t m
     end
-  | Trail (h) -> h v TNil m
+  | Trail (h) -> run_h1 h v TNil m
 
 (* f1 : e -> string list -> v list -> c -> t -> m -> v *)
 and f1 e xs vs c t m =
@@ -192,7 +197,7 @@ and apply1 v0 v1 v2s c t m = match v0 with
     c' v1 t' (MCons ((c, v2s, t), m))
   | VContC (c', t') ->
     let app_c = fun v t m -> apply1s v v2s c t m in
-    c' v1 (apnd t' (cons app_c t)) m
+    c' v1 (apnd t' (cons (Hold (app_c)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
