@@ -25,7 +25,7 @@ let rec run_c10 c s t m = match (c, s) with
           | MCons ((c, s, t), m) ->
             begin match s with
                 VEmpty :: s -> run_c10 c (v :: s) t m
-              | v1 :: s -> failwith "??" (* apply10 v v1 vs c s t m *)
+              | v1 :: s -> apply10 v v1 [] c s t m (* vs = [] ?? *)
             end
             (* let (is, vs) = ([], []) in (* vs = [] ?? *)
             apply10s v vs ((is, vs) :: c) s t m *)
