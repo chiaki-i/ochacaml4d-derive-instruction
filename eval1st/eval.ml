@@ -16,11 +16,13 @@ let apnd t0 t1 = match t0 with
 
 (* run_h1 : h -> v -> t -> m -> v *)
 let rec run_h1 h v t m = match h with
-    Hold (c) -> c v t m
+    Hold (c0, v2s) ->
+    let app_c0 = fun v0 t0 m0 -> apply1s v0 v2s c0 t0 m0 in
+    app_c0 v t m
   | Append (h, h') -> run_h1 h v (cons h' t) m
 
 (* initial continuation : v -> t -> m -> v *)
-let rec idc v t m = match t with
+and idc v t m = match t with
     TNil ->
     begin match m with
         MNil -> v
@@ -196,8 +198,8 @@ and apply1 v0 v1 v2s c t m = match v0 with
   | VContS (c', t') ->
     c' v1 t' (MCons ((c, v2s, t), m))
   | VContC (c', t') ->
-    let app_c = fun v t m -> apply1s v v2s c t m in
-    c' v1 (apnd t' (cons (Hold (app_c)) t)) m
+    (* c' v1 (apnd t' (cons (Hold (fun v t m -> apply1s v v2s c t m)) t)) m *)
+    c' v1 (apnd t' (cons (Hold (c, v2s)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 

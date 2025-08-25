@@ -13,7 +13,7 @@ and c = v -> t -> m -> v
 
 and t = TNil | Trail of h
 
-and h = Hold of c | Append of h * h
+and h = Hold of c * v list | Append of h * h
 
 and m = MNil | MCons of (c * v list * t) * m
 
