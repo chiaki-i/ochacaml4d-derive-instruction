@@ -111,6 +111,15 @@ let return = fun vs c (v :: s) t m ->
 let apply = fun vs c (v0 :: v1 :: s) t m ->
   apply8 v0 v1 c s t m
 
+(* appterm : i *)
+let appterm =
+  (* apply >> return *)
+  (* fun vs c -> apply vs (return vs c) *)
+  fun vs c (v0 :: v1 :: s) t m ->
+      apply8 v0 v1
+        (fun (v :: s) t m -> apply8s v c s t m)
+        s t m
+
 (* grab: i -> i *)
 let grab i = fun vs c s t m ->
   begin match s with
@@ -150,7 +159,7 @@ and f8t e xs = match e with
   | Fun (x, e) ->
     grab (f8t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> apply >> return
+    f8s e2s xs >> f8 e0 xs >> appterm
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
   | Control (x, e) -> control (f8 e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f8sr e (x :: xs)) >> return
@@ -166,7 +175,7 @@ and f8sr e xs = match e with
   | Fun (x, e) ->
     grab (f8t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> apply >> return
+    f8s e2s xs >> f8 e0 xs >> appterm
   | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
   | Control (x, e) -> control (f8 e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f8sr e (x :: xs)) >> return
