@@ -98,14 +98,17 @@ and f1t e xs vs v2s c t m =
     (* app_c (VFun (fun v1 v2s c' t' m' ->
         f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m を展開すると以下になる *)
     begin match v2s with
-        VEmpty :: _ -> c (VFun (fun v1 v2s c' t' m' ->
-                        f1t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+        VEmpty :: _ -> c (VFun (fun v1 v2s' c' t' m' ->
+                        f1t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
       | v1 :: v2s -> f1t e (x :: xs) (v1 :: vs) v2s c t m
     end
   | App (e0, e2s) ->
-    f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
+    f1s e2s xs vs (fun (v1 :: v2s') t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
-        apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
+        appterm1 v0 v1 v2s' v2s c t0 m0) t2 m2) t m
+    (* f1s e2s xs vs (fun (v1 :: v2s') t2 m2 ->
+        f1 e0 xs vs (fun v0 t0 m0 ->
+          appterm1 v0 v1 v2s' (fun v0 t0 m0 -> apply1s v0 v2s c t0 m0) t0 m0) t2 m2) t m *)
   | Shift (x, e) -> f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
     (* VContST のような、tail 用のコンストラクタを作る。VContST を実行する時に最適化をかけられるかも？ *)
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
@@ -130,6 +133,14 @@ and f1s e2s xs vs c t m = match e2s with
     f1s e2s xs vs (fun v2s t2 m2 ->
       f1 e xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m (* v2s は、現在のクロージャの引数列 *)
+
+(* appterm1 : v -> v -> v list -> c -> t -> m -> v *)
+and appterm1 v0 v1 v2s' v2s c t m =
+  let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
+  match v0 with
+    VFun (f) -> f v1 v2s' (fun v0 t0 m0 -> apply1s v0 v2s c t0 m0) t m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
 
 (* apply1 : v -> v -> v list -> c -> t -> m -> v *)
 and apply1 v0 v1 v2s c t m = match v0 with
