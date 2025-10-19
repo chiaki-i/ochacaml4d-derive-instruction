@@ -106,6 +106,11 @@ and f1t e xs vs v2s c t m =
     f1s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f1 e0 xs vs (fun v0 t0 m0 ->
         apply1 v0 v1 v2s app_c t0 m0) t2 m2) t m
+      (* f1st (e0 :: e2s) xs vs (fun (v1 :: v2s') t2 m2 ->
+        appterm1 v0 v1 v2s' v2s c t0 m0) t2 m2) t m *)
+      (* appterm1 v0 v1 v2s' app_c t0 m0 *)
+      (* appterm1' v0 v1 v2s' v2s c t0 m0 *)
+      (* appterm1 v0 v1 (v2s' @ v2s) c t0 m0 *)
   | Shift (x, e) -> f1 e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
   | Control (x, e) -> f1 e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -189,6 +194,16 @@ and f1s e2s xs vs c t m = match e2s with
     f1s e2s xs vs (fun v2s t2 m2 ->
       f1 e xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
+
+(* appterm1 : v -> v -> v list -> c -> t -> m -> v *)
+and appterm1 v0 v1 v2s' v2s c t m =
+  let app_c = fun v0 t0 m0 -> apply1s v0 v2s c t0 m0 in
+  match v0 with
+    VFun (f) -> f v1 (v2s' @ v2s) c t m
+    (* v2s' = 現在評価中のクロージャの引数、v2s = return 先のクロージャの引数 *)
+    (* VFun (f) -> f v1 v2s' app_c t m *) (* これと同じことを証明したい *)
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
 
 (* apply1 : v -> v -> v list -> c -> t -> m -> v *)
 and apply1 v0 v1 v2s c t m = match v0 with
