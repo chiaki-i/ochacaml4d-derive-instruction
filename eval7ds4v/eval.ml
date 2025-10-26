@@ -28,8 +28,8 @@ let rec run_c7 c s r t m = match (c, s, r) with
   | (CSeq (c', c), (v :: s), rv :: r) ->
     c' rv c (v :: s) r t m
 
-(* apply7 : v -> v -> c -> s -> r -> t -> m -> v *)
-let apply7 v0 v1 c s r t m = match v0 with
+(* app : v -> v -> c -> s -> r -> t -> m -> v *)
+let app v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') ->
     run_c7 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
@@ -39,23 +39,23 @@ let apply7 v0 v1 c s r t m = match v0 with
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* apply7s : v -> v list -> v list -> c -> s -> r -> t -> m -> v *)
-let rec apply7s v0 v2s vs c s r t m = match v2s with
+(* app_s : v -> v list -> v list -> c -> s -> r -> t -> m -> v *)
+let rec app_s v0 v2s vs c s r t m = match v2s with
     [] -> run_c7 c (v0 :: s) r t m
   | v1 :: v2s ->
-    apply7 v0 v1 (CSeq (apply, c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
+    app v0 v1 (CSeq (app, c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
 
-(* apply : c' *)
-and apply = fun (VS (vs)) c s r t m -> match s with
-  v0 :: VArgs (v2s) :: s -> apply7s v0 v2s vs c s r t m
+(* app : c' *)
+and app = fun (VS (vs)) c s r t m -> match s with
+  v0 :: VArgs (v2s) :: s -> app_s v0 v2s vs c s r t m
 
-(* f7 : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
-let rec f7 e xs vs c s r t m = match e with
+(* f : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
+let rec f e xs vs c s r t m = match e with
     Num (n) -> run_c7 c (VNum (n) :: s) r t m
-  | Var (x) -> run_c7 c (List.nth vs (Env.offset x xs) :: s) r t m
+  | Var (x) -> run_c7 c (List.nth vs (Env.off_set x xs) :: s) r t m
   | Op (e0, op, e1) ->
-    f7 e1 xs vs (CSeq ((fun (VS (vs)) c (v :: s) r t m ->
-      f7 e0 xs vs (CSeq ((fun (VS (vs)) c (v :: v0 :: s) r t m ->
+    f e1 xs vs (CSeq ((fun (VS (vs)) c (v :: s) r t m ->
+      f e0 xs vs (CSeq ((fun (VS (vs)) c (v :: v0 :: s) r t m ->
         begin match (v, v0) with
             (VNum (n0), VNum (n1)) ->
             begin match op with
@@ -74,44 +74,44 @@ let rec f7 e xs vs c s r t m = match e with
   | Fun (x, e) ->
     begin match (c, s, r) with
       (CSeq (i', c'), VArgs (v1 :: v2s) :: s', VS (vs') :: r')
-             when i' == apply ->
-             f7 e (x :: xs) (v1 :: vs) (* Grab *)
-                  (CSeq (apply, c')) (VArgs (v2s) :: s')
+             when i' == app ->
+             f e (x :: xs) (v1 :: vs) (* Grab *)
+                  (CSeq (app, c')) (VArgs (v2s) :: s')
                   (VS (vs') :: r') t m
     | _ -> run_c7 c (VFun (fun c' (v1 :: s') r' t' m' ->
-             f7 e (x :: xs) (v1 :: vs) c' s' r' t' m') :: s) r t m
+             f e (x :: xs) (v1 :: vs) c' s' r' t' m') :: s) r t m
     end
   | App (e0, e2s) ->
-    f7s e2s xs vs (CSeq ((fun (VS (vs)) c (VArgs (v2s) :: s) r t m ->
-      f7 e0 xs vs (CSeq ((fun (VS (vs)) c (v0 :: VArgs (v2s) :: s) r t m ->
-        apply7s v0 v2s vs c s r t m)
+    f_s e2s xs vs (CSeq ((fun (VS (vs)) c (VArgs (v2s) :: s) r t m ->
+      f e0 xs vs (CSeq ((fun (VS (vs)) c (v0 :: VArgs (v2s) :: s) r t m ->
+        app_s v0 v2s vs c s r t m)
         , c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
     ), c)) s (VS (vs) :: r) t m
-  | Shift (x, e) -> f7 e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
-  | Control (x, e) -> f7 e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
+  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, r0, t0), m0) ->
-        f7 e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+        f e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, r0, t0), m0) ->
-        f7 e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+        f e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f7 e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
+  | Reset (e) -> f e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
 
-(* f7s : e list -> string list -> v list -> c -> s -> r -> t -> m -> v list *)
-and f7s e2s xs vs c s r t m = match e2s with
+(* f_s : e list -> string list -> v list -> c -> s -> r -> t -> m -> v list *)
+and f_s e2s xs vs c s r t m = match e2s with
     [] -> run_c7 c (VArgs ([]) :: s) r t m
   | e :: e2s ->
-    f7s e2s xs vs (CSeq ((fun (VS (vs)) c (VArgs (v2s) :: s) r t m ->
-      f7 e xs vs (CSeq ((fun (VS (vs)) c (v :: VArgs (v2s) :: s) r t m ->
+    f_s e2s xs vs (CSeq ((fun (VS (vs)) c (VArgs (v2s) :: s) r t m ->
+      f e xs vs (CSeq ((fun (VS (vs)) c (v :: VArgs (v2s) :: s) r t m ->
         run_c7 c (VArgs (v :: v2s) :: s) r t m
       ), c)) (VArgs (v2s) :: s) (VS (vs) :: r) t m
     ), c)) s (VS (vs) :: r) t m
 
-(* f : e -> v *)
-let f expr = f7 expr [] [] C0 [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] C0 [] [] TNil MNil

@@ -69,8 +69,22 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 ## Which directory is for which derivation path?
 
 ### Tail interpreter revived (Journal ver.)
-- Eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1
+- Eval1s, Eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1
   - Eval1st1, 5st2 is experimental
+
+| dev | clean |
+|----------|----------|
+| eval1s    | eval1a   |
+| eval1st   | eval1c   |
+| Row 3    | Data 3   |
+| Row 4    | Data 4   |
+| Row 5    | Data 5   |
+| Row 6    | Data 6   |
+| Row 7    | Data 7   |
+| Row 8    | Data 8   |
+| Row 9    | Data 9   |
+| Row 10   | Data 10  |
+
 
 ### part of c represents return stack (Jan 19-25)
 - Eval1s, 2s, 4s, 5s, 5s2, 7ds, 7ds1, 7ds4 (w/o CSeq), 8s, 9s2, eval10s

@@ -75,8 +75,8 @@ let grab i = fun vs c s r t m ->
         c (vfun :: s) r t m
   end
 
-(* apply8 : v -> v -> c -> s -> r -> t -> m -> v *)
-let apply8 v0 v1 c s r t m = match v0 with
+(* app : v -> v -> c -> s -> r -> t -> m -> v *)
+let app v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') -> c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
@@ -84,9 +84,9 @@ let apply8 v0 v1 c s r t m = match v0 with
   | _ -> failwith (to_string v0
                     ^ " is not a function; it cannot be applied.")
 
-(* apply : i *)
-let apply = fun vs c s r t m -> match (s, r) with
-  (v0 :: v1 :: s, r) -> apply8 v0 v1 c s r t m
+(* app : i *)
+let app = fun vs c s r t m -> match (s, r) with
+  (v0 :: v1 :: s, r) -> app v0 v1 c s r t m
 
 (* shift : i -> i *)
 let shift i = fun vs c s r t m ->
@@ -112,20 +112,20 @@ let control0 i = fun vs c s r t m -> match m with
 let reset i = fun vs c s r t m ->
   i vs idc [] [] TNil (MCons ((c, s, r, t), m))
 
-(* f8 : e -> string list -> i *)
-let rec f8 e xs = match e with
+(* f : e -> string list -> i *)
+let rec f e xs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
+  | Var (x) -> access (Env.off_set x xs)
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation (op)
-  | Fun (x, e) -> grab (f8 e (x :: xs))
+    f e1 xs >> f e0 xs >> operation (op)
+  | Fun (x, e) -> grab (f e (x :: xs))
   | App (e0, e1, _) ->
-    f8 e1 xs >> f8 e0 xs >> apply
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+    f e1 xs >> f e0 xs >> app
+  | Shift (x, e) -> shift (f e (x :: xs))
+  | Control (x, e) -> control (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f e (x :: xs))
+  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Reset (e) -> reset (f e xs)
 
-(* f : e -> v *)
-let f expr = f8 expr [] [] idc [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] idc [] [] TNil MNil

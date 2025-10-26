@@ -25,7 +25,7 @@ let rec run_c5 c v s r t m = match (c, s, r) with
         end
       | Trail (h) -> h v TNil m
     end
-  | (CApp0 (c), VArgs (v2s) :: s, r) -> apply5s v v2s c s r t m
+  | (CApp0 (c), VArgs (v2s) :: s, r) -> app_s v v2s c s r t m
   | (CAppS0 (cs), VArgs (v2s) :: s, r) -> run_c5s cs (v :: v2s) s r t m
   | (COp0 (op, c), v0 :: s, r) ->
     begin match (v, v0) with
@@ -41,55 +41,55 @@ let rec run_c5 c v s r t m = match (c, s, r) with
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
   | (COp1 (e0, xs, op, vs, c), s, r) ->
-    f5 e0 xs vs (COp0 (op, c)) (v :: s) r t m
+    f e0 xs vs (COp0 (op, c)) (v :: s) r t m
   | _ -> failwith "stack or cont error"
 
 (* run_c5s : cs -> v list -> s -> r -> t -> m -> v *)
 and run_c5s cs v2s s r t m = match cs with
     CApp2 (e0, xs, vs, c) ->
-    f5 e0 xs vs (CApp0 (c)) (VArgs (v2s) :: s) r t m
+    f e0 xs vs (CApp0 (c)) (VArgs (v2s) :: s) r t m
   | CAppS1 (e, xs, vs, cs) ->
-    f5 e xs vs (CAppS0 (cs)) (VArgs (v2s) :: s) r t m
+    f e xs vs (CAppS0 (cs)) (VArgs (v2s) :: s) r t m
 
-(* f5 : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
-and f5 e xs vs c s r t m = match e with
+(* f : e -> string list -> v list -> c -> s -> r -> t -> m -> v *)
+and f e xs vs c s r t m = match e with
     Num (n) -> run_c5 c (VNum (n)) s r t m
-  | Var (x) -> run_c5 c (List.nth vs (Env.offset x xs)) s r t m
-  | Op (e0, op, e1) -> f5 e1 xs vs (COp1 (e0, xs, op, vs, c)) s r t m
+  | Var (x) -> run_c5 c (List.nth vs (Env.off_set x xs)) s r t m
+  | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, c)) s r t m
   | Fun (x, e) ->
     begin match (c, s, r) with
       (CApp0 (c'), VArgs (v1 :: v2s) :: s', r') -> (* Grab *)
-             f5 e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') r' t m
+             f e (x :: xs) (v1 :: vs) (CApp0 (c')) (VArgs (v2s) :: s') r' t m
     | _ -> run_c5 c (VFun (fun v1 c' s' r' t' m' ->
-             f5 e (x :: xs) (v1 :: vs) c' s' r' t' m')) s r t m
+             f e (x :: xs) (v1 :: vs) c' s' r' t' m')) s r t m
     end
   | App (e0, e2s) ->
-    f5s e2s xs vs (CApp2 (e0, xs, vs, c)) s r t m
-  | Shift (x, e) -> f5 e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
-  | Control (x, e) -> f5 e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
+    f_s e2s xs vs (CApp2 (e0, xs, vs, c)) s r t m
+  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, r, t) :: vs) C0 [] [] TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (c, s, r, t) :: vs) C0 [] [] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, r0, t0), m0) ->
-        f5 e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+        f e (x :: xs) (VContS (c, s, r, t) :: vs) c0 s0 r0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, r0, t0), m0) ->
-        f5 e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
+        f e (x :: xs) (VContC (c, s, r, t) :: vs) c0 s0 r0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f5 e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
+  | Reset (e) -> f e xs vs C0 [] [] TNil (MCons ((c, s, r, t), m))
 
-(* f5s : e list -> string list ->
+(* f_s : e list -> string list ->
          v list -> cs -> s -> r -> t -> m -> v list *)
-and f5s e2s xs vs cs s r t m = match e2s with
+and f_s e2s xs vs cs s r t m = match e2s with
     [] -> run_c5s cs [] s r t m
   | e :: e2s ->
-    f5s e2s xs vs (CAppS1 (e, xs, vs, cs)) s r t m
+    f_s e2s xs vs (CAppS1 (e, xs, vs, cs)) s r t m
 
-(* apply5 : v -> v -> c -> s -> r -> t -> m -> v *)
-and apply5 v0 v1 c s r t m = match v0 with
+(* app : v -> v -> c -> s -> r -> t -> m -> v *)
+and app v0 v1 c s r t m = match v0 with
     VFun (f) -> f v1 c s r t m
   | VContS (c', s', r', t') -> run_c5 c' v1 s' r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
@@ -97,10 +97,10 @@ and apply5 v0 v1 c s r t m = match v0 with
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* apply5s : v -> v list -> c -> s -> r -> t -> m -> v *)
-and apply5s v0 v2s c s r t m = match v2s with
+(* app_s : v -> v list -> c -> s -> r -> t -> m -> v *)
+and app_s v0 v2s c s r t m = match v2s with
     [] -> run_c5 c v0 s r t m
-  | v1 :: v2s -> apply5 v0 v1 (CApp0 (c)) (VArgs (v2s) :: s) r t m
+  | v1 :: v2s -> app v0 v1 (CApp0 (c)) (VArgs (v2s) :: s) r t m
 
-(* f : e -> v *)
-let f expr = f5 expr [] [] C0 [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] C0 [] [] TNil MNil

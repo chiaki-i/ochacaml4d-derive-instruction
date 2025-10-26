@@ -25,11 +25,11 @@ let rec run_c4 c v s t m = match (c, s) with
       | Trail (h) -> h v TNil m
     end
   | (CApp0 :: c, VArg (v1) :: s) ->
-    apply4 v v1 c s t m
+    app v v1 c s t m
   | (CApp1 (e0, xs, vs) :: c, s) ->
-    f4 e0 xs vs (CApp0 :: c) (VArg (v) :: s) t m
+    f e0 xs vs (CApp0 :: c) (VArg (v) :: s) t m
   | (COp0 (e0, xs, vs, op) :: c, s) ->
-    f4 e0 xs vs (COp1 (op) :: c) (v :: s) t m
+    f e0 xs vs (COp1 (op) :: c) (v :: s) t m
   | (COp1 (op) :: c, v0 :: s) ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
@@ -45,8 +45,8 @@ let rec run_c4 c v s t m = match (c, s) with
     end
   | _ -> failwith "stack or cont error"
 
-(* apply4 : v -> v -> c -> s -> t -> m -> v *)
-and apply4 v0 v1 c s t m = match v0 with
+(* app : v -> v -> c -> s -> t -> m -> v *)
+and app v0 v1 c s t m = match v0 with
     VFun (f) -> f v1 c s t m
   | VContS (c', s', t') -> run_c4 c' v1 s' t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
@@ -54,36 +54,36 @@ and apply4 v0 v1 c s t m = match v0 with
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* f4 : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f4 e xs vs c s t m = match e with
+(* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
+and f e xs vs c s t m = match e with
     Num (n) -> run_c4 c (VNum (n)) s t m
-  | Var (x) -> run_c4 c (List.nth vs (Env.offset x xs)) s t m
+  | Var (x) -> run_c4 c (List.nth vs (Env.off_set x xs)) s t m
   | Op (e0, op, e1) ->
-    f4 e1 xs vs (COp0 (e0, xs, vs, op) :: c) s t m
+    f e1 xs vs (COp0 (e0, xs, vs, op) :: c) s t m
   | Fun (x, e) ->
     begin match (c, s) with
       (CApp0 :: c', VArg (v1) :: s') -> (* Grab *)
-             f4 e (x :: xs) (v1 :: vs) c' s' t m
+             f e (x :: xs) (v1 :: vs) c' s' t m
     | _ -> run_c4 c (VFun (fun v1 c' s' t' m' ->
-             f4 e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
+             f e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
     end
   | App (e0, e1, _) ->
-    f4 e1 xs vs (CApp1 (e0, xs, vs) :: c) s t m
-  | Shift (x, e) -> f4 e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
-  | Control (x, e) -> f4 e (x :: xs) (VContC (c, s, t) :: vs) [] [] TNil m
+    f e1 xs vs (CApp1 (e0, xs, vs) :: c) s t m
+  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) [] [] TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) [] [] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f4 e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
+        f e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
-        f4 e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
+        f e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f4 e xs vs [] [] TNil (MCons ((c, s, t), m))
+  | Reset (e) -> f e xs vs [] [] TNil (MCons ((c, s, t), m))
 
-(* f : e -> v *)
-let f expr = f4 expr [] [] [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] [] [] TNil MNil

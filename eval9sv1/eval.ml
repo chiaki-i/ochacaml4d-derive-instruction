@@ -109,24 +109,24 @@ and run_i9 i rv c s r t m = match (i, rv) with
   | (ISeq (i0, i1), rv) ->
     run_i9 i0 rv (i1 :: c) s (rv :: r) t m
 
-(* f9 : e -> string list -> i *)
-let rec f9 e xs = match e with
+(* f : e -> string list -> i *)
+let rec f e xs = match e with
     Num (n) -> INum (n)
-  | Var (x) -> IAccess (Env.offset x xs)
-  | Op (e0, op, e1) -> f9 e1 xs >> f9 e0 xs >> IOp (op)
-  | Fun (x, e) -> IFun (f9 e (x :: xs))
+  | Var (x) -> IAccess (Env.off_set x xs)
+  | Op (e0, op, e1) -> f e1 xs >> f e0 xs >> IOp (op)
+  | Fun (x, e) -> IFun (f e (x :: xs))
   | App (e0, e2s) ->
-    f9s e2s xs >> f9 e0 xs >> IApply
-  | Shift (x, e) -> IShift (f9 e (x :: xs))
-  | Control (x, e) -> IControl (f9 e (x :: xs))
-  | Shift0 (x, e) -> IShift0 (f9 e (x :: xs))
-  | Control0 (x, e) -> IControl0 (f9 e (x :: xs))
-  | Reset (e) -> IReset (f9 e xs)
+    f_s e2s xs >> f e0 xs >> IApply
+  | Shift (x, e) -> IShift (f e (x :: xs))
+  | Control (x, e) -> IControl (f e (x :: xs))
+  | Shift0 (x, e) -> IShift0 (f e (x :: xs))
+  | Control0 (x, e) -> IControl0 (f e (x :: xs))
+  | Reset (e) -> IReset (f e xs)
 
-(* f9s : e list -> string list -> i *)
-and f9s e2s xs = match e2s with
+(* f_s : e list -> string list -> i *)
+and f_s e2s xs = match e2s with
     [] -> IPushmark
-  | e :: e2s -> f9s e2s xs >> f9 e xs >> IPush
+  | e :: e2s -> f_s e2s xs >> f e xs >> IPush
 
-(* f : e -> v *)
-let f expr = run_i9 (f9 expr []) (VS ([])) idc [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = run_i9 (f expr []) (VS ([])) idc [] [] TNil MNil

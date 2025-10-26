@@ -41,23 +41,23 @@ let cur i = fun vs c s t m ->
   c ((VFun (fun c' (v1 :: s') t' m' ->
     i (v1 :: vs) c' s' t' m')) :: s) t m
 
-(* apply8 : v -> v -> c -> s -> t -> m -> v *)
-let rec apply8 v0 v1 c s t m =
+(* app : v -> v -> c -> s -> t -> m -> v *)
+let rec app v0 v1 c s t m =
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
     c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
-    let app_c = fun (v :: s) t m -> apply8s v c s t m in
+    let app_c = fun (v :: s) t m -> app_s v c s t m in
     c' (v1 :: s') (apnd t' (cons (fun v t m -> app_c (v :: s) t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* apply8s : v -> v list -> c -> s -> t -> m -> v *)
-and apply8s v0 c s t m = match s with
+(* app_s : v -> v list -> c -> s -> t -> m -> v *)
+and app_s v0 c s t m = match s with
     VEmpty :: s -> c (v0 :: s) t m
-  | v1 :: s -> apply8 v0 v1 c s t m
-  | _ -> failwith "apply8s: stack is empty"
+  | v1 :: s -> app v0 v1 c s t m
+  | _ -> failwith "app_s: stack is empty"
 
 (* initial continuation *)
 let idc = fun s t m -> match s with
@@ -67,7 +67,7 @@ let idc = fun s t m -> match s with
         begin match m with
             MNil -> v
           | MCons ((c, s, t), m) ->
-            let app_c0 = fun (v :: s) t m -> apply8s v c s t m in
+            let app_c0 = fun (v :: s) t m -> app_s v c s t m in
             app_c0 (v :: s) t m
         end
       | Trail (h) -> h v TNil m
@@ -105,19 +105,19 @@ let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
 
 (* return : i *)
 let return = fun vs c (v :: s) t m ->
-  apply8s v c s t m
+  app_s v c s t m
 
-(* apply : i *)
-let apply = fun vs c (v0 :: v1 :: s) t m ->
-  apply8 v0 v1 c s t m
+(* app : i *)
+let app = fun vs c (v0 :: v1 :: s) t m ->
+  app v0 v1 c s t m
 
 (* appterm : i *)
 let appterm =
-  (* apply >> return *)
-  (* fun vs c -> apply vs (return vs c) *)
+  (* app >> return *)
+  (* fun vs c -> app vs (return vs c) *)
   fun vs c (v0 :: v1 :: s) t m ->
-      apply8 v0 v1
-        (fun (v :: s) t m -> apply8s v c s t m)
+      app v0 v1
+        (fun (v :: s) t m -> app_s v c s t m)
         s t m
 
 (* grab: i -> i *)
@@ -130,57 +130,57 @@ let grab i = fun vs c s t m ->
   | _ -> failwith "grab: stack is empty"
   end
 
-(* f8: e -> string list -> i *)
-let rec f8 e xs = match e with
+(* f: e -> string list -> i *)
+let rec f e xs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
+  | Var (x) -> access (Env.off_set x xs)
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation op
-  | Fun (x, e) -> cur (f8t e (x :: xs))
+    f e1 xs >> f e0 xs >> operation op
+  | Fun (x, e) -> cur (f_t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> apply
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8sr e (x :: xs))
-  | Control0 (x, e) -> control0 (f8sr e (x :: xs))
-  | Reset (e) -> resetmark (f8 e xs)
+    f_s e2s xs >> f e0 xs >> app
+  | Shift (x, e) -> shift (f e (x :: xs))
+  | Control (x, e) -> control (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f_sr e (x :: xs))
+  | Control0 (x, e) -> control0 (f_sr e (x :: xs))
+  | Reset (e) -> resetmark (f e xs)
 
-(* f8s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
-and f8s e2s xs = match e2s with
+(* f_s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
+and f_s e2s xs = match e2s with
     [] -> pushmark
-  | e :: e2s -> f8s e2s xs >> f8 e xs
+  | e :: e2s -> f_s e2s xs >> f e xs
 
-(* f8t : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f8t e xs = match e with
+(* f_t : e -> string list -> v list -> c -> s -> t -> m -> v *)
+and f_t e xs = match e with
     Num (n) -> num n >> return
-  | Var (x) -> access (Env.offset x xs) >> return
+  | Var (x) -> access (Env.off_set x xs) >> return
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation op >> return
+    f e1 xs >> f e0 xs >> operation op >> return
   | Fun (x, e) ->
-    grab (f8t e (x :: xs))
+    grab (f_t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> appterm
-  | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
-  | Control (x, e) -> control (f8 e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f8sr e (x :: xs)) >> return
-  | Control0 (x, e) -> control0 (f8sr e (x :: xs)) >> return
-  | Reset (e) -> reset (f8 e xs)
+    f_s e2s xs >> f e0 xs >> appterm
+  | Shift (x, e) -> shift (f e (x :: xs)) >> return
+  | Control (x, e) -> control (f e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f_sr e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f_sr e (x :: xs)) >> return
+  | Reset (e) -> reset (f e xs)
 
-(* f8sr : e -> string list -> v list -> c -> s -> t -> m -> v *)
-and f8sr e xs = match e with
+(* f_sr : e -> string list -> v list -> c -> s -> t -> m -> v *)
+and f_sr e xs = match e with
     Num (n) -> num n >> return
-  | Var (x) -> access (Env.offset x xs) >> return
+  | Var (x) -> access (Env.off_set x xs) >> return
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation op >> return
+    f e1 xs >> f e0 xs >> operation op >> return
   | Fun (x, e) ->
-    grab (f8t e (x :: xs))
+    grab (f_t e (x :: xs))
   | App (e0, e2s) ->
-    f8s e2s xs >> f8 e0 xs >> appterm
-  | Shift (x, e) -> shift (f8 e (x :: xs)) >> return
-  | Control (x, e) -> control (f8 e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f8sr e (x :: xs)) >> return
-  | Control0 (x, e) -> control0 (f8sr e (x :: xs)) >> return
-  | Reset (e) -> resetmark (f8 e xs) >> return
+    f_s e2s xs >> f e0 xs >> appterm
+  | Shift (x, e) -> shift (f e (x :: xs)) >> return
+  | Control (x, e) -> control (f e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f_sr e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f_sr e (x :: xs)) >> return
+  | Reset (e) -> resetmark (f e xs) >> return
 
-(* f : e -> v *)
-let f expr = f8 expr [] [] idc [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] idc [] TNil MNil

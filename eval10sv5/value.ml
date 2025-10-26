@@ -1,7 +1,7 @@
 open Syntax
 
-(* IApply: case dispatch on v0, inline apply9 *)
-(* IApply: case dispatch on v2s, inline apply9s *)
+(* IApply: case dispatch on v0, inline app *)
+(* IApply: case dispatch on v2s, inline app_s *)
 (* linearize continuations : eval10sv4 *)
 (* Derived from eval10sv3 *)
 

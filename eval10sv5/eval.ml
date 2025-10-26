@@ -1,8 +1,8 @@
 open Syntax
 open Value
 
-(* IApply: case dispatch on v0, inline apply9 *)
-(* IApply: case dispatch on v2s, inline apply9s *)
+(* IApply: case dispatch on v0, inline app *)
+(* IApply: case dispatch on v2s, inline app_s *)
 (* linearize continuations : eval10sv4 *)
 (* Derived from eval10sv3 *)
 
@@ -109,23 +109,23 @@ let rec run_c9 c s t m = match (c, s) with
   | ((IReset (i) :: is, VS (vs)) :: c, s) ->
     run_c9 ((i, VS (vs)) :: idc) [] TNil (MCons (((is, VS (vs)) :: c, s, t), m))
 
-(* f9 : e -> string list -> i list *)
-let rec f9 e xs = match e with
+(* f : e -> string list -> i list *)
+let rec f e xs = match e with
     Num (n) -> [INum (n)]
-  | Var (x) -> [IAccess (Env.offset x xs)]
-  | Op (e0, op, e1) -> f9 e1 xs @ f9 e0 xs @ [IOp (op)]
-  | Fun (x, e) -> [IFun (f9 e (x :: xs))]
-  | App (e0, e2s) -> f9s e2s xs @ f9 e0 xs @ [IApply]
-  | Shift (x, e) -> [IShift (f9 e (x :: xs))]
-  | Control (x, e) -> [IControl (f9 e (x :: xs))]
-  | Shift0 (x, e) -> [IShift0 (f9 e (x :: xs))]
-  | Control0 (x, e) -> [IControl0 (f9 e (x :: xs))]
-  | Reset (e) -> [IReset (f9 e xs)]
+  | Var (x) -> [IAccess (Env.off_set x xs)]
+  | Op (e0, op, e1) -> f e1 xs @ f e0 xs @ [IOp (op)]
+  | Fun (x, e) -> [IFun (f e (x :: xs))]
+  | App (e0, e2s) -> f_s e2s xs @ f e0 xs @ [IApply]
+  | Shift (x, e) -> [IShift (f e (x :: xs))]
+  | Control (x, e) -> [IControl (f e (x :: xs))]
+  | Shift0 (x, e) -> [IShift0 (f e (x :: xs))]
+  | Control0 (x, e) -> [IControl0 (f e (x :: xs))]
+  | Reset (e) -> [IReset (f e xs)]
 
-(* f9s : e list -> string list -> i list *)
-and f9s e2s xs = match e2s with
+(* f_s : e list -> string list -> i list *)
+and f_s e2s xs = match e2s with
     [] -> [IPushmark]
-  | e :: e2s -> f9s e2s xs @ f9 e xs @ [IPush]
+  | e :: e2s -> f_s e2s xs @ f e xs @ [IPush]
 
-(* f : e -> v *)
-let f expr = run_c9 ((f9 expr [], VS ([])) :: idc) [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = run_c9 ((f expr [], VS ([])) :: idc) [] TNil MNil

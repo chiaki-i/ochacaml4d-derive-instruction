@@ -107,26 +107,26 @@ let rec run_c10 vs c s r t m = match (c, s, r) with
   | (IReset (i) :: c, s, r) ->
     run_c10 vs (i :: []) [] [] TNil (MCons ((c, s, r, t), m))
 
-(* f10 : e -> string list -> i *)
-(* f10 : e -> string list -> c *)
-let rec f10 e xs = match e with
+(* f : e -> string list -> i *)
+(* f : e -> string list -> c *)
+let rec f e xs = match e with
     Num (n) -> [INum (n)]
-  | Var (x) -> [IAccess (Env.offset x xs)]
+  | Var (x) -> [IAccess (Env.off_set x xs)]
   | Op (e0, op, e1) ->
-    (f10 e1 xs) @ (f10 e0 xs) @ [IOp (op)]
-  | Fun (x, e) -> [IFun (f10 e (x :: xs))]
+    (f e1 xs) @ (f e0 xs) @ [IOp (op)]
+  | Fun (x, e) -> [IFun (f e (x :: xs))]
   | App (e0, e2s) ->
-    (f10s e2s xs) @ (f10 e0 xs) @ [IApply]
-  | Shift (x, e) -> [IShift (f10 e (x :: xs))]
-  | Control (x, e) -> [IControl (f10 e (x :: xs))]
-  | Shift0 (x, e) -> [IShift0 (f10 e (x :: xs))]
-  | Control0 (x, e) -> [IControl0 (f10 e (x :: xs))]
-  | Reset (e) -> [IReset (f10 e xs)]
+    (f_s e2s xs) @ (f e0 xs) @ [IApply]
+  | Shift (x, e) -> [IShift (f e (x :: xs))]
+  | Control (x, e) -> [IControl (f e (x :: xs))]
+  | Shift0 (x, e) -> [IShift0 (f e (x :: xs))]
+  | Control0 (x, e) -> [IControl0 (f e (x :: xs))]
+  | Reset (e) -> [IReset (f e xs)]
 
-(* f10s : e list -> string list -> i *)
-and f10s e2s xs = match e2s with
+(* f_s : e list -> string list -> i *)
+and f_s e2s xs = match e2s with
     [] -> [IPushmark]
-  | e :: e2s -> [f10s e2s xs] @ [f10 e xs] @ [IPush]
+  | e :: e2s -> [f_s e2s xs] @ [f e xs] @ [IPush]
 
-(* f : e -> v *)
-let f expr = run_c10 [] (f10 expr []) [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = run_c10 [] (f expr []) [] [] TNil MNil

@@ -68,8 +68,8 @@ let grab i = fun vs c s r t m ->
         c (vfun :: s) r t m
   end
 
-(* apply8 : v -> v -> c -> s -> r -> t -> m -> v *)
-let apply8 v0 v1 c s r t m = match v0 with
+(* app : v -> v -> c -> s -> r -> t -> m -> v *)
+let app v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') -> c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
   | VContC (c', s', r', t') ->
@@ -77,9 +77,9 @@ let apply8 v0 v1 c s r t m = match v0 with
   | _ -> failwith (to_string v0
                     ^ " is not a function; it cannot be applied.")
 
-(* apply : i *)
-let apply = fun vs c s r t m -> match (s, r) with
-  (v0 :: v1 :: s, r) -> apply8 v0 v1 c s r t m
+(* app : i *)
+let app = fun vs c s r t m -> match (s, r) with
+  (v0 :: v1 :: s, r) -> app v0 v1 c s r t m
 
 (* shift : i -> i *)
 let shift i = fun vs c s r t m ->
@@ -105,22 +105,22 @@ let control0 i = fun vs c s r t m -> match m with
 let reset i = fun vs c s r t m ->
   i vs idc [] [] TNil (MCons ((c, s, r, t), m))
 
-(* f8 : e -> string list -> i *)
-let rec f8 e xs = match e with
+(* f : e -> string list -> i *)
+let rec f e xs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
+  | Var (x) -> access (Env.off_set x xs)
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation (op)
-  | Fun (x, e) -> grab (f8 e (x :: xs))
+    f e1 xs >> f e0 xs >> operation (op)
+  | Fun (x, e) -> grab (f e (x :: xs))
   | App (e0, e1, _) ->
-    f8 e1 xs >> f8 e0 xs >> apply
+    f e1 xs >> f e0 xs >> app
     (* vs を push/pop しなくてはならない *)
     (* あるいは env を（accumulator とともに？）引き回す *)
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+  | Shift (x, e) -> shift (f e (x :: xs))
+  | Control (x, e) -> control (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f e (x :: xs))
+  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Reset (e) -> reset (f e xs)
 
 (*
 (* (>>) : i' -> i' -> i' *)
@@ -130,8 +130,8 @@ let (>>) i0 i1 = fun vs c a s t m ->
 (* push : i' *)
 let push = fun vs c a s t m -> c a (a :: s) t m
 
-(* apply8 : v -> v -> v list -> c -> s -> t -> m -> v *)
-let apply8 v0 v1 c (VArgs (v2s) :: s) t m = match v0 with
+(* app : v -> v -> v list -> c -> s -> t -> m -> v *)
+let app v0 v1 c (VArgs (v2s) :: s) t m = match v0 with
     VFun (f) -> f v1 v2s c s t m
   | VContS (c', s', t') -> c' v1 s' t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
@@ -143,7 +143,7 @@ let apply8 v0 v1 c (VArgs (v2s) :: s) t m = match v0 with
 let return = fun vs c a (VArgs (vs_out) :: s) t m ->
   match vs_out with
       [] -> c a s t m
-    | first :: rest -> apply8 a first c (VArgs (rest) :: s) t m
+    | first :: rest -> app a first c (VArgs (rest) :: s) t m
 
 (* num : int -> i' *)
 let num n = fun vs c a s t m -> c (VNum (n)) s t m
@@ -160,7 +160,7 @@ let cur i = fun vs c a s t m ->
 
 (* grab : i' -> i' *)
 (* vs_out が空かどうかによって次の instruction を実行するか決定する *)
-(* そのため grab >> (f8 e xs) とは書けない *)
+(* そのため grab >> (f e xs) とは書けない *)
 let grab i' = fun vs c a (VArgs (vs_out) :: s) t m ->
   begin match vs_out with
           [] -> c (VFun (fun v vs_out c' s' t' m' ->
@@ -187,7 +187,7 @@ let operation op = fun vs c v0 s t m -> match s with
   | _ -> failwith "stack error: op"
 
 (* pushmark : i' *)
-(* (特に f8 において) vs_out が空であるという情報を積む *)
+(* (特に f において) vs_out が空であるという情報を積む *)
 let pushmark = fun vs c a s t m -> c (VEnv []) s t m
 
 (* mark : i' *)
@@ -196,14 +196,14 @@ let skip = fun vs c a s t m -> match s with (VArgs (vs_out) :: s) ->
     c (VEnv (vs_out)) s t m
   | _ -> failwith "stack error: skip"
 
-(* apply : i' *)
+(* app : i' *)
 (* acc に v0 が積まれた状態で実行される *)
-let apply = fun vs c v0 s t m -> match s with
-  v1 :: VEnv (v2s) :: s -> apply8 v0 v1 c (VArgs (v2s) :: s) t m
+let app = fun vs c v0 s t m -> match s with
+  v1 :: VEnv (v2s) :: s -> app v0 v1 c (VArgs (v2s) :: s) t m
 
 (* appterm : i' *)
 let appterm = fun vs c v0 s t m -> match s with
-  v1 :: VEnv (v2s) :: s -> apply8 v0 v1 c (VArgs (v2s) :: s) t m
+  v1 :: VEnv (v2s) :: s -> app v0 v1 c (VArgs (v2s) :: s) t m
 
 (* aux : i' *)
 let aux = fun v2s c v1 s t m ->
@@ -234,48 +234,48 @@ let control0 i = fun vs c a s t m -> match m with
 let reset i = fun vs c a s t m ->
   i vs idc a [] TNil (MCons ((c, s, t), m))
 
-(* f8 : e -> string list -> i' *)
-let rec f8 e xs = match e with
+(* f : e -> string list -> i' *)
+let rec f e xs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
+  | Var (x) -> access (Env.off_set x xs)
   | Op (e0, op, e1) ->
-    f8 e1 xs >> push >> f8 e0 xs >> operation (op)
-  | Fun (x, e) -> cur (f8t e (x :: xs))
+    f e1 xs >> push >> f e0 xs >> operation (op)
+  | Fun (x, e) -> cur (f_t e (x :: xs))
   | App (e0, e1, e2s) ->
-    (* pushmark inserted by f8s *)
-    (f8s e2s xs) >> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >> apply
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+    (* pushmark inserted by f_s *)
+    (f_s e2s xs) >> push >> (f e1 xs) >> push >> (f e0 xs) >> app
+  | Shift (x, e) -> shift (f e (x :: xs))
+  | Control (x, e) -> control (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f e (x :: xs))
+  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Reset (e) -> reset (f e xs)
 
-(* f8s : e -> string list -> env -> i *)
-and f8s es xs = match es with
+(* f_s : e -> string list -> env -> i *)
+and f_s es xs = match es with
     [] -> pushmark
   | first :: rest ->
-    (f8s rest xs) >> push >> (f8 first xs) >> aux
+    (f_s rest xs) >> push >> (f first xs) >> aux
 
-(* f8t : e -> string list -> i' *)
-and f8t e xs = match e with
+(* f_t : e -> string list -> i' *)
+and f_t e xs = match e with
     Num (n) -> num n >> return
-  | Var (x) -> access (Env.offset x xs) >> return
+  | Var (x) -> access (Env.off_set x xs) >> return
   | Op (e0, op, e1) ->
-    (f8 e1 xs) >> push >> (f8 e0 xs) >> operation (op) >> return
-  | Fun (x, e) -> grab (f8t e (x :: xs))
+    (f e1 xs) >> push >> (f e0 xs) >> operation (op) >> return
+  | Fun (x, e) -> grab (f_t e (x :: xs))
   | App (e0, e1, e2s) ->
-    (f8st e2s xs) >> push >> (f8 e1 xs) >> push >> (f8 e0 xs) >> appterm
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+    (f_st e2s xs) >> push >> (f e1 xs) >> push >> (f e0 xs) >> appterm
+  | Shift (x, e) -> shift (f e (x :: xs))
+  | Control (x, e) -> control (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f e (x :: xs))
+  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Reset (e) -> reset (f e xs)
 
-and f8st es xs = match es with
+and f_st es xs = match es with
     [] -> skip
   | first :: rest ->
-    (f8st rest xs) >> push >> (f8 first xs) >> aux
+    (f_st rest xs) >> push >> (f first xs) >> aux
 *)
 
-(* f : e -> v *)
-let f expr = f8 expr [] [] idc [] [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] idc [] [] TNil MNil

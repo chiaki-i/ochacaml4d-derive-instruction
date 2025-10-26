@@ -23,7 +23,7 @@ and c' = CApp0
 (* c before:
 (C1, vs)::(C2, vs)::(CRet, [])::(C3, vs)::(C4, vs)::(CRet, [])::(C5, vs)::[]
 
-after splitting c and vs:
+af_ter splitting c and vs:
  C1     :: C2     :: CRet     :: C3     :: C4     :: CRet     :: C5     ::[]
      vs ::     vs ::       [] ::     vs ::     vs ::       [] ::     vs ::[]
 

@@ -54,7 +54,7 @@ let rec run_c9 c s r t m = match (c, s, r) with
     end
   | (IApply :: c, s, VS (vs) :: r) ->
     begin match s with v0 :: VArgs (v2s) :: s ->
-      apply9s v0 v2s vs c s r t m
+      app_s v0 v2s vs c s r t m
     end
   | (IFun (i) :: c, s, VS (vs) :: r) ->
     begin match (c, s, r) with
@@ -95,8 +95,8 @@ let rec run_c9 c s r t m = match (c, s, r) with
 (* (>>) : i -> i -> i *)
 and (>>) i0 i1 = ISeq (i0, i1)
 
-(* apply9 : v -> v -> c -> s -> r -> t -> m -> v *)
-and apply9 v0 v1 c s r t m = match v0 with
+(* app : v -> v -> c -> s -> r -> t -> m -> v *)
+and app v0 v1 c s r t m = match v0 with
     VFun (f) -> f c (v1 :: s) r t m
   | VContS (c', s', r', t') ->
     run_c9 c' (v1 :: s') r' t' (MCons ((c, s, r, t), m))
@@ -106,30 +106,30 @@ and apply9 v0 v1 c s r t m = match v0 with
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* apply9s : v -> v list -> v list -> c -> s -> r -> t -> m -> v *)
-and apply9s v0 v2s vs c s r t m = match v2s with
+(* app_s : v -> v list -> v list -> c -> s -> r -> t -> m -> v *)
+and app_s v0 v2s vs c s r t m = match v2s with
     [] -> run_c9 c (v0 :: s) r t m
   | v1 :: v2s ->
-    apply9 v0 v1 (IApply :: c) (VArgs (v2s) :: s) (VS (vs) :: r) t m
+    app v0 v1 (IApply :: c) (VArgs (v2s) :: s) (VS (vs) :: r) t m
 
-(* f9 : e -> string list -> i *)
-let rec f9 e xs = match e with
+(* f : e -> string list -> i *)
+let rec f e xs = match e with
     Num (n) -> INum (n)
-  | Var (x) -> IAccess (Env.offset x xs)
-  | Op (e0, op, e1) -> f9 e1 xs >> f9 e0 xs >> IOp (op)
-  | Fun (x, e) -> IFun (f9 e (x :: xs))
+  | Var (x) -> IAccess (Env.off_set x xs)
+  | Op (e0, op, e1) -> f e1 xs >> f e0 xs >> IOp (op)
+  | Fun (x, e) -> IFun (f e (x :: xs))
   | App (e0, e2s) ->
-    f9s e2s xs >> f9 e0 xs >> IApply
-  | Shift (x, e) -> IShift (f9 e (x :: xs))
-  | Control (x, e) -> IControl (f9 e (x :: xs))
-  | Shift0 (x, e) -> IShift0 (f9 e (x :: xs))
-  | Control0 (x, e) -> IControl0 (f9 e (x :: xs))
-  | Reset (e) -> IReset (f9 e xs)
+    f_s e2s xs >> f e0 xs >> IApply
+  | Shift (x, e) -> IShift (f e (x :: xs))
+  | Control (x, e) -> IControl (f e (x :: xs))
+  | Shift0 (x, e) -> IShift0 (f e (x :: xs))
+  | Control0 (x, e) -> IControl0 (f e (x :: xs))
+  | Reset (e) -> IReset (f e xs)
 
-(* f9s : e list -> string list -> i *)
-and f9s e2s xs = match e2s with
+(* f_s : e list -> string list -> i *)
+and f_s e2s xs = match e2s with
     [] -> IPushmark
-  | e :: e2s -> f9s e2s xs >> f9 e xs >> IPush
+  | e :: e2s -> f_s e2s xs >> f e xs >> IPush
 
-(* f : e -> v *)
-let f expr = run_c9 (f9 expr [] :: idc) [] (VS ([]) :: []) TNil MNil
+(* f_init : e -> v *)
+let f_init expr = run_c9 (f expr [] :: idc) [] (VS ([]) :: []) TNil MNil

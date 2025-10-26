@@ -65,20 +65,20 @@ let rec run_c11 c s t m = match (c, s) with
     run_c11 c' [VEnv (vs)] [] (((c, s) :: t) :: m)
   | _ -> failwith "cont or stack error"
 
-(* f11 : e -> string list -> c *)
-let rec f11 e xs = match e with
+(* f : e -> string list -> c *)
+let rec f e xs = match e with
     Num (n) -> [INum (n)] 
-  | Var (x) -> [IAccess (Env.offset x xs)]
+  | Var (x) -> [IAccess (Env.off_set x xs)]
   | Op (e0, op, e1) ->
-    [IPush_env] @ (f11 e0 xs) @ [IPop_env] @ (f11 e1 xs) @ [IOp (op)]
-  | Fun (x, e) -> [IPush_closure ((f11 e (x :: xs)) @ [IReturn])]
+    [IPush_env] @ (f e0 xs) @ [IPop_env] @ (f e1 xs) @ [IOp (op)]
+  | Fun (x, e) -> [IPush_closure ((f e (x :: xs)) @ [IReturn])]
   | App (e0, e1) ->
-    [IPush_env] @ (f11 e0 xs) @ [IPop_env] @ (f11 e1 xs) @ [ICall]
-  | Shift (x, e) -> [IShift (f11 e (x :: xs))]
-  | Control (x, e) -> [IControl (f11 e (x :: xs))]
-  | Shift0 (x, e) -> [IShift0 (f11 e (x :: xs))]
-  | Control0 (x, e) -> [IControl0 (f11 e (x :: xs))]
-  | Reset (e) -> [IReset (f11 e xs)]
+    [IPush_env] @ (f e0 xs) @ [IPop_env] @ (f e1 xs) @ [ICall]
+  | Shift (x, e) -> [IShift (f e (x :: xs))]
+  | Control (x, e) -> [IControl (f e (x :: xs))]
+  | Shift0 (x, e) -> [IShift0 (f e (x :: xs))]
+  | Control0 (x, e) -> [IControl0 (f e (x :: xs))]
+  | Reset (e) -> [IReset (f e xs)]
            
-(* f : e -> v *)
-let f expr = run_c11 (f11 expr []) (VEnv ([]) :: []) [] []
+(* f_init : e -> v *)
+let f_init expr = run_c11 (f expr []) (VEnv ([]) :: []) [] []

@@ -3,7 +3,7 @@ open Value
 
 (* Interpreter using combinators factored as instructions *)
 (* with return stack (r), where continution is defuntionalized (d): eval8rd *)
-(* 'f8' here is inline-expanded *)
+(* 'f' here is inline-expanded *)
 
 (* run_c8 : c -> s -> t -> m -> v *)
 let rec run_c8 c s t m = match (c, s) with
@@ -32,8 +32,8 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* apply8 : v -> v -> c -> s -> t -> m -> v *)
-let apply8 v0 v1 c s t m = match v0 with
+(* app : v -> v -> c -> s -> t -> m -> v *)
+let app v0 v1 c s t m = match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
     run_c8 c' (v1 :: s') t' (MCons ((c, s, t), m))
@@ -43,20 +43,20 @@ let apply8 v0 v1 c s t m = match v0 with
   | _ -> failwith (to_string v0
                     ^ " is not a function; it cannot be applied.")
 
-(* apply : i *)
-let apply = fun vs c s t m -> match s with
-  v0 :: VArg (v1) :: s -> apply8 v0 v1 c s t m
+(* app : i *)
+let app = fun vs c s t m -> match s with
+  v0 :: VArg (v1) :: s -> app v0 v1 c s t m
 
-(* f8 : e -> string list -> i *)
-let rec f8 e xs vs c s t m = match e with
+(* f : e -> string list -> i *)
+let rec f e xs vs c s t m = match e with
     Num (n) ->
       run_c8 c (VNum (n) :: s) t m
   | Var (x) ->
-      run_c8 c (List.nth vs (Env.offset x xs) :: s) t m
+      run_c8 c (List.nth vs (Env.off_set x xs) :: s) t m
   | Op (e0, op, e1) ->
-    f8 e1 xs vs (CSeq
+    f e1 xs vs (CSeq
       ((fun vs c s t m ->
-        f8 e0 xs vs (CSeq
+        f e0 xs vs (CSeq
           ((fun vs c s t m ->
             begin match s with
                 v0 :: v1 :: s ->
@@ -79,45 +79,45 @@ let rec f8 e xs vs c s t m = match e with
       s t m
   | Fun (x, e) ->
     begin match (c, s) with
-        (CSeq (i', _, c'), VArg (v1) :: s') when i' == apply -> (* Grab *)
+        (CSeq (i', _, c'), VArg (v1) :: s') when i' == app -> (* Grab *)
           (* print_endline ("grab: " ^ Value.s_to_string s); *)
-          f8 e (x :: xs) (v1 :: vs) c' s' t m
+          f e (x :: xs) (v1 :: vs) c' s' t m
       | _ ->
         let vfun = VFun (fun c' s' t' m' ->
           begin match s' with
-            v :: s' -> f8 e (x :: xs) (v :: vs) c' s' t' m'
+            v :: s' -> f e (x :: xs) (v :: vs) c' s' t' m'
           | _ -> failwith "stack error"
           end) in
         run_c8 c (vfun :: s) t m
     end
   | App (e0, e1, _) ->
-    f8 e1 xs vs (CSeq
+    f e1 xs vs (CSeq
       ((fun vs c s t m ->
         (fun vs c (v :: s) t m -> run_c8 c (VArg (v) :: s) t m) (* varg *)
         vs (CSeq
           ((fun vs c s t m ->
-            f8 e0 xs vs (CSeq (apply, vs, c))
+            f e0 xs vs (CSeq (app, vs, c))
             s t m), vs, c))
         s t m), vs, c))
       s t m
   | Shift (x, e) ->
-    f8 e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
+    f e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) ->
-    f8 e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
+    f e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
       begin match m with
           MCons ((c0, s0, t0), m0) ->
-          f8 e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
+          f e (x :: xs) (VContS (c, s, t) :: vs) c0 s0 t0 m0
         | _ -> failwith "shift0 is used without enclosing reset"
       end
   | Control0 (x, e) ->
       begin match m with
           MCons ((c0, s0, t0), m0) ->
-          f8 e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
+          f e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
         | _ -> failwith "control0 is used without enclosing reset"
       end
   | Reset (e) ->
-    f8 e xs vs idc [] TNil (MCons ((c, s, t), m))
+    f e xs vs idc [] TNil (MCons ((c, s, t), m))
 
-(* f : e -> v *)
-let f expr = f8 expr [] [] idc [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] idc [] TNil MNil

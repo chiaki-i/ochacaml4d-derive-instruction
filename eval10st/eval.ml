@@ -62,12 +62,12 @@ let rec run_c10 c s t m = match (c, s) with
     end
   | ((IApply :: is, vs) :: c, s) ->
     begin match s with (v :: v1 :: s) ->
-        apply10 v v1 vs ((is, vs) :: c) s t m
+        app v v1 vs ((is, vs) :: c) s t m
       | _ -> failwith "IApply: unexpected s"
     end
   | ((IReturn :: is, vs) :: c, s) ->
     begin match s with (v :: s) ->
-        apply10s v vs ((is, vs) :: c) s t m
+        app_s v vs ((is, vs) :: c) s t m
       | _ -> failwith "IReturn: unexpected s"
     end
   | ((IPushmark :: is, vs) :: c, s) ->
@@ -106,8 +106,8 @@ let rec run_c10 c s t m = match (c, s) with
       [] TNil (MCons ((((is, vs) :: c), (VEmpty :: s), t), m))
   | _ -> failwith "run_c10: stack error"
 
-(* apply10 : v -> v -> v list -> c -> s -> t -> m -> v *)
-and apply10 v0 v1 vs c s t m =
+(* app : v -> v -> v list -> c -> s -> t -> m -> v *)
+and app v0 v1 vs c s t m =
   match v0 with
     VFun (is, vs') -> run_c10 ((is, (v1 :: vs')) :: c) s t m
   | VContS (c', s', t') ->
@@ -118,63 +118,63 @@ and apply10 v0 v1 vs c s t m =
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
-(* apply10s : v -> v list -> c -> s -> t -> m -> v *)
-and apply10s v0 vs c s t m = match s with
+(* app_s : v -> v list -> c -> s -> t -> m -> v *)
+and app_s v0 vs c s t m = match s with
     VEmpty :: s ->
     begin match c with
         (([], vs) :: c) -> run_c10 c (v0 :: s) t m
       | _ -> failwith "when VEmpty the current closure's instructions have to be empty as well"
     end
-  | v1 :: s -> apply10 v0 v1 vs c s t m
-  | _ -> failwith "apply10s: stack is empty"
+  | v1 :: s -> app v0 v1 vs c s t m
+  | _ -> failwith "app_s: stack is empty"
 
-(* f10: e -> string list -> i list *)
-let rec f10 e xs = match e with
+(* f: e -> string list -> i list *)
+let rec f e xs = match e with
     Num (n) -> [INum (n)]
-  | Var (x) -> [IAccess (Env.offset x xs)]
+  | Var (x) -> [IAccess (Env.off_set x xs)]
   | Op (e0, op, e1) ->
-    f10 e1 xs @ f10 e0 xs @ [IOp (op)]
-  | Fun (x, e) -> [ICur (f10t e (x :: xs))]
+    f e1 xs @ f e0 xs @ [IOp (op)]
+  | Fun (x, e) -> [ICur (f_t e (x :: xs))]
   | App (e0, e2s) ->
-    f10s e2s xs @ f10 e0 xs @ [IApply]
-  | Shift (x, e) -> [IShift (f10 e (x :: xs))]
-  | Control (x, e) -> [IControl (f10 e (x :: xs))]
-  | Shift0 (x, e) -> [IShift0 (f10sr e (x :: xs))]
-  | Control0 (x, e) -> [IControl0 (f10sr e (x :: xs))]
-  | Reset (e) -> [IResetmark (f10 e xs)]
+    f_s e2s xs @ f e0 xs @ [IApply]
+  | Shift (x, e) -> [IShift (f e (x :: xs))]
+  | Control (x, e) -> [IControl (f e (x :: xs))]
+  | Shift0 (x, e) -> [IShift0 (f_sr e (x :: xs))]
+  | Control0 (x, e) -> [IControl0 (f_sr e (x :: xs))]
+  | Reset (e) -> [IResetmark (f e xs)]
 
-(* f10s : e list -> string list -> i list *)
-and f10s e2s xs = match e2s with
+(* f_s : e list -> string list -> i list *)
+and f_s e2s xs = match e2s with
     [] -> [IPushmark]
-  | e :: e2s -> f10s e2s xs @ f10 e xs
+  | e :: e2s -> f_s e2s xs @ f e xs
 
-(* f10t : e -> string list -> i list *)
-and f10t e xs = match e with
+(* f_t : e -> string list -> i list *)
+and f_t e xs = match e with
     Num (n) -> [INum n; IReturn]
-  | Var (x) -> [IAccess (Env.offset x xs); IReturn]
+  | Var (x) -> [IAccess (Env.off_set x xs); IReturn]
   | Op (e0, op, e1) ->
-    f10 e1 xs @ f10 e0 xs @ [IOp (op); IReturn]
-  | Fun (x, e) -> [IGrab (f10t e (x :: xs))]
-  | App (e0, e2s) -> f10s e2s xs @ f10 e0 xs @ [IApply; IReturn]
-  | Shift (x, e) -> [IShift (f10 e (x :: xs)); IReturn]
-  | Control (x, e) -> [IControl (f10 e (x :: xs)); IReturn]
-  | Shift0 (x, e) -> [IShift0 (f10sr e (x :: xs)); IReturn]
-  | Control0 (x, e) -> [IControl0 (f10sr e (x :: xs)); IReturn]
-  | Reset (e) -> [IReset (f10 e xs)]
+    f e1 xs @ f e0 xs @ [IOp (op); IReturn]
+  | Fun (x, e) -> [IGrab (f_t e (x :: xs))]
+  | App (e0, e2s) -> f_s e2s xs @ f e0 xs @ [IApply; IReturn]
+  | Shift (x, e) -> [IShift (f e (x :: xs)); IReturn]
+  | Control (x, e) -> [IControl (f e (x :: xs)); IReturn]
+  | Shift0 (x, e) -> [IShift0 (f_sr e (x :: xs)); IReturn]
+  | Control0 (x, e) -> [IControl0 (f_sr e (x :: xs)); IReturn]
+  | Reset (e) -> [IReset (f e xs)]
 
-(* f10sr : e -> string list -> i list *)
-and f10sr e xs = match e with
+(* f_sr : e -> string list -> i list *)
+and f_sr e xs = match e with
     Num (n) -> [INum n; IReturn]
-  | Var (x) -> [IAccess (Env.offset x xs); IReturn]
+  | Var (x) -> [IAccess (Env.off_set x xs); IReturn]
   | Op (e0, op, e1) ->
-    f10 e1 xs @ f10 e0 xs @ [IOp (op); IReturn]
-  | Fun (x, e) -> [IGrab (f10t e (x :: xs))]
-  | App (e0, e2s) -> f10s e2s xs @ f10 e0 xs @ [IApply; IReturn]
-  | Shift (x, e) -> [IShift (f10 e (x :: xs)); IReturn]
-  | Control (x, e) -> [IControl (f10 e (x :: xs)); IReturn]
-  | Shift0 (x, e) -> [IShift0 (f10sr e (x :: xs)); IReturn]
-  | Control0 (x, e) -> [IControl0 (f10sr e (x :: xs)); IReturn]
-  | Reset (e) -> [IResetmark (f10 e xs); IReturn]
+    f e1 xs @ f e0 xs @ [IOp (op); IReturn]
+  | Fun (x, e) -> [IGrab (f_t e (x :: xs))]
+  | App (e0, e2s) -> f_s e2s xs @ f e0 xs @ [IApply; IReturn]
+  | Shift (x, e) -> [IShift (f e (x :: xs)); IReturn]
+  | Control (x, e) -> [IControl (f e (x :: xs)); IReturn]
+  | Shift0 (x, e) -> [IShift0 (f_sr e (x :: xs)); IReturn]
+  | Control0 (x, e) -> [IControl0 (f_sr e (x :: xs)); IReturn]
+  | Reset (e) -> [IResetmark (f e xs); IReturn]
 
-(* f : e -> v *)
-let f expr = run_c10 ((f10 expr [], []) :: []) [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = run_c10 ((f expr [], []) :: []) [] TNil MNil

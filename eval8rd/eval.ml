@@ -62,8 +62,8 @@ let operation op = fun vs c s t m -> match s with
     end
   | _ -> failwith "stack error: op"
 
-(* apply8 : v -> v -> c -> s -> t -> m -> v *)
-let apply8 v0 v1 c s t m = match v0 with
+(* app : v -> v -> c -> s -> t -> m -> v *)
+let app v0 v1 c s t m = match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
     run_c8 c' (v1 :: s') t' (MCons ((c, s, t), m))
@@ -73,14 +73,14 @@ let apply8 v0 v1 c s t m = match v0 with
   | _ -> failwith (to_string v0
                     ^ " is not a function; it cannot be applied.")
 
-(* apply : i *)
-let apply = fun vs c s t m -> match s with
-  v0 :: VArg (v1) :: s -> apply8 v0 v1 c s t m
+(* app : i *)
+let app = fun vs c s t m -> match s with
+  v0 :: VArg (v1) :: s -> app v0 v1 c s t m
 
 (* grab : i -> i *)
 let grab i = fun vs c s t m ->
   begin match (c, s) with
-      (CSeq (i', _, c'), VArg (v1) :: s') when i' == apply -> (* Grab *)
+      (CSeq (i', _, c'), VArg (v1) :: s') when i' == app -> (* Grab *)
         (* print_endline ("grab: " ^ Value.s_to_string s); *)
         i (v1 :: vs) c' s' t m
     | _ ->
@@ -93,9 +93,9 @@ let grab i = fun vs c s t m ->
   end
 
 (*
-  run_c8 (CSeq (apply, vs, c')) (vfun :: v1 :: s) t m
-= apply vs c' (vfun :: v1 :: s) t m
-= apply8 vfun v1 c' s t m
+  run_c8 (CSeq (app, vs, c')) (vfun :: v1 :: s) t m
+= app vs c' (vfun :: v1 :: s) t m
+= app vfun v1 c' s t m
 = f c' (v1 :: s) t m
 = i (v1 :: vs) c' s t m
 *)
@@ -124,20 +124,20 @@ let control0 i = fun vs c s t m -> match m with
 let reset i = fun vs c s t m ->
   i vs idc [] TNil (MCons ((c, s, t), m))
 
-(* f8 : e -> string list -> i *)
-let rec f8 e xs = match e with
+(* f : e -> string list -> i *)
+let rec f e xs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.offset x xs)
+  | Var (x) -> access (Env.off_set x xs)
   | Op (e0, op, e1) ->
-    f8 e1 xs >> f8 e0 xs >> operation (op)
-  | Fun (x, e) -> grab (f8 e (x :: xs))
+    f e1 xs >> f e0 xs >> operation (op)
+  | Fun (x, e) -> grab (f e (x :: xs))
   | App (e0, e1, _) ->
-    f8 e1 xs >> varg >> f8 e0 xs >> apply
-  | Shift (x, e) -> shift (f8 e (x :: xs))
-  | Control (x, e) -> control (f8 e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f8 e (x :: xs))
-  | Control0 (x, e) -> control0 (f8 e (x :: xs))
-  | Reset (e) -> reset (f8 e xs)
+    f e1 xs >> varg >> f e0 xs >> app
+  | Shift (x, e) -> shift (f e (x :: xs))
+  | Control (x, e) -> control (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f e (x :: xs))
+  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Reset (e) -> reset (f e xs)
 
-(* f : e -> v *)
-let f expr = f8 expr [] [] idc [] TNil MNil
+(* f_init : e -> v *)
+let f_init expr = f expr [] [] idc [] TNil MNil
