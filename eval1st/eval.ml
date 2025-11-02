@@ -100,6 +100,15 @@ and f_t e xs vs v2s c t m =
     begin match v2s with
         [] -> c (VFun (fun v1 v2s c' t' m' ->
           f_t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+          (* begin match e with
+            App (e0, e2s) ->
+              c (VFun (fun v1 v2s c' t' m' ->
+                f_s e2s xs vs (fun (v1' :: v2s') t2 m2 ->
+                  f e0 xs vs (fun v0 t0 m0 ->
+                    app v0 v1' (v2s' @ v2s) c' t0 m0) t2 m2) t' m')) t m
+            | _ -> c (VFun (fun v1 v2s c' t' m' ->
+              f_t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+          end *)
       | v1 :: v2s -> f_t e (x :: xs) (v1 :: vs) v2s c t m
     end
     (* f_t の Fun の中で、e が関数適用だった場合 = 末尾呼び出しでの関数適用 = Appterm 相当 *)
@@ -107,7 +116,11 @@ and f_t e xs vs v2s c t m =
     (* c (VFun (fun v1 v2s c' t' m' ->
         f_s e2s (x :: xs) (v1 :: vs) (fun (v1' :: v2s') t2 m2 ->
           f e0 (x :: xs) (v1 :: vs) (fun v0 t0 m0 ->
-            app v0 v1' v2s' (fun v0 t0 m0 -> app_s v0 v2s c t0 m0) t0 m0)) t' m')) t m *)
+            app v0 v1' v2s' app_c t0 m0) t2 m2) t' m')) t m *)
+    (* c (VFun (fun v1 v2s c' t' m' ->
+        f_s e2s (x :: xs) (v1 :: vs) (fun (v1' :: v2s') t2 m2 ->
+          f e0 (x :: xs) (v1 :: vs) (fun v0 t0 m0 ->
+            app v0 v1' v2s' (fun v0 t0 m0 -> app_s v0 v2s c' t0 m0) t0 m0) t2 m2) t' m')) t m *)
   | App (e0, e2s) ->
     f_s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f e0 xs vs (fun v0 t0 m0 ->
@@ -211,6 +224,7 @@ and appterm1 v0 v1 v2s' v2s c t m =
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
+(* apply1 *)
 (* app : v -> v -> v list -> c -> t -> m -> v *)
 and app v0 v1 v2s c t m = match v0 with
     VFun (f) -> f v1 v2s c t m
@@ -222,6 +236,7 @@ and app v0 v1 v2s c t m = match v0 with
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
+(* apply1s *)
 (* app_s : v -> v list -> c -> t -> m -> v *)
 and app_s v0 v2s c t m = match v2s with
     [] -> c v0 t m
