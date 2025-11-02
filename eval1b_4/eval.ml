@@ -142,9 +142,11 @@ and app v0 v1 v2s c t m =
 and app_t v0 v1 v2s' v2s c t m =
   let app_c = fun v0 t0 m0 -> app_s v0 v2s c t0 m0 in
   match v0 with
-    VFun (f) -> f v1 (v2s' @ v2s) c t m
+    (* VFun (f) -> f v1 (v2s' @ v2s) c t m *)
     (* v2s' = 現在評価中のクロージャの引数、v2s = return 先のクロージャの引数 *)
     (* VFun (f) -> f v1 v2s' app_c t m *) (* これと同じことを証明したい *)
+    (* VFun (f) -> f v1 v2s' (fun v0 t0 m0 -> app_s v0 v2s c t0 m0) t m *)
+    VFun (f) -> f v1 v2s' (fun v0 t0 m0 -> app_s v0 v2s c t0 m0) t m
   | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
   | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
   | _ -> failwith (to_string v0
