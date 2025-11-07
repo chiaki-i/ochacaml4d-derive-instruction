@@ -76,11 +76,11 @@ and f_s e2s xs vs c t m = match e2s with
         c (v1 :: v2s) t1 m1) t2 m2) t m
 
 (* app : v -> v -> v list -> c -> t -> m -> v *)
-and app v0 v1 v2s c t m =
-  let app_c = fun v t m -> app_s v v2s c t m in
+and app v0 v1 v2s' c t m =
+  let app_c = fun v t m -> app_s v v2s' c t m in
   match v0 with
     VFun (f) -> f v1 app_c t m
-    (* VFun (f) -> f v1 (fun v t m -> app_s v v2s c t m) t m *)
+    (* VFun (f) -> f v1 (fun v t m -> app_s v v2s' c t m) t m *)
   | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
   | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
   | _ -> failwith (to_string v0
