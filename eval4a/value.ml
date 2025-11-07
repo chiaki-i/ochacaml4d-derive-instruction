@@ -4,9 +4,9 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> v list -> c -> t -> m -> v)
-       | VContS of c * t
-       | VContC of c * t
+       | VFun of (v -> v list -> c -> s -> t -> m -> v)
+       | VContS of c * s * t
+       | VContC of c * s * t
 
 and c = C0
       | CApp1 of v list * c
@@ -18,9 +18,11 @@ and c = C0
       | COp0 of v * op * c
       | COp1 of e * string list * op * v list * c
 
+and s = v list
+
 and t = TNil | Trail of (v -> t -> m -> v)
 
-and m = MNil | MCons of (c * t) * m
+and m = MNil | MCons of (c * s * t) * m
 
 
 (* to_string : v -> string *)
