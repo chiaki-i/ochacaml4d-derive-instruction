@@ -41,14 +41,14 @@ let rec run_c c v t m = match c with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | CApp1 (v2s, c) -> app_s v v2s c t m
-  | CApp2 (v2s, c) -> run_cs c (v :: v2s) t m
-  | CAppT (v2s', v2s, c) -> app_st v v2s' v2s c t m
+  | CApp1 (v2s', c) -> app_s v v2s' c t m
+  | CApp2 (v2s', c) -> run_cs c (v :: v2s') t m
+  | CAppT (v2s, v2s', c) -> app_st v v2s v2s' c t m
 
-and run_cs c v2s t m = match c with
-    CAppS1 (e, xs, vs, c) -> f e xs vs (CApp1 (v2s, c)) t m
-  | CAppS2 (e, xs, vs, c) -> f e xs vs (CApp2 (v2s, c)) t m
-  | CAppST (e, xs, vs, v2s', c) -> f e xs vs (CAppT (v2s', v2s, c)) t m
+and run_cs c v2s' t m = match c with
+    CAppS1 (e, xs, vs, c) -> f e xs vs (CApp1 (v2s', c)) t m
+  | CAppS2 (e, xs, vs, c) -> f e xs vs (CApp2 (v2s', c)) t m
+  | CAppST (e, xs, vs, v2s, c) -> f e xs vs (CAppT (v2s, v2s', c)) t m
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> t -> m -> v *)
@@ -58,8 +58,8 @@ and f e xs vs c t m =
   | Var (x) -> run_c c (List.nth vs (Env.off_set x xs)) t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, c)) t m
   | Fun (x, e) ->
-    run_c c (VFun (fun v1 v2s c' t' m' ->
-      f_t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+    run_c c (VFun (fun v1 v2s' c' t' m' ->
+      f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) t m
   | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
@@ -79,17 +79,17 @@ and f e xs vs c t m =
   | Reset (e) -> f e xs vs idc TNil (MCons ((c, t), m))
 
 (* f_t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
-and f_t e xs vs v2s c t m =
-  let app_c = CApp1 (v2s, c) in
+and f_t e xs vs v2s' c t m =
+  let app_c = CApp1 (v2s', c) in
   match e with
     Num (n) -> run_c app_c (VNum (n)) t m
   | Var (x) -> run_c app_c (List.nth vs (Env.off_set x xs)) t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, app_c)) t m
   | Fun (x, e) ->
-    run_c app_c (VFun (fun v1 v2s c' t' m' ->
-      f_t e (x :: xs) (v1 :: vs) v2s c' t' m')) t m
+    run_c app_c (VFun (fun v1 v2s' c' t' m' ->
+      f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
   | App (e0, e2s) ->
-    f_s e2s xs vs (CAppST (e0, xs, vs, v2s, c)) t m
+    f_s e2s xs vs (CAppST (e0, xs, vs, v2s', c)) t m
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -108,23 +108,15 @@ and f_t e xs vs v2s c t m =
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with
-    [] -> run_cs c [] t m (* eval5st2 などで VEmpty が入り、最終的に Pushmark になる *)
+    [] -> run_cs c [] t m
   | e :: e2s ->
     f_s e2s xs vs (CAppS2 (e, xs, vs, c)) t m
 
-(* f_st : e list -> string list -> v list -> c -> t -> m -> v list *)
-(* and f_st e2s xs vs c t m = match e2s with
-    [] -> c [] t m
-  | e :: e2s ->
-    f_s e2s xs vs (fun v2s t2 m2 ->
-      f e xs vs (fun v1 t1 m1 ->
-        c (v1 :: v2s) t1 m1) t2 m2) t m *)
-
 (* app : v -> v -> v list -> c -> t -> m -> v *)
-and app v0 v1 v2s c t m =
-  let app_c = CApp1 (v2s, c) in
+and app v0 v1 v2s' c t m =
+  let app_c = CApp1 (v2s', c) in
   match v0 with
-    VFun (f) -> f v1 v2s c t m
+    VFun (f) -> f v1 v2s' c t m
   | VContS (c', t') -> run_c c' v1 t' (MCons ((app_c, t), m))
   | VContC (c', t') -> run_c c' v1 (apnd t' (cons (fun v t m -> run_c app_c v t m) t)) m
   | _ -> failwith (to_string v0
@@ -132,18 +124,6 @@ and app v0 v1 v2s c t m =
 
 (* app_t : v -> v -> v list -> c -> t -> m -> v *)
 and app_t v0 v1 v2s' v2s c t m = app v0 v1 (v2s' @ v2s) c t m
-  (*
-  let app_c = fun v0 t0 m0 -> app_s v0 v2s c t0 m0 in
-  match v0 with
-    (* VFun (f) -> f v1 (v2s' @ v2s) c t m *)
-    (* v2s' = 現在評価中のクロージャの引数、v2s = return 先のクロージャの引数 *)
-    (* VFun (f) -> f v1 v2s' (fun v0 t0 m0 -> app_s v0 v2s c t0 m0) t m *)
-    VFun (f) -> f v1 v2s' v2s c t m
-  | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
-  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
-*)
 
 (* app_s : v -> v list -> c -> t -> m -> v *)
 and app_s v0 v2s c t m = match v2s with
@@ -170,11 +150,6 @@ and app_s v0 v2s c t m = match v2s with
 
 (* app_st : v -> v list -> v list -> c -> t -> m -> v *)
 and app_st v0 v2s' v2s c t m = app_s v0 (v2s' @ v2s) c t m
-  (*
-  match v2s' with
-    [] -> app_s v0 v2s c t m
-  | v1 :: v2s' -> app_t v0 v1 v2s' v2s c t m
-  *)
 
 (* f_init : e -> v *)
 let f_init expr = f expr [] [] idc TNil MNil
