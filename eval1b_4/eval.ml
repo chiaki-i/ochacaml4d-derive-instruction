@@ -143,7 +143,8 @@ and app v0 v1 v2s' c t m =
 
 (* app_t : v -> v -> v list -> v list -> c -> t -> m -> v *)
 and app_t v0 v1 v2s' v2s'' c t m =
-  let app_c = fun v t m -> app_s v v2s'' c t m in
+  let app_c' = fun v t m -> app_s v v2s'' c t m in
+  let app_c = fun v t m -> app_s v v2s' app_c' t m in
   match v0 with
     (* VFun (f) -> f v1 (v2s' @ v2s'') c t m *)
     (* v2s' = 現在評価中のクロージャの引数、v2s'' = return 先のクロージャの引数 *)
@@ -161,7 +162,7 @@ and app_s v0 v2s c t m = match v2s with
 
 (* app_st : v -> v list -> v list -> c -> t -> m -> v *)
 and app_st v0 v2s v2s' c t m = match v2s with
-    [] -> c v0 t m
+    [] -> app_s v0 v2s' c t m
   | v1 :: v2s -> app_t v0 v1 v2s v2s' c t m
 
 (* f_init : e -> v *)
