@@ -99,21 +99,21 @@ and f_t e xs vs v2s v2s' c t m =
     f_s e2s xs vs (fun v2s' t2 m2 ->
       f e0 xs vs (fun v0 t0 m0 ->
         app_st v0 v2s' v2s c t0 m0) t2 m2) t m (* app_s を app_st に *)
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
+  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, t0), m0) ->
-          f e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+          f e (x :: xs) (VContS (app_c, t) :: vs) c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
         MCons ((c0, t0), m0) ->
-          f e (x :: xs) (VContC (c, t) :: vs) c0 t0 m0
+          f e (x :: xs) (VContC (app_c, t) :: vs) c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, t), m))
+  | Reset (e) -> f e xs vs idc TNil (MCons ((app_c, t), m))
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with
