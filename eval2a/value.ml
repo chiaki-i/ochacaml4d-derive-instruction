@@ -8,20 +8,11 @@ type v = VNum of int
        | VContS of c * t
        | VContC of c * t
 
-and c = C0
-      | CApp1 of v list * c
-      | CApp2 of v list * c
-      | CAppT of v list * v list * c
-      | CAppS1 of e * string list * v list * c
-      | CAppS2 of e * string list * v list * c
-      | CAppST of e * string list * v list * v list * c
-      | COp0 of v * op * c
-      | COp1 of e * string list * op * v list * c
+and c = v -> t -> m -> v
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil | MCons of (c * t) * m
-
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
