@@ -94,9 +94,9 @@ and f_t e xs vs v2s' c t m =
               f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
   | App (e0, e2s) ->
     f_st e0 e2s xs vs v2s' c t m
-    (* f_s e2s xs vs (fun v2s t2 m2 ->
-        f e0 xs vs (fun v0 t0 m0 ->
-          app_s v0 v2s (fun v t m -> app_s v v2s' c t m) t0 m0) t2 m2) t m *)
+    (* f_st e2s xs vs v2s' (fun v2s t2 m2 -> (* 本当はこうなってほしい *)
+      f e0 xs vs (fun v0 t0 m0 ->
+        app_s v0 v2s (fun v t m -> app_s v v2s' c t m) t0 m0) t2 m2) t m *)
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -121,7 +121,15 @@ and f_s e2s xs vs c t m = match e2s with
       f e xs vs (fun v1 t1 m1 ->
         c (v1 :: v2s) t1 m1) t2 m2) t m
 
-(* f_st : e list -> string list -> v list -> v list -> c -> t -> m -> v *)
+(* f_st : e list -> string list -> v list -> v list -> c -> t -> m -> v list *)
+(* 本当はこうなってほしい *)
+(* and f_st e2s xs vs v2s' c t m = match e2s with
+    [] -> c v2s' t m
+  | e :: e2s ->
+    f_s e2s xs vs (fun v2s t2 m2 ->
+      f e xs vs (fun v1 t1 m1 ->
+        c (v1 :: v2s) t1 m1) t2 m2) t m *)
+
 and f_st e0 e2s xs vs v2s' c t m =
   let app_c = fun v2s t2 m2 ->
     f e0 xs vs (fun v0 t0 m0 ->
@@ -159,8 +167,11 @@ and f_st e0 e2s xs vs v2s' c t m =
     f_s e2s xs vs (fun v2s t2 m2 ->
       f e xs vs (fun v1 t1 m1 ->
         f e0 xs vs (fun v0 t0 m0 ->
-          app v0 v1 (v2s @ v2s') c t0 m0) t1 m1) (* 恣意的な append *)
+          app v0 v1 (v2s @ v2s') c t0 m0) t1 m1)
       t2 m2) t m
+    (* 恣意的な append… これが appterm を意味するが、
+    結局 v2s と v2s' を明示的に扱わないといけないので
+    VEmpty を用いた実装につながらない *)
 
 (* app : v -> v -> v list -> c -> t -> m -> v *)
 and app v0 v1 v2s' c t m =
