@@ -95,7 +95,8 @@ and f_t e xs vs v2s' c t m =
   | App (e0, e2s) ->
     f_s e2s xs vs (fun v2s t2 m2 ->
       f e0 xs vs (fun v0 t0 m0 ->
-        app_s v0 v2s app_c t0 m0) t2 m2) t m
+        app_s v0 v2s (fun v t m -> app_s v v2s' c t m) t0 m0) t2 m2) t m
+        (* app_s v0 v2s app_c t0 m0) t2 m2) t m *)
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
