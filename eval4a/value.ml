@@ -4,26 +4,21 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> v list -> c -> s -> t -> m -> v)
-       | VContS of c * s * t
-       | VContC of c * s * t
+       | VFun of (v -> v list -> c -> t -> m -> v)
+       | VContS of c * t
+       | VContC of c * t
 
 and c = C0
       | CApp1 of v list * c
       | CApp2 of v list * c
-      | CAppT of v list * v list * c
       | CAppS1 of e * string list * v list * c
       | CAppS2 of e * string list * v list * c
-      | CAppST of e * string list * v list * v list * c
       | COp0 of v * op * c
       | COp1 of e * string list * op * v list * c
 
-and s = v list
-
 and t = TNil | Trail of (v -> t -> m -> v)
 
-and m = MNil | MCons of (c * s * t) * m
-
+and m = MNil | MCons of (c * t) * m
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
@@ -32,6 +27,16 @@ let rec to_string value = match value with
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
 
+(* s_to_string : s -> string *)
+let rec s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    to_string first ^
+    List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
 
 (* Value.print : v -> unit *)
 let print exp =
