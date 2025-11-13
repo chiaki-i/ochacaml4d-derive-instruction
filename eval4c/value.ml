@@ -1,35 +1,27 @@
 open Syntax
 
-(* Stack-based interpreter : eval4 *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval1 *)
 
 (* Value *)
 type v = VNum of int
-       | VFun of (v -> v list -> c -> s -> t -> m -> v)
+       | VFun of (v -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEnv of v list (* VEnv: new constructor *)
-       | VArgs of v list (* VArgs: new constructor *)
+       | VEmpty
 
-and f = CApp0
-      | CApp1 of e * string list
-      | CApp2 of e * e * string list
-      | CAppS0
-      | CAppS1 of e * string list
-      | CRet
-      | COp0 of e * string list * op
-      | COp1 of op
-      | COp2 of e * string list * op
-      | COp3 of op
+and c = C0
+      | CApp1 of c
+      | CApp2 of c
+      | CAppS1 of e * string list * v list * c
+      | CAppS2 of e * string list * v list * c
+      | COp0 of v * op * c
+      | COp1 of e * string list * op * v list * c
 
-and c = f list
-
-(* Stack: new datatype *)
 and s = v list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
 and m = MNil | MCons of (c * s * t) * m
-
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
@@ -37,8 +29,17 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEnv (_) -> "<VEnv>"
-  | VArgs (_) -> "<VArgs>"
+
+(* s_to_string : s -> string *)
+let rec s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    to_string first ^
+    List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
 
 (* Value.print : v -> unit *)
 let print exp =
