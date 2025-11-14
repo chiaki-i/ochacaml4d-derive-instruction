@@ -56,8 +56,8 @@ and f e xs vs c s t m =
   | Var (x) -> run_c c (List.nth vs (Env.off_set x xs)) s t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
   | Fun (x, e) ->
-    run_c c (VFun (fun v1 v2s' c' t' m' ->
-              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) s t m
+    run_c c (VFun (fun v1 v2s' c' s' t' m' ->
+              f_t e (x :: xs) (v1 :: vs) v2s' c' s' t' m')) s t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc s TNil m
@@ -84,8 +84,13 @@ and f_t e xs vs v2s' c s t m =
   | Var (x) -> run_c app_c (List.nth vs (Env.off_set x xs)) s t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, app_c)) s t m
   | Fun (x, e) ->
-    run_c app_c (VFun (fun v1 v2s' c' s' t' m' ->
-              f_t e (x :: xs) (v1 :: vs) v2s' c' s' t' m')) s t m
+    begin match v2s' with
+        [] -> run_c c (VFun (fun v1 v2s' c' s' t' m' ->
+          f_t e (x :: xs) (v1 :: vs) v2s' c' s' t' m')) s t m
+      | v1 :: v2s' -> f_t e (x :: xs) (v1 :: vs) v2s' c s t m
+    end
+    (* run_c app_c (VFun (fun v1 v2s' c' s' t' m' ->
+              f_t e (x :: xs) (v1 :: vs) v2s' c' s' t' m')) s t m *)
   | App (e0, e2s) ->
     f_st e2s xs vs v2s' (CAppS1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc s TNil m
