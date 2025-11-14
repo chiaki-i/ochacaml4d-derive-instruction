@@ -26,40 +26,6 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* run_c : c -> s -> t -> m -> v *)
-(* let rec run_c c s t m = match (c, s) with
-    (C0, v :: []) ->
-    begin match t with
-        TNil ->
-        begin match m with
-            MNil -> v
-          | MCons ((c, s, t), m) -> run_c c (v :: s) t m
-        end
-      | Trail (h) -> h v TNil m
-    end
-  | (COp1 (e, xs, op, vs, c), v :: s) ->
-    f e xs vs (COp0 (op, c)) (v :: s) t m
-  | (COp0 (op, c), v :: v0 :: s) ->
-    begin match (v, v0) with
-        (VNum (n0), VNum (n1)) ->
-        begin match op with
-            Plus -> run_c c (VNum (n0 + n1) :: s) t m
-          | Minus -> run_c c (VNum (n0 - n1) :: s) t m
-          | Times -> run_c c (VNum (n0 * n1) :: s) t m
-          | Divide ->
-            if n1 = 0 then failwith "Division by zero"
-            else run_c c (VNum (n0 / n1) :: s) t m
-        end
-      | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
-    end
-  | (CApp1 (c), v :: s) -> app_s v c s t m
-  | (CApp2 (c), v :: s) -> run_cs c (v :: s) t m *)
-
-(* run_cs : c -> s -> t -> m -> v *)
-(* and run_cs c s t m = match (c, s) with
-    (CAppS1 (e, xs, vs, c), s) -> f e xs vs (CApp1 (c)) s t m
-  | (CAppS2 (e, xs, vs, c), s) -> f e xs vs (CApp2 (c)) s t m *)
-
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f e xs vs c s t m =
