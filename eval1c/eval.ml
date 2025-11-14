@@ -90,8 +90,13 @@ and f_t e xs vs v2s' c t m =
                                ^ " are not numbers")
             end) t0 m0) t m
   | Fun (x, e) ->
-    app_c (VFun (fun v1 v2s' c' t' m' ->
-              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
+    begin match v2s' with
+        [] -> c (VFun (fun v1 v2s' c' t' m' ->
+          f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
+      | v1 :: v2s' -> f_t e (x :: xs) (v1 :: vs) v2s' c t m
+    end
+    (* app_c (VFun (fun v1 v2s' c' t' m' ->
+              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m *)
   | App (e0, e2s) ->
     (* f_st e0 e2s xs vs v2s' c t m *)
     f_st e2s xs vs v2s' (fun v2s t2 m2 -> (* 本当はこうなってほしい *)
