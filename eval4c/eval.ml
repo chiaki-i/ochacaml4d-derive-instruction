@@ -16,34 +16,36 @@ let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* run_c : c -> v -> s -> t -> m -> v *)
-let rec run_c c v s t m = match (c, s) with
-    (C0, []) -> begin match t with
+(* run_c : c -> s -> t -> m -> v *)
+let rec run_c c s t m = match (c, s) with
+    (C0, v :: []) ->
+    begin match t with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> run_c c v s t m
+          | MCons ((c, s, t), m) -> run_c c (v :: s) t m
         end
       | Trail (h) -> h v TNil m
     end
-  | (COp1 (e, xs, op, vs, c), s) -> f e xs vs (COp0 (v, op, c)) s t m
-  | (COp0 (v0, op, c), s) ->
+  | (COp1 (e, xs, op, vs, c), v :: s) ->
+    f e xs vs (COp0 (op, c)) (v :: s) t m
+  | (COp0 (op, c), v :: v0 :: s) ->
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
-            Plus -> run_c c (VNum (n0 + n1)) s t m
-          | Minus -> run_c c (VNum (n0 - n1)) s t m
-          | Times -> run_c c (VNum (n0 * n1)) s t m
+            Plus -> run_c c (VNum (n0 + n1) :: s) t m
+          | Minus -> run_c c (VNum (n0 - n1) :: s) t m
+          | Times -> run_c c (VNum (n0 * n1) :: s) t m
           | Divide ->
             if n1 = 0 then failwith "Division by zero"
-            else run_c c (VNum (n0 / n1)) s t m
+            else run_c c (VNum (n0 / n1) :: s) t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (CApp1 (c), s) -> app_s v c s t m
-  | (CApp2 (c), s) -> run_cs c (v :: s) t m
+  | (CApp1 (c), v :: s) -> app_s v c s t m
+  | (CApp2 (c), v :: s) -> run_cs c (v :: s) t m
 
-(* run_cs : c -> v -> s -> t -> m -> v *)
+(* run_cs : c -> s -> t -> m -> v *)
 and run_cs c s t m = match (c, s) with
     (CAppS1 (e, xs, vs, c), s) -> f e xs vs (CApp1 (c)) s t m
   | (CAppS2 (e, xs, vs, c), s) -> f e xs vs (CApp2 (c)) s t m
@@ -52,12 +54,12 @@ and run_cs c s t m = match (c, s) with
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f e xs vs c s t m =
   match e with
-    Num (n) -> run_c c (VNum (n)) s t m
-  | Var (x) -> run_c c (List.nth vs (Env.off_set x xs)) s t m
+    Num (n) -> run_c c (VNum (n) :: s) t m
+  | Var (x) -> run_c c (List.nth vs (Env.off_set x xs) :: s) t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
   | Fun (x, e) ->
-    run_c c (VFun (fun v1 c' s' t' m' ->
-      f_t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
+    run_c c ((VFun (fun c' (v1 :: s') t' m' ->
+      f_t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
@@ -80,12 +82,12 @@ and f e xs vs c s t m =
 and f_t e xs vs c s t m =
   let app_c = CApp1 (c) in
   match e with
-    Num (n) -> run_c app_c (VNum (n)) s t m
-  | Var (x) -> run_c app_c (List.nth vs (Env.off_set x xs)) s t m
+    Num (n) -> run_c app_c (VNum (n) :: s) t m
+  | Var (x) -> run_c app_c (List.nth vs (Env.off_set x xs) :: s) t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, app_c)) s t m
   | Fun (x, e) ->
-    run_c app_c (VFun (fun v1 c' s' t' m' ->
-      f_t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
+    run_c app_c ((VFun (fun c' (v1 :: s') t' m' ->
+      f_t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
   | App (e0, e2s) ->
     f_st e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [] TNil m
@@ -120,15 +122,17 @@ and f_st e2s xs vs c s t m = match e2s with
 and app v0 v1 c s t m =
   let app_c = CApp1 (c) in
   match v0 with
-    VFun (f) -> f v1 c s t m
-  | VContS (c', s', t') -> run_c c' v1 s' t' (MCons ((app_c, s, t), m))
-  | VContC (c', s', t') -> run_c c' v1 s' (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
+    VFun (f) -> f c (v1 :: s) t m
+  | VContS (c', s', t') ->
+    run_c c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+  | VContC (c', s', t') ->
+    run_c c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 c s t m = match s with
-    VEmpty :: s -> run_c c v0 s t m
+    VEmpty :: s -> run_c c (v0 :: s) t m
   | v1 :: s -> app v0 v1 c s t m
   | [] -> failwith "unexpected s"
 
