@@ -12,6 +12,7 @@ type v = VNum of int
 and c = C0
       | CApp1 of c
       | CApp2 of c
+      | CApp3 of c
       | CAppS1 of e * string list * v list * c
       | CAppS2 of e * string list * v list * c
       | COp0 of op * c

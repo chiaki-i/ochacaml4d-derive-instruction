@@ -40,8 +40,9 @@ let rec run_c c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (CApp1 (v2s, c), s) -> app_s v v2s c s t m
+  | (CApp1 (v1 :: v2s, c), s) -> app v v1 v2s c s t m
   | (CApp2 (v2s, c), s) -> run_cs c (v :: v2s) s t m
+  | (CApp3 (v2s, c), s) -> app_s v v2s c s t m
 
 (* run_cs : c -> v -> s -> t -> m -> v *)
 and run_cs c v2s s t m = match (c, s) with
@@ -78,7 +79,7 @@ and f e xs vs c s t m =
 
 (* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs v2s' c s t m =
-  let app_c = CApp1 (v2s', c) in
+  let app_c = CApp3 (v2s', c) in
   match e with
     Num (n) -> run_c app_c (VNum (n)) s t m
   | Var (x) -> run_c app_c (List.nth vs (Env.off_set x xs)) s t m
@@ -123,7 +124,7 @@ and f_st e2s xs vs v2s' c s t m = match e2s with
 
 (* app : v -> v -> v list -> c -> s -> t -> m -> v *)
 and app v0 v1 v2s' c s t m =
-  let app_c = CApp1 (v2s', c) in
+  let app_c = CApp3 (v2s', c) in
   match v0 with
     VFun (f) -> f v1 v2s' c s t m
   | VContS (c', s', t') -> run_c c' v1 s' t' (MCons ((app_c, s, t), m))

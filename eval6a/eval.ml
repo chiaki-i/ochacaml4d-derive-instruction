@@ -51,9 +51,9 @@ let rec f e xs vs c s t m =
     c ((VFun (fun c' (v1 :: s') t' m' ->
       f_t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m
   | App (e0, e2s) ->
-    f_s e2s xs vs (fun s2 t2 m2 ->
-      f e0 xs vs (fun (v0 :: s0) t0 m0 ->
-        app_s v0 c s0 t0 m0) s2 t2 m2) s t m
+    f_s e2s xs vs (fun s t m ->
+      f e0 xs vs (fun (v :: v1 :: s) t m ->
+        app v v1 c s t m) s t m) s t m
   | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -100,9 +100,9 @@ and f_t e xs vs c s t m =
     (* app_c ((VFun (fun c' (v1 :: s') t' m' ->
       f_t e (x :: xs) (v1 :: vs) c' s' t' m')) :: s) t m *)
   | App (e0, e2s) ->
-    f_st e2s xs vs (fun s2 t2 m2 ->
-      f e0 xs vs (fun (v :: s1) t1 m1 ->
-        app_s v c s1 t1 m1) s2 t2 m2) s t m
+    f_st e2s xs vs (fun s t m ->
+      f e0 xs vs (fun (v :: v1 :: s) t m ->
+        app v v1 c s t m) s t m) s t m
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->

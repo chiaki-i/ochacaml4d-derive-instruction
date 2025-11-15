@@ -84,8 +84,8 @@ and app_s v0 c s t m = match s with
   | [] -> failwith "unexpected s"
 
 (* apply : i *)
-let apply = fun vs c (v :: s) t m ->
-  app_s v c s t m
+let apply = fun vs c (v :: v1 :: s) t m ->
+  app v v1 c s t m
 
 (* pushmark : i *)
 let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
