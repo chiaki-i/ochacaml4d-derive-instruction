@@ -6,21 +6,23 @@ open Value
 (* initial continuation : c *)
 let idc = C0
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
-(* (>>) : i -> i -> i *)
-let (>>) i0 i1 = ISeq (i0, i1)
+(* run_h : h -> v -> t -> m -> v *)
+let rec run_h h v t m = match h with
+    Hold (c, s) -> run_c c (v :: s) t m
+  | Append (h, h') -> run_h h v (cons h' t) m
 
 (* run_c : c -> s -> t -> m -> v *)
-let rec run_c c s t m = match (c, s) with
+and run_c c s t m = match (c, s) with
     (C0, v :: []) ->
     begin match t with
         TNil ->
@@ -28,7 +30,7 @@ let rec run_c c s t m = match (c, s) with
             MNil -> v
           | MCons ((c, s, t), m) -> run_c c (v :: s) t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h h v TNil m
     end
   | (CSeq (i, vs, c), s) ->
     begin match i with (* CSeq starts here *)
@@ -105,7 +107,7 @@ and app v0 v1 vs c s t m =
   | VContS (c', s', t') ->
     run_c c' (v1 :: s') t' (MCons ((app_c, s, t), m))
   | VContC (c', s', t') ->
-    run_c c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v vs c s t m) t)) m
+    run_c c' (v1 :: s') (apnd t' (cons (Hold (CSeq (IReturn, vs, c), s)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
@@ -114,6 +116,9 @@ and app_s v0 vs c s t m = match s with
     VEmpty :: s -> run_c c (v0 :: s) t m
   | v1 :: s -> app v0 v1 vs c s t m
   | [] -> failwith "unexpected s"
+
+(* (>>) : i -> i -> i *)
+let (>>) i0 i1 = ISeq (i0, i1)
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> i *)
