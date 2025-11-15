@@ -4,7 +4,7 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> t -> m -> v)
+       | VFun of i * v list
        | VContS of c * s * t
        | VContC of c * s * t
        | VEmpty

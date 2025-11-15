@@ -53,13 +53,11 @@ and run_c c s t m = match (c, s) with
       | _ -> failwith "IOp: unexpected s"
     end
   | ICur (i) ->
-    run_c c ((VFun (fun c' (v1 :: s') t' m' ->
-      run_c (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
+    run_c c ((VFun (i, vs)) :: s) t m
   | IGrab (i) ->
     begin match s with
         VEmpty :: s ->
-        run_c c ((VFun (fun c' (v1 :: s') t' m' ->
-          run_c (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
+        run_c c ((VFun (i, vs)) :: s) t m
       | v1 :: s ->
         run_c (CSeq (i, (v1 :: vs), c)) s t m
       | _ -> failwith "IGrab: unexpected s"
@@ -103,7 +101,7 @@ and run_c c s t m = match (c, s) with
 and app v0 v1 vs c s t m =
   let app_c = CSeq (IReturn, vs, c) in
   match v0 with
-    VFun (f) -> f c (v1 :: s) t m
+    VFun (i, vs') -> run_c (CSeq (i, (v1 :: vs'), c)) s t m
   | VContS (c', s', t') ->
     run_c c' (v1 :: s') t' (MCons ((app_c, s, t), m))
   | VContC (c', s', t') ->
