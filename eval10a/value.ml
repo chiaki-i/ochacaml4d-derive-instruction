@@ -4,22 +4,20 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of i * v list
+       | VFun of i list * v list
        | VContS of c * s * t
        | VContC of c * s * t
        | VEmpty
 
-and c = C0
-      | CSeq of i * v list * c
+and c = (i list * v list) list
 
-and i = ISeq of i * i
-      | IPushmark | IPass
+and i = IPushmark | IPass
       | INum of int | IAccess of int | IOp of op
       | IApply | IReturn
-      | ICur of i | IGrab of i
-      | IShift of i | IControl of i
-      | IShift0 of i | IControl0 of i
-      | IReset of i
+      | ICur of i list | IGrab of i list
+      | IShift of i list | IControl of i list
+      | IShift0 of i list | IControl0 of i list
+      | IReset of i list
 
 and s = v list
 
