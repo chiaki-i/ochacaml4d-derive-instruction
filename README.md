@@ -69,7 +69,7 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 ## Which directory is for which derivation path?
 
 ### Appterm (Journal revision)
-- Eval1a, 1b_{1,2,3}, 1b_3_{1,2}, 1c, 2a, 2b, 2c, 4a, 4b, 4c, 6a, 8a
+- Eval1a, 1b_{1,2,3}, 1b_3_{1,2}, 1c, 2{a,b,c}, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10a
 
 ### Tail interpreter revived (Journal ver.)
 - Eval1s, Eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1
