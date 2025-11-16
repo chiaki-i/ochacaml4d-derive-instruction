@@ -11,7 +11,7 @@ type v = VNum of int
 
 and c = (i list * v list) list
 
-and i = IPushmark | IPass
+and i = IPushmark
       | INum of int | IAccess of int | IOp of op
       | IApply | IReturn
       | ICur of i list | IGrab of i list

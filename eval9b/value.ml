@@ -13,7 +13,7 @@ and c = C0
       | CSeq of i * v list * c
 
 and i = ISeq of i * i
-      | IPushmark | IPass
+      | IPushmark | ISkip
       | INum of int | IAccess of int | IOp of op
       | IApply | IReturn
       | ICur of i | IGrab of i

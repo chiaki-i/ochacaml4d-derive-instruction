@@ -73,7 +73,7 @@ let rec run_c c s t m = match (c, s) with
       | _ -> failwith "IReturn: unexpected s"
     end
   | IPushmark -> run_c c (VEmpty :: s) t m
-  | IPass -> run_c c s t m
+  | ISkip -> run_c c s t m
   | IShift (i) ->
     run_c (CSeq (i, VContS (c, s, t) :: vs, idc)) [] TNil m
   | IControl (i) ->
@@ -153,7 +153,7 @@ and f_s e2s xs = match e2s with
 
 (* f_st : e list -> string list -> i *)
 and f_st e2s xs = match e2s with
-    [] -> IPass
+    [] -> ISkip (* 空の命令として残すが、リスト化すると消せる *)
   | e :: e2s -> f_st e2s xs >> f e xs
 
 (* f_init : e -> v *)

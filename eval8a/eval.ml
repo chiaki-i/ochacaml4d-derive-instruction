@@ -90,8 +90,8 @@ let apply = fun vs c (v :: v1 :: s) t m ->
 (* pushmark : i *)
 let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
 
-(* pass : i *)
-let pass = fun vs c s t m -> c s t m
+(* skip : i *)
+let skip = fun vs c s t m -> c s t m
 
 (* return : i *)
 let return = fun vs c (v :: s) t m ->
@@ -159,7 +159,7 @@ and f_s e2s xs = match e2s with
 
 (* f_st : e list -> string list -> i *)
 and f_st e2s xs = match e2s with
-    [] -> pass
+    [] -> skip
   | e :: e2s -> f_st e2s xs >> f e xs
 
 (* f_init : e -> v *)

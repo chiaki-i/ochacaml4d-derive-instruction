@@ -76,8 +76,6 @@ and run_c c s t m = match (c, s) with
     end
   | ((IPushmark :: is, vs) :: c, s) ->
     run_c ((is, vs) :: c) (VEmpty :: s) t m
-  | ((IPass :: is, vs) :: c, s) ->
-    run_c ((is, vs) :: c) s t m
   | ((IShift (i) :: is, vs) :: c, s) ->
     run_c
       ((i, VContS (((is, vs) :: c), s, t) :: vs) :: idc)
@@ -164,7 +162,7 @@ and f_s e2s xs = match e2s with
 
 (* f_st : e list -> string list -> i *)
 and f_st e2s xs = match e2s with
-    [] -> [IPass]
+    [] -> []
   | e :: e2s -> f_st e2s xs @ f e xs
 
 (* f_init : e -> v *)
