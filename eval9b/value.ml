@@ -15,7 +15,7 @@ and c = C0
 and i = ISeq of i * i
       | IPushmark | ISkip
       | INum of int | IAccess of int | IOp of op
-      | IApply | IReturn
+      | IApply | IAppterm | IReturn
       | ICur of i | IGrab of i
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i

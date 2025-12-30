@@ -77,6 +77,18 @@ let rec app v0 v1 c s t m =
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
+(* app_t : v -> v -> c -> s -> t -> m -> v *)
+and app_t v0 v1 c s t m =
+  let app_c (v :: s) t m = app_s v c s t m in
+  match v0 with
+    VFun (f) -> f c (v1 :: s) t m
+  | VContS (c', s', t') ->
+    c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+  | VContC (c', s', t') ->
+    c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
+
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 c s t m = match s with
     VEmpty :: s -> c (v0 :: s) t m
@@ -86,6 +98,10 @@ and app_s v0 c s t m = match s with
 (* apply : i *)
 let apply = fun vs c (v :: v1 :: s) t m ->
   app v v1 c s t m
+
+(* appterm : i *)
+let appterm = fun vs c (v :: v1 :: s) t m ->
+  app_t v v1 c s t m
 
 (* pushmark : i *)
 let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
@@ -145,7 +161,7 @@ and f_t e xs = match e with
     f e1 xs >> f e0 xs >> operation op >> return
   | Fun (x, e) -> grab (f_t e (x :: xs))
   | App (e0, e2s) ->
-    f_st e2s xs >> f e0 xs >> apply
+    f_st e2s xs >> f e0 xs >> appterm
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return

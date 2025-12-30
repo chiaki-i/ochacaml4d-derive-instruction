@@ -69,6 +69,11 @@ and run_c c s t m = match (c, s) with
         v :: v1 :: s -> app v v1 vs c s t m
       | _ -> failwith "IApply: unexpected s"
     end
+  | IAppterm ->
+    begin match s with
+        v :: v1 :: s -> app_t v v1 vs c s t m
+      | _ -> failwith "IAppterm: unexpected s"
+    end
   | IReturn ->
     begin match s with
         v :: s -> app_s v vs c s t m
@@ -101,6 +106,18 @@ and run_c c s t m = match (c, s) with
 
 (* app : v -> v -> v list -> c -> s -> t -> m -> v *)
 and app v0 v1 vs c s t m =
+  let app_c = CSeq (IReturn, vs, c) in
+  match v0 with
+    VFun (f) -> f c (v1 :: s) t m
+  | VContS (c', s', t') ->
+    run_c c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+  | VContC (c', s', t') ->
+    run_c c' (v1 :: s') (apnd t' (cons (Hold (CSeq (IReturn, vs, c), s)) t)) m
+  | _ -> failwith (to_string v0
+                   ^ " is not a function; it can not be applied.")
+
+(* app_t : v -> v -> v list -> c -> s -> t -> m -> v *)
+and app_t v0 v1 vs c s t m =
   let app_c = CSeq (IReturn, vs, c) in
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
@@ -144,7 +161,7 @@ and f_t e xs = match e with
     f e1 xs >> f e0 xs >> IOp (op) >> IReturn
   | Fun (x, e) -> IGrab (f_t e (x :: xs))
   | App (e0, e2s) ->
-    f_st e2s xs >> f e0 xs >> IApply
+    f_st e2s xs >> f e0 xs >> IAppterm
   | Shift (x, e) -> IShift (f e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f e (x :: xs)) >> IReturn
   | Shift0 (x, e) -> IShift0 (f e (x :: xs)) >> IReturn
