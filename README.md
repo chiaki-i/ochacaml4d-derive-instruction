@@ -72,6 +72,7 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 - Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10{a,b,c}
   - 1b_3_1 は、Appterm 導出しようとして f と f_t の App 規則を非関数化しようとしている（が、うまく行っていない）
   - 1b_3_2 は Appterm はこうあるべき、という形を意図的に定義している。App のケースで、app_s ではなくて app を使用している点にも注意
+  - 6a が非関数化する前の最後の状態、10c が return 最適化後の状態
 
 ### Tail interpreter revived (Journal ver.)
 - Eval1s, Eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1

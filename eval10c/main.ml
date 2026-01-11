@@ -5,9 +5,12 @@ let go () =
     print_string "Parsed : ";
     Syntax.print program;               (* input *)
     print_newline ();
+    print_string "Compiled : ";
+    Value.print_inst (Eval.f program []);
+    print_newline ();
     print_string "Result : "
   end;
-  print_string (Value.to_string (Eval.f_init program)) ;(* result *)
+  print_string (Value.v_to_string (Eval.f_init program)); (* result *)
   print_newline ()
 
 (* startup *)

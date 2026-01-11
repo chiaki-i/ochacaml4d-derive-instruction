@@ -3,10 +3,10 @@ type op = Plus | Minus | Times | Divide
 
 (* op_to_string : op -> string *)
 let op_to_string op = match op with
-    Plus -> " + "
-  | Minus -> " - "
-  | Times -> " * "
-  | Divide -> " / "
+    Plus -> "+"
+  | Minus -> "-"
+  | Times -> "*"
+  | Divide -> "/"
 
 (* e : syntax *)
 type e = Num of int
@@ -25,7 +25,7 @@ let rec to_string exp = match exp with
     Num (n) -> string_of_int n
   | Var (x) -> x
   | Op (e0, op, e1) ->
-    "(" ^ to_string e0 ^ op_to_string op ^ to_string e1 ^ ")"
+    "(" ^ to_string e0 ^ " " ^ op_to_string op ^ " " ^ to_string e1 ^ ")"
   | Fun (x, e) ->
     "(fun " ^ x ^ " -> " ^ to_string e ^ ")"
   | App (e0, e2s) ->

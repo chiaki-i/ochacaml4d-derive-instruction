@@ -50,7 +50,7 @@ and run_c c s t m = match (c, s) with
                 if n1 = 0 then failwith "Division by zero"
                 else run_c ((is, vs) :: c) (VNum (n0 / n1) :: s) t m
             end
-          | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
+          | _ -> failwith (v_to_string v0 ^ " or " ^ v_to_string v ^ " are not numbers")
         end
       | _ -> failwith "IOp: unexpected s"
     end
@@ -75,7 +75,7 @@ and run_c c s t m = match (c, s) with
         let app_c = ([IReturn], vs) :: (is, vs) :: c in
         run_c c' (v1 :: s') (apnd t' (cons (Hold (app_c, s)) t)) m
       | v0 :: v1 :: s ->
-        failwith (to_string v0
+        failwith (v_to_string v0
           ^ " is not a function; it can not be applied.")
       | _ -> failwith "IApply: unexpected s"
     end
@@ -90,7 +90,7 @@ and run_c c s t m = match (c, s) with
         let app_c = ([IReturn], vs) :: c in
         run_c c' (v1 :: s') (apnd t' (cons (Hold (app_c, s)) t)) m
       | v0 :: v1 :: s ->
-        failwith (to_string v0
+        failwith (v_to_string v0
           ^ " is not a function; it can not be applied.")
       | _ -> failwith "IAppterm: unexpected s"
     end
@@ -106,7 +106,7 @@ and run_c c s t m = match (c, s) with
         let app_c = ([IReturn], vs) :: c in
         run_c c' (v1 :: s') (apnd t' (cons (Hold (app_c, s)) t)) m
       | v0 :: v1 :: s ->
-        failwith (to_string v0
+        failwith (v_to_string v0
           ^ " is not a function; it can not be applied.")
       | _ -> failwith "IReturn: unexpected s"
     end
@@ -143,7 +143,7 @@ and run_c c s t m = match (c, s) with
   | _ -> failwith "run_c: stack error"
 
 (* f : definitional interpreter *)
-(* f : e -> string list -> i *)
+(* f : e -> string list -> i list *)
 let rec f e xs = match e with
     Num (n) -> [INum (n)]
   | Var (x) -> [IAccess (Env.off_set x xs)]
@@ -158,7 +158,7 @@ let rec f e xs = match e with
   | Control0 (x, e) -> [IControl0 (f e (x :: xs))]
   | Reset (e) -> [IReset (f e xs)]
 
-(* f_t : e -> string list -> i *)
+(* f_t : e -> string list -> i list *)
 and f_t e xs = match e with
     Num (n) -> [INum n; IReturn]
   | Var (x) -> [IAccess (Env.off_set x xs); IReturn]
@@ -173,16 +173,16 @@ and f_t e xs = match e with
   | Control0 (x, e) -> [IControl0 (f e (x :: xs)); IReturn]
   | Reset (e) -> [IReset (f e xs); IReturn]
 
-(* f_s : e list -> string list -> i *)
+(* f_s : e list -> string list -> i list *)
 and f_s e2s xs = match e2s with
     [] -> [IPushmark]
   | e :: e2s -> f_s e2s xs @ f e xs
 
-(* f_st : e list -> string list -> i *)
+(* f_st : e list -> string list -> i list *)
 and f_st e2s xs = match e2s with
     [] -> []
   | e :: e2s -> f_st e2s xs @ f e xs
 
-(* f_init : e -> v *)
+(* f_init : v *)
 let f_init expr = run_c ((f expr [], []) :: []) [] TNil MNil
 
