@@ -36,12 +36,16 @@ let rec v_to_string value = match value with
   | VContC (_) -> "<VContC>"
   | VEmpty -> "<ε>"
 
-(* i_list_to_string : i list -> string *)
-let rec i_list_to_string lst = match lst with
-    [] -> "●"
+(* s_to_string : s -> string *)
+and s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
   | first :: rest ->
-    i_to_string first ^
-    List.fold_left (fun str i -> str ^ "; " ^ i_to_string i) "" rest
+    v_to_string first ^
+    List.fold_left (fun str v -> str ^ "; " ^ v_to_string v) "" rest
+  end
+  ^ "]"
 
 (* i_to_string : i -> string *)
 and i_to_string inst = match inst with
@@ -60,16 +64,38 @@ and i_to_string inst = match inst with
   | IControl0 (is) -> "Control0 (" ^ i_list_to_string is ^ ")"
   | IReset (is) -> "Reset (" ^ i_list_to_string is ^ ")"
 
-(* s_to_string : s -> string *)
-let rec s_to_string s =
-  "[" ^
-  begin match s with
-    [] -> ""
+(* i_list_to_string : i list -> string *)
+and i_list_to_string lst = match lst with
+    [] -> "●"
   | first :: rest ->
-    v_to_string first ^
-    List.fold_left (fun str v -> str ^ "; " ^ v_to_string v) "" rest
-  end
-  ^ "]"
+    i_to_string first ^
+    List.fold_left (fun str i -> str ^ "; " ^ i_to_string i) "" rest
+
+(* c_to_string : c -> string *)
+and c_to_string c =
+  match c with
+    [] -> "●"
+  | (is, vs) :: rest ->
+    "(" ^ i_list_to_string is ^ ", " ^ s_to_string vs ^ ")" ^
+    List.fold_left (fun str (is', vs') -> str ^ " :: (" ^ i_list_to_string is' ^ ", " ^ s_to_string vs' ^ ")") "" rest
+
+(* h_to_string : h -> string *)
+and h_to_string h =
+  match h with
+    Hold (c, s) -> "(" ^ c_to_string c ^ ", " ^ s_to_string s ^ ")"
+  | Append (h1, h2) -> h_to_string h1 ^ " @ " ^ h_to_string h2
+
+(* t_to_string : t -> string *)
+and t_to_string t =
+  match t with
+    TNil -> "●"
+  | Trail (h) -> h_to_string h
+
+(* m_to_string : m -> string *)
+and m_to_string m =
+  match m with
+    MNil -> "●"
+  | MCons ((c, s, t), m') -> "((" ^ c_to_string c ^ ", " ^ s_to_string s ^ ", " ^ t_to_string t ^ "), " ^ m_to_string m' ^ ")"
 
 (* Value.print : v -> unit *)
 let print exp =
@@ -82,13 +108,6 @@ let print_inst is = print_string (i_list_to_string is)
 (* Value.print_v_list : v list -> unit *)
 let print_v_list vs = print_string (s_to_string vs)
 
-let rec c_to_string c =
-  match c with
-    [] -> "●"
-  | (is, vs) :: rest ->
-    "(" ^ i_list_to_string is ^ ", " ^ s_to_string vs ^ ")" ^
-    List.fold_left (fun str (is', vs') -> str ^ " :: (" ^ i_list_to_string is' ^ ", " ^ s_to_string vs' ^ ")") "" rest
-
 (* print_machine : c -> s -> t -> m -> unit *)
 let print_machine c s t m  =
   let inst = match c with
@@ -100,6 +119,11 @@ let print_machine c s t m  =
   let cont = match c with
       [] -> "●"
     | _ :: rest -> c_to_string rest in
+  let trail = t_to_string t in
+  let meta = m_to_string m in
   print_endline ("i: " ^ inst);
   print_endline ("e: " ^ env);
-  print_endline ("c: " ^ cont)
+  print_endline ("c: " ^ cont);
+  print_endline ("t: " ^ trail);
+  print_endline ("m: " ^ meta);
+  print_endline "--------------------"
