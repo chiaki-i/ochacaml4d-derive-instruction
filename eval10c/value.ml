@@ -38,7 +38,7 @@ let rec v_to_string value = match value with
 
 (* i_list_to_string : i list -> string *)
 let rec i_list_to_string lst = match lst with
-    [] -> ""
+    [] -> "●"
   | first :: rest ->
     i_to_string first ^
     List.fold_left (fun str i -> str ^ "; " ^ i_to_string i) "" rest
@@ -78,3 +78,28 @@ let print exp =
 
 (* Value.print_inst : i list -> unit *)
 let print_inst is = print_string (i_list_to_string is)
+
+(* Value.print_v_list : v list -> unit *)
+let print_v_list vs = print_string (s_to_string vs)
+
+let rec c_to_string c =
+  match c with
+    [] -> "●"
+  | (is, vs) :: rest ->
+    "(" ^ i_list_to_string is ^ ", " ^ s_to_string vs ^ ")" ^
+    List.fold_left (fun str (is', vs') -> str ^ " :: (" ^ i_list_to_string is' ^ ", " ^ s_to_string vs' ^ ")") "" rest
+
+(* print_machine : c -> s -> t -> m -> unit *)
+let print_machine c s t m  =
+  let inst = match c with
+      [] -> "●"
+    | (is, _) :: _ -> i_list_to_string is in
+  let env = match c with
+      [] -> "●"
+    | (_, vs) :: _ -> s_to_string vs in
+  let cont = match c with
+      [] -> "●"
+    | _ :: rest -> c_to_string rest in
+  print_endline ("i: " ^ inst);
+  print_endline ("e: " ^ env);
+  print_endline ("c: " ^ cont)

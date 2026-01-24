@@ -22,7 +22,9 @@ let rec run_h h v t m = match h with
   | Append (h, h') -> run_h h v (cons h' t) m
 
 (* run_c : c -> s -> t -> m -> v *)
-and run_c c s t m = match (c, s) with
+and run_c c s t m =
+  print_machine c s t m;
+  match (c, s) with
     ([], v :: []) ->
     begin match t with
         TNil ->
@@ -184,5 +186,6 @@ and f_st e2s xs = match e2s with
   | e :: e2s -> f_st e2s xs @ f e xs
 
 (* f_init : v *)
-let f_init expr = run_c ((f expr [], []) :: []) [] TNil MNil
+let f_init expr =
+  run_c ((f expr [], []) :: []) [] TNil MNil
 
