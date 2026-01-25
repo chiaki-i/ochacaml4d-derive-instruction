@@ -116,14 +116,16 @@ let print_machine c s t m  =
   let env = match c with
       [] -> "●"
     | (_, vs) :: _ -> s_to_string vs in
-  let cont = match c with
+  let arg = s_to_string s in
+  let ret = match c with
       [] -> "●"
     | _ :: rest -> c_to_string rest in
   let trail = t_to_string t in
   let meta = m_to_string m in
   print_endline ("i: " ^ inst);
   print_endline ("e: " ^ env);
-  print_endline ("c: " ^ cont);
+  print_endline ("s: " ^ arg);
+  print_endline ("r: " ^ ret);
   print_endline ("t: " ^ trail);
   print_endline ("m: " ^ meta);
   print_endline "--------------------"
