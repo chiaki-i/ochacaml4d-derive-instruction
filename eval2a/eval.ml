@@ -22,7 +22,7 @@ let rec run_c c v t m = match c with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, t), m) -> run_c c v t m
+          | MCons ((c0, v2s, t), m) -> app_s v v2s c0 t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -44,7 +44,7 @@ let rec run_c c v t m = match c with
   | CApp2 (v2s, c) -> run_cs c (v :: v2s) t m
   | CApp3 (v2s, c) -> app_s v v2s c t m
 
-(* run_cs : c -> v -> t -> m -> v *)
+(* run_cs : c -> v list -> t -> m -> v *)
 and run_cs c v2s t m = match c with
     CAppS1 (e, xs, vs, c) -> f e xs vs (CApp1 (v2s, c)) t m
   | CAppS2 (e, xs, vs, c) -> f e xs vs (CApp2 (v2s, c)) t m
@@ -65,17 +65,17 @@ and f e xs vs c t m =
   | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+        MCons ((c0, v2s, t0), m0) ->
+          f_sr e (x :: xs) (VContS (c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f e (x :: xs) (VContC (c, t) :: vs) c0 t0 m0
+        MCons ((c0, v2s, t0), m0) ->
+          f_sr e (x :: xs) (VContC (c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, t), m))
+  | Reset (e) -> f e xs vs idc TNil (MCons ((c, [], t), m))
 
 (* f_t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f_t e xs vs v2s' c t m =
@@ -98,17 +98,46 @@ and f_t e xs vs v2s' c t m =
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f e (x :: xs) (VContS (app_c, t) :: vs) c0 t0 m0
+        MCons ((c0, v2s, t0), m0) ->
+          f_sr e (x :: xs) (VContS (app_c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, t0), m0) ->
-          f e (x :: xs) (VContC (app_c, t) :: vs) c0 t0 m0
+        MCons ((c0, v2s, t0), m0) ->
+          f_sr e (x :: xs) (VContC (app_c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((app_c, t), m))
+  | Reset (e) -> f e xs vs idc TNil (MCons ((c, v2s', t), m))
+
+(* f_sr : e -> string list -> v list -> v list -> c -> t -> m -> v *)
+(* copied from f, change c to app_c0 *)
+and f_sr e xs vs v2s c t m =
+  let app_c0 = CApp3 (v2s, c) in
+  match e with
+    Num (n) -> run_c app_c0 (VNum (n)) t m
+  | Var (x) -> run_c app_c0 (List.nth vs (Env.off_set x xs)) t m
+  | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, app_c0)) t m
+  | Fun (x, e) ->
+    run_c app_c0 (VFun (fun v1 v2s' c' t' m' ->
+              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
+  | App (e0, e2s) ->
+    f_s e2s xs vs (CAppS1 (e0, xs, vs, app_c0)) t m
+  | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, v0s, t0), m0) ->
+          f_sr e (x :: xs) (VContS (app_c0, t) :: vs) v0s c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, v0s, t0), m0) ->
+          f_sr e (x :: xs) (VContC (app_c0, t) :: vs) v0s c0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f e xs vs idc TNil (MCons ((app_c0, [], t), m))
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with
@@ -127,7 +156,7 @@ and app v0 v1 v2s' c t m =
   let app_c = CApp3 (v2s', c) in
   match v0 with
     VFun (f) -> f v1 v2s' c t m
-  | VContS (c', t') -> run_c c' v1 t' (MCons ((app_c, t), m))
+  | VContS (c', t') -> run_c c' v1 t' (MCons ((c, v2s', t), m))
   | VContC (c', t') -> run_c c' v1 (apnd t' (cons (fun v t m -> app_s v v2s' c t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
