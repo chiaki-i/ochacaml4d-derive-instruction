@@ -94,7 +94,14 @@ and f_t e xs vs v2s' c t m =
   | Fun (x, e) ->
     begin match v2s' with
         [] -> c (VFun (fun v1 v2s' c' t' m' ->
-          f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
+          begin match m' with
+              MNil -> f_t e (x :: xs) (v1 :: vs) v2s' c' t' m'
+            | MCons ((c0, [], t0), m0) ->
+              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m'
+            | MCons ((c0, v2s, t0), m0) ->
+              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m' (* optimize later *)
+          end
+          )) t m
       | v1 :: v2s' -> f_t e (x :: xs) (v1 :: vs) v2s' c t m
     end
     (* app_c (VFun (fun v1 v2s' c' t' m' ->
