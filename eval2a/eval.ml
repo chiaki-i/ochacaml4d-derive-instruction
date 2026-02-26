@@ -22,7 +22,10 @@ let rec run_c c v t m = match c with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c0, v2s, t), m) -> app_s v v2s c0 t m
+          | MCons ((c0, v2s, t), m) ->
+            (* 本質的には app_s v v2s c0 t m *)
+            let app_c0 = CApp3 (v2s, c0) in
+            run_c app_c0 v t m
         end
       | Trail (h) -> h v TNil m
     end
