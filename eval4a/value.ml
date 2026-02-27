@@ -7,7 +7,6 @@ type v = VNum of int
        | VFun of (v -> v list -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
 
 and c = C0
       | CApp1 of v list * c

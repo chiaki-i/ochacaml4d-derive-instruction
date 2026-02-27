@@ -122,8 +122,8 @@ and f_t e xs vs v2s' c s t m =
 
 (* f_sr : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
 (* copied from f, change c to app_c0 *)
-and f_sr e xs vs v2s c s t m =
-  let app_c0 = CApp3 (v2s, c) in
+and f_sr e xs vs v2s' c s t m =
+  let app_c0 = CApp3 (v2s', c) in
   match e with
     Num (n) -> run_c app_c0 (VNum (n)) s t m
   | Var (x) -> run_c app_c0 (List.nth vs (Env.off_set x xs)) s t m
@@ -133,18 +133,18 @@ and f_sr e xs vs v2s c s t m =
               f_t e (x :: xs) (v1 :: vs) v2s' c' s' t' m')) s t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, app_c0)) s t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
+  | Shift (x, e) -> f e (x :: xs) (VContS (app_c0, s, t) :: vs) idc [] TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (app_c0, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
     begin match m with
-        MCons ((c0, v0s, s0, t0), m0) ->
-          f_sr e (x :: xs) (VContS (app_c0, s, t) :: vs) v0s c0 s0 t0 m0
+        MCons ((c0, v2s, s0, t0), m0) ->
+          f_sr e (x :: xs) (VContS (app_c0, s, t) :: vs) v2s c0 s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
     begin match m with
-        MCons ((c0, v0s, s0, t0), m0) ->
-          f_sr e (x :: xs) (VContC (app_c0, s, t) :: vs) v0s c0 s0 t0 m0
+        MCons ((c0, v2s, s0, t0), m0) ->
+          f_sr e (x :: xs) (VContC (app_c0, s, t) :: vs) v2s c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f e xs vs idc [] TNil (MCons ((app_c0, [], s, t), m))
