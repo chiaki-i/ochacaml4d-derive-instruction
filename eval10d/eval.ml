@@ -64,9 +64,15 @@ and run_c c s t m =
     begin match s with
         VEmpty :: s ->
         begin match m with
-            MCons ((([IApply], vs0) :: [], v0 :: s0, t0), m0) ->
-            failwith "here"
-            (* run_c c (VFun (is', vs) :: s) t m *)
+            (* test-suite/grab-outside-reset.ml のケースに対応 *)
+            (* メタ継続につまれた命令が Apply になっていて、なおかつ、
+               メタ継続の中のスタックに引数が積まれている状態のとき、
+               メタ継続の中にある Apply 命令を省略し、メタ継続中のスタックの v0 を直接環境に入れる *)
+            MCons ((([IApply], vs0) :: [], VEmpty :: v0 :: VEmpty :: [], t0), m0) ->
+            run_c
+              ((is', (v0 :: vs)) :: c)
+              (VEmpty :: [])
+              t MNil
           | _ ->
             run_c c (VFun (is', vs) :: s) t m
         end
