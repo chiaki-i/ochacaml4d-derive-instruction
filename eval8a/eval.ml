@@ -3,19 +3,6 @@ open Value
 
 (* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
 
-(* initial continuation : v -> t -> m -> v *)
-let idc s t m = match s with
-    v :: [] ->
-    begin match t with
-        TNil ->
-        begin match m with
-            MNil -> v
-          | MCons ((c, s, t), m) -> c (v :: s) t m
-        end
-      | Trail (h) -> h v TNil m
-    end
-  | _ -> failwith "idc: stack error"
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -60,19 +47,26 @@ let grab i = fun vs c s t m ->
   begin match s with
     VEmpty :: s ->
     c ((VFun (fun c' (v1 :: s') t' m' ->
-      i (v1 :: vs) c' s' t' m')) :: s) t m
+      begin match m' with
+          MNil -> i (v1 :: vs) c' s' t' m'
+        | MCons ((c0, VEmpty :: s0, t0), m0) ->
+          i (v1 :: vs) c' s' t' m' (* optimize this later *)
+        | MCons ((c0, s0, t0), m0) ->
+          i (v1 :: vs) c' s' t' m'
+      end
+      )) :: s) t m
   | v1 :: s -> i (v1 :: vs) c s t m
   | _ -> failwith "grab: stack is empty"
   end
 
 (* app : v -> v -> c -> s -> t -> m -> v *)
 let rec app v0 v1 c s t m =
-  let app_c (v :: s) t m = app_s v c s t m in
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
-    c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+    c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
+    let app_c (v :: s) t m = app_s v c s t m in
     c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
@@ -94,6 +88,21 @@ and app_s v0 c s t m = match s with
     VEmpty :: s -> c (v0 :: s) t m
   | v1 :: s -> app v0 v1 c s t m
   | [] -> failwith "unexpected s"
+
+(* initial continuation : v -> t -> m -> v *)
+let idc s t m = match s with
+    v :: [] ->
+    begin match t with
+        TNil ->
+        begin match m with
+            MNil -> v
+          | MCons ((c0, s0, t0), m0) ->
+            let app_c0 (v :: s) t m = app_s v c0 s t m in
+            app_c0 (v :: s0) t0 m0
+        end
+      | Trail (h) -> h v TNil m
+    end
+  | _ -> failwith "idc: stack error"
 
 (* apply : i *)
 let apply = fun vs c (v :: v1 :: s) t m ->
@@ -137,6 +146,9 @@ let control0 i = fun vs c s t m -> match m with
 let reset i = fun vs c s t m ->
   i vs idc [] TNil (MCons ((c, s, t), m))
 
+let resetmark i = fun vs c s t m ->
+  i vs idc [] TNil (MCons ((c, (VEmpty :: s), t), m))
+
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f e xs = match e with
@@ -149,9 +161,9 @@ let rec f e xs = match e with
     f_s e2s xs >> f e0 xs >> apply
   | Shift (x, e) -> shift (f e (x :: xs))
   | Control (x, e) -> control (f e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f e (x :: xs))
-  | Control0 (x, e) -> control0 (f e (x :: xs))
-  | Reset (e) -> reset (f e xs)
+  | Shift0 (x, e) -> shift0 (f_sr e (x :: xs))
+  | Control0 (x, e) -> control0 (f_sr e (x :: xs))
+  | Reset (e) -> resetmark (f e xs)
 
 (* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs = match e with
@@ -164,9 +176,25 @@ and f_t e xs = match e with
     f_st e2s xs >> f e0 xs >> appterm
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return
-  | Control0 (x, e) -> control0 (f e (x :: xs)) >> return
-  | Reset (e) -> reset (f e xs) >> return
+  | Shift0 (x, e) -> shift0 (f_sr e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f_sr e (x :: xs)) >> return
+  | Reset (e) -> reset (f e xs)
+
+(* f_sr : e -> string list -> v list -> c -> s -> t -> m -> v *)
+and f_sr e xs = match e with
+    Num (n) -> num n >> return
+  | Var (x) -> access (Env.off_set x xs) >> return
+  | Op (e0, op, e1) ->
+    f e1 xs >> f e0 xs >> operation op >> return
+  | Fun (x, e) -> cur (f_t e (x :: xs)) >> return
+  | App (e0, e2s) ->
+    f_s e2s xs >> f e0 xs >> apply >> return
+  | Shift (x, e) -> shift (f e (x :: xs)) >> return
+  | Control (x, e) -> control (f e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f_sr e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f_sr e (x :: xs)) >> return
+  | Reset (e) -> resetmark (f e xs) >> return
+
 
 (* f_s : e list -> string list -> i *)
 and f_s e2s xs = match e2s with
