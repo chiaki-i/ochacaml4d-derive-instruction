@@ -30,6 +30,7 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
+  | VEmpty -> "<ε>"
 
 (* s_to_string : s -> string *)
 let rec s_to_string s =
