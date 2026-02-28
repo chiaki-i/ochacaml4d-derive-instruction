@@ -68,6 +68,11 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 
 ## Which directory is for which derivation path?
 
+### meta continuation optimization (for PPL 2026 poster)
+- Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 1d, 1e_{1, 2}, 2a, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10{a,b,c,d}
+- Eval1e_1 が実際にメタ継続の非関数化を行った場所、その後は、これまでのジャーナルの方式に従って素直に導出しただけ。これだけでも、インストラクションの表に出てくるメタ継続の中に出現する `Return` 命令を削減できている。
+- `test-suite/1/grab-outside-reset*` 系のテストケースに対応するための変換が最後の eval10d に相当。Grab 命令の中で、メタ継続の構造によって場合分けしている。これが本当に全ての類似ケースを網羅しているかどうかは、要検討。
+
 ### Appterm (Journal revision)
 - Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10{a,b,c}
   - 1b_3_1 は、Appterm 導出しようとして f と f_t の App 規則を非関数化しようとしている（が、うまく行っていない）
