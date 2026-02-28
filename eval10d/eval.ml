@@ -63,7 +63,13 @@ and run_c c s t m =
   | ((IGrab (is') :: [], vs) :: c, s) ->
     begin match s with
         VEmpty :: s ->
-        run_c c (VFun (is', vs) :: s) t m
+        begin match m with
+            MCons ((([IApply], vs0) :: [], v0 :: s0, t0), m0) ->
+            failwith "here"
+            (* run_c c (VFun (is', vs) :: s) t m *)
+          | _ ->
+            run_c c (VFun (is', vs) :: s) t m
+        end
       | v1 :: s ->
         run_c ((is', (v1 :: vs)) :: c) s t m
       | _ -> failwith "IGrab: unexpected s"
