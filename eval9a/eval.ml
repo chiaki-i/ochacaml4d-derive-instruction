@@ -26,7 +26,10 @@ let rec run_c c s t m = match (c, s) with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> run_c c (v :: s) t m
+          | MCons ((c0, s0, t0), m0) ->
+            (* CSeq receives empty vs (thus empty list) *)
+            let app_c0 = CSeq (IReturn, [], c0) in
+            run_c app_c0 (v :: s0) t0 m0
         end
       | Trail (h) -> h v TNil m
     end
@@ -57,7 +60,14 @@ let rec run_c c s t m = match (c, s) with
     begin match s with
         VEmpty :: s ->
         run_c c ((VFun (fun c' (v1 :: s') t' m' ->
-          run_c (CSeq (i, (v1 :: vs), c')) s' t' m')) :: s) t m
+          begin match m' with
+              MNil -> run_c (CSeq (i, (v1 :: vs), c')) s' t' m'
+            | MCons ((c0, VEmpty :: s0, t0), m0) ->
+              run_c (CSeq (i, (v1 :: vs), c')) s' t' m' (* optimize this later *)
+            | MCons ((c0, s0, t0), m0) ->
+              run_c (CSeq (i, (v1 :: vs), c')) s' t' m'
+          end
+          )) :: s) t m
       | v1 :: s ->
         run_c (CSeq (i, (v1 :: vs), c)) s t m
       | _ -> failwith "IGrab: unexpected s"
@@ -97,6 +107,8 @@ let rec run_c c s t m = match (c, s) with
     end
   | IReset (i) ->
     run_c (CSeq (i, vs, idc)) [] TNil (MCons ((c, s, t), m))
+  | IResetmark (i) ->
+    run_c (CSeq (i, vs, idc)) [] TNil (MCons ((c, VEmpty :: s, t), m))
   | ISeq (i0, i1) ->
     run_c (CSeq (i0, vs, (CSeq (i1, vs, c)))) s t m
   end
@@ -104,24 +116,24 @@ let rec run_c c s t m = match (c, s) with
 
 (* app : v -> v -> v list -> c -> s -> t -> m -> v *)
 and app v0 v1 vs c s t m =
-  let app_c = CSeq (IReturn, vs, c) in
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
-    run_c c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+    run_c c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
+    let app_c = CSeq (IReturn, vs, c) in
     run_c c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v vs c s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* app_t : v -> v -> v list -> c -> s -> t -> m -> v *)
 and app_t v0 v1 vs c s t m =
-  let app_c = CSeq (IReturn, vs, c) in
   match v0 with
     VFun (f) -> f c (v1 :: s) t m
   | VContS (c', s', t') ->
-    run_c c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+    run_c c' (v1 :: s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
+    let app_c = CSeq (IReturn, vs, c) in
     run_c c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v vs c s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
@@ -144,9 +156,9 @@ let rec f e xs = match e with
     f_s e2s xs >> f e0 xs >> IApply
   | Shift (x, e) -> IShift (f e (x :: xs))
   | Control (x, e) -> IControl (f e (x :: xs))
-  | Shift0 (x, e) -> IShift0 (f e (x :: xs))
-  | Control0 (x, e) -> IControl0 (f e (x :: xs))
-  | Reset (e) -> IReset (f e xs)
+  | Shift0 (x, e) -> IShift0 (f_sr e (x :: xs))
+  | Control0 (x, e) -> IControl0 (f_sr e (x :: xs))
+  | Reset (e) -> IResetmark (f e xs)
 
 (* f_t : e -> string list -> i *)
 and f_t e xs = match e with
@@ -159,9 +171,24 @@ and f_t e xs = match e with
     f_st e2s xs >> f e0 xs >> IAppterm
   | Shift (x, e) -> IShift (f e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f e (x :: xs)) >> IReturn
-  | Shift0 (x, e) -> IShift0 (f e (x :: xs)) >> IReturn
-  | Control0 (x, e) -> IControl0 (f e (x :: xs)) >> IReturn
-  | Reset (e) -> IReset (f e xs) >> IReturn
+  | Shift0 (x, e) -> IShift0 (f_sr e (x :: xs)) >> IReturn
+  | Control0 (x, e) -> IControl0 (f_sr e (x :: xs)) >> IReturn
+  | Reset (e) -> IReset (f e xs)
+
+(* f_sr : e -> string list -> i *)
+and f_sr e xs = match e with
+    Num (n) -> INum (n) >> IReturn
+  | Var (x) -> IAccess (Env.off_set x xs) >> IReturn
+  | Op (e0, op, e1) ->
+    f e1 xs >> f e0 xs >> IOp (op) >> IReturn
+  | Fun (x, e) -> ICur (f_t e (x :: xs)) >> IReturn
+  | App (e0, e2s) ->
+    f_s e2s xs >> f e0 xs >> IApply >> IReturn
+  | Shift (x, e) -> IShift (f e (x :: xs)) >> IReturn
+  | Control (x, e) -> IControl (f e (x :: xs)) >> IReturn
+  | Shift0 (x, e) -> IShift0 (f_sr e (x :: xs)) >> IReturn
+  | Control0 (x, e) -> IControl0 (f_sr e (x :: xs)) >> IReturn
+  | Reset (e) -> IResetmark (f e xs) >> IReturn
 
 (* f_s : e list -> string list -> i *)
 and f_s e2s xs = match e2s with
