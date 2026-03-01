@@ -1,0 +1,187 @@
+$ ./interpreter
+(reset ((fun x -> fun y -> fun a -> x + y + a) (shift k -> k 3 2))) 10
+Parsed   : (reset (((fun x -> (fun y -> (fun a -> ((x + y) + a)))) (shift k -> (k 3 2)))) 10)
+Compiled : Pushmark; Num (10); Pushmark; Reset (Pushmark; Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply); Apply
+i: Pushmark; Num (10); Pushmark; Reset (Pushmark; Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply); Apply
+e: []
+s: []
+r: ●
+t: ●
+m: ●
+--------------------
+i: Num (10); Pushmark; Reset (Pushmark; Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply); Apply
+e: []
+s: [<ε>]
+r: ●
+t: ●
+m: ●
+--------------------
+i: Pushmark; Reset (Pushmark; Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply); Apply
+e: []
+s: [10; <ε>]
+r: ●
+t: ●
+m: ●
+--------------------
+i: Reset (Pushmark; Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply); Apply
+e: []
+s: [<ε>; 10; <ε>]
+r: ●
+t: ●
+m: ●
+--------------------
+i: Pushmark; Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply
+e: []
+s: []
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Shift (Pushmark; Num (2); Num (3); Access (0); Apply); Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply
+e: []
+s: [<ε>]
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Pushmark; Num (2); Num (3); Access (0); Apply
+e: [<VContS>]
+s: []
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Num (2); Num (3); Access (0); Apply
+e: [<VContS>]
+s: [<ε>]
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Num (3); Access (0); Apply
+e: [<VContS>]
+s: [2; <ε>]
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Access (0); Apply
+e: [<VContS>]
+s: [3; 2; <ε>]
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Apply
+e: [<VContS>]
+s: [<VContS>; 3; 2; <ε>]
+r: ●
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Cur (Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))); Apply
+e: []
+s: [3; <ε>]
+r: ●
+t: ●
+m: (((●, [<VContS>]), [2; <ε>], ●), (((Apply, []), [<ε>; 10; <ε>], ●), ●))
+--------------------
+i: Apply
+e: []
+s: [<VFun>; 3; <ε>]
+r: ●
+t: ●
+m: (((●, [<VContS>]), [2; <ε>], ●), (((Apply, []), [<ε>; 10; <ε>], ●), ●))
+--------------------
+i: Grab (Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return))
+e: [3]
+s: [<ε>]
+r: (●, [])
+t: ●
+m: (((●, [<VContS>]), [2; <ε>], ●), (((Apply, []), [<ε>; 10; <ε>], ●), ●))
+--------------------
+i: ●
+e: []
+s: [<VFun>]
+r: ●
+t: ●
+m: (((●, [<VContS>]), [2; <ε>], ●), (((Apply, []), [<ε>; 10; <ε>], ●), ●))
+--------------------
+i: ●
+e: ●
+s: [<VFun>]
+r: ●
+t: ●
+m: (((●, [<VContS>]), [2; <ε>], ●), (((Apply, []), [<ε>; 10; <ε>], ●), ●))
+--------------------
+i: Return
+e: []
+s: [<VFun>; 2; <ε>]
+r: (●, [<VContS>])
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Grab (Access (0); Access (1); Access (2); Op (+); Op (+); Return)
+e: [2; 3]
+s: [<ε>]
+r: (●, [<VContS>])
+t: ●
+m: (((Apply, []), [<ε>; 10; <ε>], ●), ●)
+--------------------
+i: Access (0); Access (1); Access (2); Op (+); Op (+); Return
+e: [10; 2; 3]
+s: [<ε>]
+r: (●, [<VContS>])
+t: ●
+m: ●
+--------------------
+i: Access (1); Access (2); Op (+); Op (+); Return
+e: [10; 2; 3]
+s: [10; <ε>]
+r: (●, [<VContS>])
+t: ●
+m: ●
+--------------------
+i: Access (2); Op (+); Op (+); Return
+e: [10; 2; 3]
+s: [2; 10; <ε>]
+r: (●, [<VContS>])
+t: ●
+m: ●
+--------------------
+i: Op (+); Op (+); Return
+e: [10; 2; 3]
+s: [3; 2; 10; <ε>]
+r: (●, [<VContS>])
+t: ●
+m: ●
+--------------------
+i: Op (+); Return
+e: [10; 2; 3]
+s: [5; 10; <ε>]
+r: (●, [<VContS>])
+t: ●
+m: ●
+--------------------
+i: Return
+e: [10; 2; 3]
+s: [15; <ε>]
+r: (●, [<VContS>])
+t: ●
+m: ●
+--------------------
+i: ●
+e: [<VContS>]
+s: [15]
+r: ●
+t: ●
+m: ●
+--------------------
+i: ●
+e: ●
+s: [15]
+r: ●
+t: ●
+m: ●
+--------------------
+15
