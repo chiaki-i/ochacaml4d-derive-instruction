@@ -19,7 +19,7 @@ and i = ISeq of i * i
       | ICur of i | IGrab of i
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i
-      | IReset of i | IResetmark of i
+      | IReset of i
 
 and s = v list
 

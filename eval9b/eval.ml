@@ -102,8 +102,6 @@ and run_c c s t m = match (c, s) with
     end
   | IReset (i) ->
     run_c (CSeq (i, vs, idc)) [] TNil (MCons ((c, s, t), m))
-  | IResetmark (i) ->
-    run_c (CSeq (i, vs, idc)) [] TNil (MCons ((c, VEmpty :: s, t), m))
   | ISeq (i0, i1) ->
     run_c (CSeq (i0, vs, (CSeq (i1, vs, c)))) s t m
   end
@@ -156,7 +154,7 @@ let rec f e xs = match e with
   | Control (x, e) -> IControl (f e (x :: xs))
   | Shift0 (x, e) -> IShift0 (f_sr e (x :: xs))
   | Control0 (x, e) -> IControl0 (f_sr e (x :: xs))
-  | Reset (e) -> IResetmark (f e xs)
+  | Reset (e) -> IPushmark >> IReset (f e xs)
 
 (* f_t : e -> string list -> i *)
 and f_t e xs = match e with
@@ -186,7 +184,7 @@ and f_sr e xs = match e with
   | Control (x, e) -> IControl (f e (x :: xs)) >> IReturn
   | Shift0 (x, e) -> IShift0 (f_sr e (x :: xs)) >> IReturn
   | Control0 (x, e) -> IControl0 (f_sr e (x :: xs)) >> IReturn
-  | Reset (e) -> IResetmark (f e xs) >> IReturn
+  | Reset (e) -> IPushmark >> IReset (f e xs) >> IReturn
 
 (* f_s : e list -> string list -> i *)
 and f_s e2s xs = match e2s with

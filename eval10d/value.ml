@@ -17,7 +17,7 @@ and i = IPushmark
       | ICur of i list | IGrab of i list
       | IShift of i list | IControl of i list
       | IShift0 of i list | IControl0 of i list
-      | IReset of i list | IResetmark of i list
+      | IReset of i list
 
 and s = v list
 
@@ -63,7 +63,6 @@ and i_to_string inst = match inst with
   | IShift0 (is) -> "Shift0 (" ^ i_list_to_string is ^ ")"
   | IControl0 (is) -> "Control0 (" ^ i_list_to_string is ^ ")"
   | IReset (is) -> "Reset (" ^ i_list_to_string is ^ ")"
-  | IResetmark (is) -> "Resetmark (" ^ i_list_to_string is ^ ")"
 
 (* i_list_to_string : i list -> string *)
 and i_list_to_string lst = match lst with
