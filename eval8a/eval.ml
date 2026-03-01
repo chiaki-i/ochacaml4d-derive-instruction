@@ -147,9 +147,6 @@ let control0 i = fun vs c s t m -> match m with
 let reset i = fun vs c s t m ->
   i vs idc [] TNil (MCons ((c, s, t), m))
 
-let resetmark i = fun vs c s t m ->
-  i vs idc [] TNil (MCons ((c, (VEmpty :: s), t), m))
-
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f e xs = match e with
@@ -164,7 +161,7 @@ let rec f e xs = match e with
   | Control (x, e) -> control (f e (x :: xs))
   | Shift0 (x, e) -> shift0 (f_sr e (x :: xs))
   | Control0 (x, e) -> control0 (f_sr e (x :: xs))
-  | Reset (e) -> resetmark (f e xs)
+  | Reset (e) -> pushmark >> reset (f e xs)
 
 (* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs = match e with
@@ -194,7 +191,7 @@ and f_sr e xs = match e with
   | Control (x, e) -> control (f e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f_sr e (x :: xs)) >> return
   | Control0 (x, e) -> control0 (f_sr e (x :: xs)) >> return
-  | Reset (e) -> resetmark (f e xs) >> return
+  | Reset (e) -> pushmark >> reset (f e xs) >> return
 
 
 (* f_s : e list -> string list -> i *)
