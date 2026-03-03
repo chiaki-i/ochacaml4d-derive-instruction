@@ -72,8 +72,9 @@ and f e xs vs c t m =
     end
   | Reset (e) ->
     (* 本当に Reset のケースの app_c は v2s = [] でいいのか？テストには通るが… *)
-    let app_c = fun v t m -> app_s v [] c t m in
-    f e xs vs idc TNil (MCons ((app_c, [], t), m))
+    (* let app_c = fun v t m -> app_s v [] c t m in (* この app_c は何もしてないので c と同じ *)
+    f e xs vs idc TNil (MCons ((app_c, [], t), m)) *)
+    f e xs vs idc TNil (MCons ((c, [], t), m))
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with
