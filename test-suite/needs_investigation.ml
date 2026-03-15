@@ -1,8 +1,7 @@
 (* case 1 *)
 reset (shift k -> (2 + (k 1)))
 
-$ rlwrap ./interpreter
-reset (shift k -> (2 + (k 1)))
+$ ./interpreter
 Parsed   : reset ((shift k -> (2 + (k 1))))
 Compiled : Reset (Shift (Pushmark; Num (1); Access (0); Apply; Num (2); Op (+)))
 i: Reset (Shift (Pushmark; Num (1); Access (0); Apply; Num (2); Op (+)))
@@ -52,7 +51,7 @@ e: []
 s: [1]
 r: ●
 t: ●
-Return, [<VContS>]) :: (Num (2); Op (+), [<VContS>]), [<ε>], ●), (((●, []), [], ●), ●))
+m: (((Return, [<VContS>]) :: (Num (2); Op (+), [<VContS>]), [<ε>], ●), (((●, []), [], ●), ●))
 --------------------
 i: ●
 e: ●
@@ -165,7 +164,7 @@ i: ●
 e: []
 s: [1]
 r: ●
-eturn, [<VContC>]) :: (Num (2); Op (+), [<VContC>]), [<ε>])
+t: ((Return, [<VContC>]) :: (Num (2); Op (+), [<VContC>]), [<ε>])
 m: (((●, []), [], ●), ●)
 --------------------
 i: ●
@@ -280,7 +279,7 @@ e: []
 s: [1]
 r: ●
 t: ●
-<ε>], ●), ●), [<VContS>]) :: (Num (2); Op (+), [<VContS>]) :: (●, []), [
+m: (((Return, [<VContS>]) :: (Num (2); Op (+), [<VContS>]) :: (●, []), [<ε>], ●), ●)
 --------------------
 i: ●
 e: ●
@@ -384,7 +383,7 @@ m: (((●, []), [], ●), ●)
 --------------------
 i: Apply; Op (+)
 e: [<VContS>]
-ε>; 2]ContS>; 1; <
+s: [<VContS>; 1; <ε>; 2]
 r: ●
 t: ●
 m: (((●, []), [], ●), ●)
