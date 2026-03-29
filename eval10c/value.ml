@@ -32,7 +32,7 @@ and m = MNil | MCons of (c * s * t) * m
 let rec v_to_string value = match value with
     VNum (n) -> string_of_int n
   | VFun (_) -> "<VFun>"
-  | VContS (_) -> "<VContS>"
+  | VContS (c, s, t) -> "(" ^ c_to_string c ^ ", " ^ s_to_string s ^ ", " ^ t_to_string t ^ ")_S"
   | VContC (_) -> "<VContC>"
   | VEmpty -> "<ε>"
 
