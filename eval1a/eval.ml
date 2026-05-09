@@ -89,5 +89,33 @@ and app_s v0 v2s c t m = match v2s with
   | v1 :: v2s -> app v0 v1 (fun v t m ->
                    app_s v v2s c t m) t m
 
+(* Lemma (used to justify the transformation from eval1c to eval1d):
+     app_s v0 (v2s @ v2s') c t m
+   = app_s v0 v2s (fun v t m -> app_s v v2s' c t m) t m
+
+   Proof by induction on v2s.
+
+   Case v2s = []:
+     LHS = app_s v0 ([] @ v2s') c t m
+         = app_s v0 v2s' c t m
+     RHS = app_s v0 [] (fun v t m -> app_s v v2s' c t m) t m
+         = (fun v t m -> app_s v v2s' c t m) v0 t m
+         = app_s v0 v2s' c t m
+         = LHS
+
+   Case v2s = v1 :: v2s  (induction hypothesis: lemma holds for v2s):
+     LHS = app_s v0 ((v1 :: v2s) @ v2s') c t m
+         = app_s v0 (v1 :: (v2s @ v2s')) c t m
+         = app v0 v1 (fun v t m -> app_s v (v2s @ v2s') c t m) t m
+     RHS = app_s v0 (v1 :: v2s) (fun v t m -> app_s v v2s' c t m) t m
+         = app v0 v1 (fun v t m ->
+             app_s v v2s (fun v t m -> app_s v v2s' c t m) t m) t m
+     By the induction hypothesis, the continuations are equal, so LHS = RHS.
+   QED
+
+   Note: eval1b_1 changes the definition of app_s, but the new definition
+   computes the same function as eval1a's app_s, so this lemma also holds
+   in eval1c (where the transformation is applied). *)
+
 (* f_init : e -> v *)
 let f_init expr = f expr [] [] idc TNil MNil
