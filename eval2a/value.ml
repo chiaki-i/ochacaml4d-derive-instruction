@@ -13,6 +13,7 @@ and c = C0
       | CApp2 of v list * c
       | CApp3 of v list * c
       | CAppS1 of e * string list * v list * c
+      | CAppS1T of e * string list * v list * v list * c
       | CAppS2 of e * string list * v list * c
       | COp0 of v * op * c
       | COp1 of e * string list * op * v list * c

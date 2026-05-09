@@ -47,6 +47,7 @@ let rec run_c c v t m = match c with
 (* run_cs : c -> v -> t -> m -> v *)
 and run_cs c v2s t m = match c with
     CAppS1 (e, xs, vs, c) -> f e xs vs (CApp1 (v2s, c)) t m
+  | CAppS1T (e, xs, vs, v2s', c) -> f e xs vs (CApp1 (v2s @ v2s', c)) t m
   | CAppS2 (e, xs, vs, c) -> f e xs vs (CApp2 (v2s, c)) t m
 
 (* f : definitional interpreter *)
@@ -93,7 +94,7 @@ and f_t e xs vs v2s' c t m =
     (* run_c app_c (VFun (fun v1 v2s' c' t' m' ->
               f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m *)
   | App (e0, e2s) ->
-    f_st e2s xs vs v2s' (CAppS1 (e0, xs, vs, c)) t m
+    f_s e2s xs vs (CAppS1T (e0, xs, vs, v2s', c)) t m
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
@@ -115,12 +116,6 @@ and f_s e2s xs vs c t m = match e2s with
     [] -> run_cs c [] t m
   | e :: e2s ->
     f_s e2s xs vs (CAppS2 (e, xs, vs, c)) t m
-
-(* f_st : e list -> string list -> v list -> v list -> c -> t -> m -> v list *)
-and f_st e2s xs vs v2s' c t m = match e2s with
-    [] -> run_cs c v2s' t m
-  | e :: e2s ->
-    f_st e2s xs vs v2s' (CAppS2 (e, xs, vs, c)) t m
 
 (* app : v -> v -> v list -> c -> t -> m -> v *)
 and app v0 v1 v2s' c t m =
