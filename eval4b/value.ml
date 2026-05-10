@@ -7,18 +7,21 @@ type v = VNum of int
        | VFun of (v -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
+       (* | VEmpty *)
 
+(* c の中に static と dynamic な変数が含まれているので、
+  それを分離してできたのが s である *)
 and c = C0
       | CApp1 of c
       | CApp2 of c
       | CApp3 of c
       | CAppS1 of e * string list * v list * c
+      | CAppS1T of e * string list * v list * c
       | CAppS2 of e * string list * v list * c
       | COp0 of v * op * c
       | COp1 of e * string list * op * v list * c
 
-and s = v list
+and s = (v list) list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
