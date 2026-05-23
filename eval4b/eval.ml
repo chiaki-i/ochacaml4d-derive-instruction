@@ -18,7 +18,7 @@ let apnd t0 t1 = match t0 with
 
 (* run_c : c -> v -> s -> t -> m -> v *)
 let rec run_c c v s t m = match (c, s) with
-    (C0, []) -> begin match t with
+    (C0, s) -> begin match t with
         TNil ->
         begin match m with
             MNil -> v
@@ -40,17 +40,17 @@ let rec run_c c v s t m = match (c, s) with
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
-  | (CApp1 (c), v1 :: s) -> app v v1 c s t m
-  | (CApp2 (c), s) -> run_cs c (v :: s) t m
-  | (CApp3 (c), s) -> app_s v c s t m
+  | (CApp1 (c), (v1 :: v2s) :: s) -> app v v1 c (v2s :: s) t m
+  | (CApp2 (c), v2s :: s) -> run_cs c ((v :: v2s) :: s) t m
+  | (CApp3 (c), v2s :: s) -> app_s v c (v2s :: s) t m
+  | _ -> failwith (s_to_string s)
 
 (* run_cs : c -> v -> s -> t -> m -> v *)
-and run_cs c v2s s t m = match (c, s) with
-    (CAppS1 (e, xs, vs, c), s) -> f e xs vs (CApp1 (c)) (v2s :: s) t m
-  | (CAppS2 (e, xs, vs, c), s) -> f e xs vs (CApp2 (c)) (v2s :: s) t m
-  | (CAppS1T (e, xs, vs, c), v2s' :: s) ->
+and run_cs c s t m = match (c, s) with
+    (CAppS1 (e, xs, vs, c), v2s :: s) -> f e xs vs (CApp1 (c)) (v2s :: s) t m
+  | (CAppS2 (e, xs, vs, c), v2s :: s) -> f e xs vs (CApp2 (c)) (v2s :: s) t m
+  | (CAppS1T (e, xs, vs, c), v2s :: v2s' :: s) ->
     f e xs vs (CApp1 (c)) ((v2s @ v2s') :: s) t m
-    (* v list list で s を実装した方が綺麗 *)
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
@@ -89,18 +89,22 @@ and f_t e xs vs c s t m =
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, app_c)) s t m
   | Fun (x, e) ->
     begin match s with
-        VEmpty :: s -> run_c c (VFun (fun v1 c' s' t' m' ->
+        [] :: s -> run_c c (VFun (fun v1 c' s' t' m' ->
           f_t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
-      | v1 :: s -> f_t e (x :: xs) (v1 :: vs) c s t m
+      | (v1 :: v2s') :: s -> f_t e (x :: xs) (v1 :: vs) c (v2s' :: s) t m
     end
     (* run_c app_c (VFun (fun v1 c' s' t' m' ->
       f_t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m *)
   | App (e0, e2s) ->
+    begin match s with v2s' :: s ->
     (* 元の形 *)
     (* f_st e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m *)
     (* 以下のようにしたい *)
     (* f_s e2s xs vs (CAppS1T (e0, xs, vs, c)) s t m *)
-    f_s e2s xs vs (CAppS1 (e0, xs, vs, app_c)) s t m
+    (* これは変更までの eval4b *)
+    (* f_s e2s xs vs (CAppS1 (e0, xs, vs, app_c)) s t m *)
+    f_s e2s xs vs (CAppS1T (e0, xs, vs, c)) (v2s' :: s) t m
+    end
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [] TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [] TNil m
   | Shift0 (x, e) ->
@@ -119,7 +123,7 @@ and f_t e xs vs c s t m =
 
 (* f_s : e list -> string list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
-    [] -> run_cs c (VEmpty :: s) t m
+    [] -> run_cs c ([] :: s) t m
   | e :: e2s ->
     f_s e2s xs vs (CAppS2 (e, xs, vs, c)) s t m
 
@@ -134,10 +138,9 @@ and app v0 v1 c s t m =
                    ^ " is not a function; it can not be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
-and app_s v0 c s t m = match s with
-    VEmpty :: s -> run_c c v0 s t m
-  | v1 :: s -> app v0 v1 c s t m
-  | [] -> failwith "unexpected s"
+and app_s v0 c (v2s :: s) t m = match v2s with
+    [] -> run_c c v0 s t m
+  | v1 :: v2s -> app v0 v1 c (v2s :: s) t m
 
 (* f_init : e -> v *)
 let f_init expr = f expr [] [] idc [] TNil MNil
