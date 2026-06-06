@@ -8,8 +8,6 @@ type v = VNum of int
        | VContS of c * s * t
        | VContC of c * s * t
 
-(* c の中に static と dynamic な変数が含まれているので、
-  それを分離してできたのが s である *)
 and c = C0
       | CApp1 of c
       | CApp2 of c
@@ -19,6 +17,8 @@ and c = C0
       | CAppS2 of e * string list * v list * c
       | COp0 of v * op * c
       | COp1 of e * string list * op * v list * c
+
+and a = v
 
 and s = (v list) list
 
