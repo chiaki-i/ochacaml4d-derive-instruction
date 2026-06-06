@@ -4,14 +4,23 @@ open Syntax
 
 (* Value *)
 type v = VNum of int
-       | VFun of (c -> s -> t -> m -> v)
+       | VFun of (v -> c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
 
-and c = s -> t -> m -> v
+and c = C0
+      | CApp1 of c
+      | CApp2 of c
+      | CApp3 of c
+      | CAppS1 of e * string list * v list * c
+      | CAppS1T of e * string list * v list * c
+      | CAppS2 of e * string list * v list * c
+      | COp0 of v * op * c
+      | COp1 of e * string list * op * v list * c
 
-and s = v list
+and a = v
+
+and s = (v list) list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
@@ -23,16 +32,25 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEmpty -> "<ε>"
 
 (* s_to_string : s -> string *)
-let rec s_to_string s =
+let vlist_to_string vs =
   "[" ^
-  begin match s with
+  begin match vs with
     [] -> ""
   | first :: rest ->
     to_string first ^
     List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
+
+let s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    vlist_to_string first ^
+    List.fold_left (fun str vs -> str ^ "; " ^ vlist_to_string vs) "" rest
   end
   ^ "]"
 
