@@ -19,9 +19,10 @@ let apnd t0 t1 = match t0 with
 (* push : v -> s -> s *)
 (* 引数スタック s の中の、先頭の引数列に値を追加する *)
 let push v s = match s with
-    [] -> [[v]]
+    [] -> failwith "s must be ((_ :: _) :: _)"
   | fst :: rest -> (v :: fst) :: rest
 
+(* pushmark : s -> s *)
 let pushmark s = [] :: s
 
 (* run_c : c -> s -> t -> m -> v *)
@@ -72,8 +73,8 @@ and f e xs vs c s t m =
       f_t e (x :: xs) (v1 :: vs) c' (v2s :: s') t' m')) s) t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
+  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [[]] TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) idc [[]] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
@@ -86,7 +87,7 @@ and f e xs vs c s t m =
           f e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [] TNil (MCons ((c, s, t), m))
+  | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((c, s, t), m))
 
 (* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs c s t m =
@@ -105,8 +106,8 @@ and f_t e xs vs c s t m =
     begin match s with v2s' :: s ->
       f_s e2s xs vs (CAppS1T (e0, xs, vs, c)) (v2s' :: s) t m
     end
-  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [] TNil m
+  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [[]] TNil m
+  | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [[]] TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
@@ -119,7 +120,7 @@ and f_t e xs vs c s t m =
           f e (x :: xs) (VContC (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [] TNil (MCons ((app_c, s, t), m))
+  | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((app_c, s, t), m))
 
 (* f_s : e list -> string list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
@@ -145,4 +146,4 @@ and app_s v0 c (v2s :: s) t m = match v2s with
   | v1 :: v2s -> app v0 v1 c (v2s :: s) t m
 
 (* f_init : e -> v *)
-let f_init expr = f expr [] [] idc [] TNil MNil
+let f_init expr = f expr [] [] idc [[]] TNil MNil
