@@ -7,7 +7,6 @@ type v = VNum of int
        | VFun of i * v list
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
 
 and c = C0
       | CSeq of i * v list * c
@@ -15,13 +14,13 @@ and c = C0
 and i = ISeq of i * i
       | IPushmark | ISkip
       | INum of int | IAccess of int | IOp of op
-      | IApply | IReturn
+      | IApply | IAppterm of i | IReturn
       | ICur of i | IGrab of i
       | IShift of i | IControl of i
       | IShift0 of i | IControl0 of i
       | IReset of i
 
-and s = v list
+and s = (v list) list
 
 and t = TNil | Trail of h
 
@@ -36,16 +35,25 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEmpty -> "<ε>"
 
 (* s_to_string : s -> string *)
-let rec s_to_string s =
+let vlist_to_string vs =
   "[" ^
-  begin match s with
+  begin match vs with
     [] -> ""
   | first :: rest ->
     to_string first ^
     List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
+
+let s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    vlist_to_string first ^
+    List.fold_left (fun str vs -> str ^ "; " ^ vlist_to_string vs) "" rest
   end
   ^ "]"
 
