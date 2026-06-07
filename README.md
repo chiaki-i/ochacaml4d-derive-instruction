@@ -68,6 +68,12 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 
 ## Which directory is for which derivation path?
 
+### Appterm (after JSSST Journal)
+- Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
+  - eval4a を廃止、eval2a から eval4b を直接導出する
+  - eval4c は、引数スタックの先頭に引数を載せる。引数スタックが `v list list` 型であるため、単純な `::` 操作だとコードが長くなってしまうので便宜上 push という補助関数を導入。
+  - eval9b と eval9c は統合して eval9c に。実は Journal でも実質的にはまとめて説明されていた。
+
 ### Appterm (Journal revision)
 - Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10{a,b,c}
   - 1b_3_1 は、Appterm 導出しようとして f と f_t の App 規則を非関数化しようとしている（が、うまく行っていない）
