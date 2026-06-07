@@ -22,6 +22,8 @@ let push v s = match s with
     [] -> [[v]]
   | fst :: rest -> (v :: fst) :: rest
 
+let pushmark s = [] :: s
+
 (* run_c : c -> s -> t -> m -> v *)
 let rec run_c c s t m = match (c, s) with
     (C0, (v :: []) :: s) -> begin match t with
@@ -37,12 +39,12 @@ let rec run_c c s t m = match (c, s) with
     begin match (v, v0) with
         (VNum (n0), VNum (n1)) ->
         begin match op with
-            Plus -> run_c c (push (VNum (n0 + n1)) (rest :: s)) t m
-          | Minus -> run_c c (push (VNum (n0 - n1)) (rest :: s)) t m
-          | Times -> run_c c (push (VNum (n0 * n1)) (rest :: s)) t m
+            Plus -> run_c c ((VNum (n0 + n1) :: rest) :: s) t m
+          | Minus -> run_c c ((VNum (n0 - n1) :: rest) :: s) t m
+          | Times -> run_c c ((VNum (n0 * n1) :: rest) :: s) t m
           | Divide ->
             if n1 = 0 then failwith "Division by zero"
-            else run_c c (push (VNum (n0 / n1)) (rest :: s)) t m
+            else run_c c ((VNum (n0 / n1) :: rest) :: s) t m
         end
       | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
     end
@@ -121,7 +123,7 @@ and f_t e xs vs c s t m =
 
 (* f_s : e list -> string list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
-    [] -> run_cs c ([] :: s) t m
+    [] -> run_cs c (pushmark s) t m
   | e :: e2s ->
     f_s e2s xs vs (CAppS2 (e, xs, vs, c)) s t m
 
