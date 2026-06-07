@@ -14,7 +14,7 @@ let idc v s t m = match s with
         end
       | Trail (h) -> h v TNil m
     end
-  | _ -> failwith "idc: stack error"
+  | _ -> failwith (s_to_string s)
 
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
@@ -27,7 +27,7 @@ let apnd t0 t1 = match t0 with
   | Trail (h) -> cons h t1
 
 (* run_c : c -> v -> s -> t -> m -> v *)
-let rec run_c c v s t m = match (c, s) with
+(* let rec run_c c v s t m = match (c, s) with
     (C0, s) -> begin match t with
         TNil ->
         begin match m with
@@ -58,9 +58,10 @@ let rec run_c c v s t m = match (c, s) with
 (* run_cs : c -> v -> s -> t -> m -> v *)
 and run_cs c s t m = match (c, s) with
     (CAppS1 (e, xs, vs, c), v2s :: s) -> f e xs vs (CApp1 (c)) (v2s :: s) t m
-  | (CAppS2 (e, xs, vs, c), v2s :: s) -> f e xs vs (CApp2 (c)) (v2s :: s) t m
+  | (CAppS2 (e, xs, vs, c), v2s :: s) ->
+    f e xs vs (CApp2 (c)) (v2s :: s) t m
   | (CAppS1T (e, xs, vs, c), v2s :: v2s' :: s) ->
-    f e xs vs (CApp1 (c)) ((v2s @ v2s') :: s) t m
+    f e xs vs (CApp1 (c)) ((v2s @ v2s') :: s) t m *)
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
@@ -84,12 +85,12 @@ let rec f e xs vs c s t m =
           | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
       end) s t m) s t m
   | Fun (x, e) ->
-    run_c c (VFun (fun v1 c' s' t' m' ->
+    c (VFun (fun v1 c' s' t' m' ->
       f e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
   | App (e0, e2s) ->
     (* f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m *)
     f_s e2s xs vs (fun v (v2s :: s) t m ->
-      f e xs vs (fun v ((v1 :: v2s) :: s) t m ->
+      f e0 xs vs (fun v ((v1 :: v2s) :: s) t m ->
         app v v1 c (v2s :: s) t m)
         (v2s :: s) t m) s t m
   | Shift (x, e) ->
@@ -108,7 +109,7 @@ let rec f e xs vs c s t m =
           f e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [] TNil (MCons ((c, s, t), m)) *)
+  | Reset (e) -> f e xs vs idc [] TNil (MCons ((c, s, t), m))
 
 (* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
 (* and f_t e xs vs c s t m =
@@ -147,23 +148,26 @@ let rec f e xs vs c s t m =
 
 (* f_s : e list -> string list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
-    [] -> c [] ([] :: s) t m
+    [] -> c (VNum (0)) ([] :: s) t m (* ここで c に与えるべき value の表現方法がわからない *)
   | e :: e2s ->
-    f_s e2s xs vs (CAppS2 (e, xs, vs, c)) s t m
+    f_s e2s xs vs (fun v s t m ->
+      f e xs vs (fun v (v2s' :: s) t m ->
+        c v ((v :: v2s') :: s) t m) s t m) s t m
 
 (* app : v -> v -> c -> s -> t -> m -> v *)
 and app v0 v1 c s t m =
-  let app_c = CApp3 (c) in
+  let app_c v s t m = app_s v c s t m in
   match v0 with
     VFun (f) -> f v1 c s t m
-  | VContS (c', s', t') -> run_c c' v1 s' t' (MCons ((app_c, s, t), m))
-  | VContC (c', s', t') -> run_c c' v1 s' (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
+  | VContS (c', s', t') -> c' v1 s' t' (MCons ((app_c, s, t), m))
+  | VContC (c', s', t') ->
+    c' v1 s' (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 c (v2s :: s) t m = match v2s with
-    [] -> run_c c v0 s t m
+    [] -> c v0 s t m
   | v1 :: v2s -> app v0 v1 c (v2s :: s) t m
 
 (* f_init : e -> v *)
