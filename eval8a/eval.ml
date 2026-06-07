@@ -3,14 +3,23 @@ open Value
 
 (* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
 
+(* push : v -> s -> s *)
+(* 引数スタック s の中の、先頭の引数列に値を追加する *)
+let push v s = match s with
+    [] -> failwith "s must be ((_ :: _) :: _), not []"
+  | fst :: rest -> (v :: fst) :: rest
+
+(* pushmark : i *)
+let pushmark = fun vs c s t m -> c ([] :: s) t m
+
 (* initial continuation : v -> t -> m -> v *)
 let idc s t m = match s with
-    v :: [] ->
+    (v :: []) :: s ->
     begin match t with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> c (v :: s) t m
+          | MCons ((c, s, t), m) -> c (push v s) t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -30,96 +39,79 @@ let apnd t0 t1 = match t0 with
 let (>>) i0 i1 = fun vs c -> i0 vs (i1 vs c)
 
 (* num : int -> i *)
-let num n = fun vs c s t m -> c (VNum (n) :: s) t m
+let num n = fun vs c s t m -> c (push (VNum (n)) s) t m
 
 (* access : int -> i *)
-let access n = fun vs c s t m -> c (List.nth vs n :: s) t m
+let access n = fun vs c s t m -> c (push (List.nth vs n) s) t m
 
 (* operation : op -> i *)
-let operation op = fun vs c (v :: v0 :: s) t m ->
+let operation op = fun vs c ((v :: v0 :: rest) :: s) t m ->
   begin match (v, v0) with
       (VNum (n0), VNum (n1)) ->
       begin match op with
-          Plus -> c (VNum (n0 + n1) :: s) t m
-        | Minus -> c (VNum (n0 - n1) :: s) t m
-        | Times -> c (VNum (n0 * n1) :: s) t m
+          Plus -> c ((VNum (n0 + n1) :: rest) :: s) t m
+        | Minus -> c ((VNum (n0 - n1) :: rest) :: s) t m
+        | Times -> c ((VNum (n0 * n1) :: rest) :: s) t m
         | Divide ->
           if n1 = 0 then failwith "Division by zero"
-          else c (VNum (n0 / n1) :: s) t m
+          else c ((VNum (n0 / n1) :: rest) :: s) t m
       end
     | _ -> failwith (to_string v0 ^ " or " ^ to_string v ^ " are not numbers")
   end
 
 (* cur : i -> i *)
 let cur i = fun vs c s t m ->
-  c ((VFun (fun c' (v1 :: s') t' m' ->
-    i (v1 :: vs) c' s' t' m')) :: s) t m
+  c (push (VFun (fun c' ((v1 :: v2s) :: s') t' m' ->
+    i (v1 :: vs) c' (v2s :: s') t' m')) s) t m
 
 (* grab: i -> i *)
 let grab i = fun vs c s t m ->
   begin match s with
-    VEmpty :: s ->
-    c ((VFun (fun c' (v1 :: s') t' m' ->
-      i (v1 :: vs) c' s' t' m')) :: s) t m
-  | v1 :: s -> i (v1 :: vs) c s t m
+    [] :: s -> c (push (VFun (fun c' ((v1 :: v2s) :: s') t' m' ->
+      i (v1 :: vs) c' (v2s :: s') t' m')) s) t m
+  | (v1 :: v2s') :: s -> i (v1 :: vs) c (v2s' :: s) t m
   | _ -> failwith "grab: stack is empty"
   end
 
 (* app : v -> v -> c -> s -> t -> m -> v *)
 let rec app v0 v1 c s t m =
-  let app_c (v :: s) t m = app_s v c s t m in
+  let app_c ((v :: v2s) :: s) t m = app_s v c (v2s :: s) t m in
   match v0 with
-    VFun (f) -> f c (v1 :: s) t m
+    VFun (f) -> f c (push v1 s) t m
   | VContS (c', s', t') ->
-    c' (v1 :: s') t' (MCons ((app_c, s, t), m))
+    c' (push v1 s') t' (MCons ((app_c, s, t), m))
   | VContC (c', s', t') ->
-    c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
-  | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
-
-(* app_t : v -> v -> c -> s -> t -> m -> v *)
-and app_t v0 v1 c s t m =
-  let app_c (v :: s) t m = app_s v c s t m in
-  match v0 with
-    VFun (f) -> f c (v1 :: s) t m
-  | VContS (c', s', t') ->
-    c' (v1 :: s') t' (MCons ((app_c, s, t), m))
-  | VContC (c', s', t') ->
-    c' (v1 :: s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
+    c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
-and app_s v0 c s t m = match s with
-    VEmpty :: s -> c (v0 :: s) t m
-  | v1 :: s -> app v0 v1 c s t m
-  | [] -> failwith "unexpected s"
+and app_s v0 c (v2s :: s) t m = match v2s with
+    [] -> c (push v0 s) t m
+  | v1 :: v2s -> app v0 v1 c (v2s :: s) t m
 
 (* apply : i *)
-let apply = fun vs c (v :: v1 :: s) t m ->
-  app v v1 c s t m
+let apply = fun vs c ((v :: v1 :: v2s) :: s) t m ->
+  app v v1 c (v2s :: s) t m
 
-(* appterm : i *)
-let appterm = fun vs c (v :: v1 :: s) t m ->
-  app_t v v1 c s t m
-
-(* pushmark : i *)
-let pushmark = fun vs c s t m -> c (VEmpty :: s) t m
+(* appterm : i -> i *)
+let appterm i = fun vs c (v2s :: v2s' :: s) t m ->
+  i vs c ((v2s @ v2s') :: s) t m
 
 (* skip : i *)
 let skip = fun vs c s t m -> c s t m
 
 (* return : i *)
-let return = fun vs c (v :: s) t m ->
-  app_s v c s t m
+let return = fun vs c ((v :: v2s) :: s) t m ->
+  app_s v c (v2s :: s) t m
 
 (* shift : i -> i *)
 let shift i = fun vs c s t m ->
-  i (VContS (c, s, t) :: vs) idc [] TNil m
+  i (VContS (c, s, t) :: vs) idc [[]] TNil m
 
 (* control : i -> i *)
 let control i = fun vs c s t m ->
-  i (VContC (c, s, t) :: vs) idc [] TNil m
+  i (VContC (c, s, t) :: vs) idc [[]] TNil m
 
 (* shift0 : i -> i *)
 let shift0 i = fun vs c s t m -> match m with
@@ -135,7 +127,7 @@ let control0 i = fun vs c s t m -> match m with
 
 (* reset : i -> i *)
 let reset i = fun vs c s t m ->
-  i vs idc [] TNil (MCons ((c, s, t), m))
+  i vs idc [[]] TNil (MCons ((c, s, t), m))
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
@@ -161,7 +153,7 @@ and f_t e xs = match e with
     f e1 xs >> f e0 xs >> operation op >> return
   | Fun (x, e) -> grab (f_t e (x :: xs))
   | App (e0, e2s) ->
-    f_st e2s xs >> f e0 xs >> appterm
+    f_s e2s xs >> appterm (f e0 xs) >> apply
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return
@@ -179,4 +171,4 @@ and f_st e2s xs = match e2s with
   | e :: e2s -> f_st e2s xs >> f e xs
 
 (* f_init : e -> v *)
-let f_init expr = f expr [] [] idc [] TNil MNil
+let f_init expr = f expr [] [] idc [[]] TNil MNil

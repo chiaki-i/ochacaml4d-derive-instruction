@@ -7,13 +7,12 @@ type v = VNum of int
        | VFun of (c -> s -> t -> m -> v)
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
 
 and c = s -> t -> m -> v
 
 and i = v list -> c -> s -> t -> m -> v
 
-and s = v list
+and s = (v list) list
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
@@ -25,16 +24,25 @@ let rec to_string value = match value with
   | VFun (_) -> "<VFun>"
   | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEmpty -> "<ε>"
 
 (* s_to_string : s -> string *)
-let rec s_to_string s =
+let vlist_to_string vs =
   "[" ^
-  begin match s with
+  begin match vs with
     [] -> ""
   | first :: rest ->
     to_string first ^
     List.fold_left (fun str v -> str ^ "; " ^ to_string v) "" rest
+  end
+  ^ "]"
+
+let s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    vlist_to_string first ^
+    List.fold_left (fun str vs -> str ^ "; " ^ vlist_to_string vs) "" rest
   end
   ^ "]"
 
