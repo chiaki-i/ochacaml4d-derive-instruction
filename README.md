@@ -69,8 +69,13 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 ## Derivation path
 
 ### Appterm (after JSSST Journal)
-- Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
-  - eval4a を廃止、eval2a から eval4b を直接導出する
+- Eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
+  - eval1b_3_2（f_st による別経路）・eval1c はともに廃止。eval1b_3 → eval1d を1ステップとして扱う。
+  - eval1b_3 -> eval1d の変換内容：
+    - (1) f_t App ケース：補題（eval1a に証明あり）を `app_s v0 v2s (fun v t m -> app_s v v2s' c t m)` に直接適用し `app_s v0 (v2s @ v2s') c` を導出している。
+    - (2) Grab のケース：`app_c VFun ...` を展開した形を導出
+  - eval1d の `v2s @ v2s'` の形が eval2a 以降の `IAppterm` 命令の導出に直結する。
+  - eval4a （空の引数スタックを引き回す）を廃止、eval2a から eval4b （引数スタックに、関数適用の引数を積む）を直接導出する。
   - eval4c は、引数スタックの先頭に引数を載せる。引数スタックが `v list list` 型であるため、単純な `::` 操作だとコードが長くなってしまうので便宜上 push という補助関数を導入。
   - eval6a2 は、eval4c で引数スタックの先頭に引数を載せるのではなく、`run_c` 等が引き回している値 `v` を accumulator として捉えようとしたもの。ただし、accumulator を導入するには、四則演算や複数引数の関数適用の際に acc から arg stack へ引数を push する必要がある点に注意（で、結局 push する操作を定義するならほとんど eval4c と変わらないか、と思い、戻ってきた）
   - eval9b と eval9c は統合して eval9c に。実は Journal でも実質的にはまとめて説明されていた。
