@@ -7,19 +7,18 @@ type v = VNum of int
        | VFun of i list * v list
        | VContS of c * s * t
        | VContC of c * s * t
-       | VEmpty
 
 and c = (i list * v list) list
 
 and i = IPushmark
       | INum of int | IAccess of int | IOp of op
-      | IApply | IAppterm | IReturn
+      | IApply | IAppterm of i list | IReturn
       | ICur of i list | IGrab of i list
       | IShift of i list | IControl of i list
       | IShift0 of i list | IControl0 of i list
       | IReset of i list
 
-and s = v list
+and s = (v list) list
 
 and t = TNil | Trail of h
 
@@ -28,22 +27,33 @@ and h = Hold of c * s
 
 and m = MNil | MCons of (c * s * t) * m
 
-(* v_to_string : v -> string *)
+(* v_to_string / to_string : v -> string *)
 let rec v_to_string value = match value with
     VNum (n) -> string_of_int n
   | VFun (_) -> "<VFun>"
-  | VContS (c, s, t) -> "(" ^ c_to_string c ^ ", " ^ s_to_string s ^ ", " ^ t_to_string t ^ ")_S"
+  | VContS (_) -> "<VContS>"
   | VContC (_) -> "<VContC>"
-  | VEmpty -> "<ε>"
+
+let to_string = v_to_string
 
 (* s_to_string : s -> string *)
-and s_to_string s =
+let vlist_to_string vs =
   "[" ^
-  begin match s with
+  begin match vs with
     [] -> ""
   | first :: rest ->
     v_to_string first ^
     List.fold_left (fun str v -> str ^ "; " ^ v_to_string v) "" rest
+  end
+  ^ "]"
+
+let rec s_to_string s =
+  "[" ^
+  begin match s with
+    [] -> ""
+  | first :: rest ->
+    vlist_to_string first ^
+    List.fold_left (fun str vs -> str ^ "; " ^ vlist_to_string vs) "" rest
   end
   ^ "]"
 
@@ -54,7 +64,7 @@ and i_to_string inst = match inst with
   | IAccess (n) -> "Access (" ^ string_of_int n ^ ")"
   | IOp (op) -> "Op (" ^ Syntax.op_to_string op  ^ ")"
   | IApply -> "Apply"
-  | IAppterm -> "Appterm"
+  | IAppterm (is) -> "Appterm (" ^ i_list_to_string is ^ ")"
   | IReturn -> "Return"
   | ICur (is) -> "Cur (" ^ i_list_to_string is ^ ")"
   | IGrab (is) -> "Grab (" ^ i_list_to_string is ^ ")"
@@ -76,8 +86,8 @@ and c_to_string c =
   match c with
     [] -> "●"
   | (is, vs) :: rest ->
-    "(" ^ i_list_to_string is ^ ", " ^ s_to_string vs ^ ")" ^
-    List.fold_left (fun str (is', vs') -> str ^ " :: (" ^ i_list_to_string is' ^ ", " ^ s_to_string vs' ^ ")") "" rest
+    "(" ^ i_list_to_string is ^ ", " ^ vlist_to_string vs ^ ")" ^
+    List.fold_left (fun str (is', vs') -> str ^ " :: (" ^ i_list_to_string is' ^ ", " ^ vlist_to_string vs' ^ ")") "" rest
 
 (* h_to_string : h -> string *)
 and h_to_string h =
@@ -115,7 +125,7 @@ let print_machine c s t m  =
     | (is, _) :: _ -> i_list_to_string is in
   let env = match c with
       [] -> "●"
-    | (_, vs) :: _ -> s_to_string vs in
+    | (_, vs) :: _ -> vlist_to_string vs in
   let arg = s_to_string s in
   let ret = match c with
       [] -> "●"
