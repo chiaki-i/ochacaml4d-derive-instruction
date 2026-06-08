@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval10b *)
 
 (* initial continuation : c *)
 let idc = []
@@ -141,7 +141,7 @@ and run_c c s t m = match (c, s) with
   | _ -> failwith "run_c: stack error"
 
 (* f : definitional interpreter *)
-(* f : e -> string list -> i *)
+(* f : e -> string list -> i list *)
 let rec f e xs = match e with
     Num (n) -> [INum (n)]
   | Var (x) -> [IAccess (Env.off_set x xs)]
@@ -156,7 +156,7 @@ let rec f e xs = match e with
   | Control0 (x, e) -> [IControl0 (f e (x :: xs))]
   | Reset (e) -> [IReset (f e xs)]
 
-(* f_t : e -> string list -> i *)
+(* f_t : e -> string list -> i list *)
 and f_t e xs = match e with
     Num (n) -> [INum n; IReturn]
   | Var (x) -> [IAccess (Env.off_set x xs); IReturn]
@@ -171,7 +171,7 @@ and f_t e xs = match e with
   | Control0 (x, e) -> [IControl0 (f e (x :: xs)); IReturn]
   | Reset (e) -> [IReset (f e xs); IReturn]
 
-(* f_s : e list -> string list -> i *)
+(* f_s : e list -> string list -> i list *)
 and f_s e2s xs = match e2s with
     [] -> [IPushmark]
   | e :: e2s -> f_s e2s xs @ f e xs

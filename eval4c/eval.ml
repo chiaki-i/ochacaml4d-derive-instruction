@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval4c *)
 
 (* initial continuation : c *)
 let idc = C0
@@ -89,7 +89,7 @@ and f e xs vs c s t m =
     end
   | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((c, s, t), m))
 
-(* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
+(* f_t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs c s t m =
   let app_c = CApp3 (c) in
   match e with
@@ -122,7 +122,7 @@ and f_t e xs vs c s t m =
     end
   | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((app_c, s, t), m))
 
-(* f_s : e list -> string list -> c -> s -> t -> m -> v list *)
+(* f_s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
     [] -> run_cs c (pushmark s) t m
   | e :: e2s ->

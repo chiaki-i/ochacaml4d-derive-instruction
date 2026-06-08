@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval2a *)
 
 (* initial continuation : v -> t -> m -> v *)
 let idc = C0
@@ -44,7 +44,7 @@ let rec run_c c v t m = match c with
   | CApp2 (v2s, c) -> run_cs c (v :: v2s) t m
   | CApp3 (v2s, c) -> app_s v v2s c t m
 
-(* run_cs : c -> v -> t -> m -> v *)
+(* run_cs : c -> v list -> t -> m -> v *)
 and run_cs c v2s t m = match c with
     CAppS1 (e, xs, vs, c) -> f e xs vs (CApp1 (v2s, c)) t m
   | CAppS1T (e, xs, vs, v2s', c) -> f e xs vs (CApp1 (v2s @ v2s', c)) t m

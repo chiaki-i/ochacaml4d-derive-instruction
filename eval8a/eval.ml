@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval8a *)
 
 (* push : v -> s -> s *)
 (* 引数スタック s の中の、先頭の引数列に値を追加する *)
@@ -12,7 +12,7 @@ let push v s = match s with
 (* pushmark : i *)
 let pushmark = fun vs c s t m -> c ([] :: s) t m
 
-(* initial continuation : v -> t -> m -> v *)
+(* initial continuation : s -> t -> m -> v *)
 let idc s t m = match s with
     (v :: []) :: s ->
     begin match t with
@@ -145,7 +145,7 @@ let rec f e xs = match e with
   | Control0 (x, e) -> control0 (f e (x :: xs))
   | Reset (e) -> reset (f e xs)
 
-(* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
+(* f_t : e -> string list -> i *)
 and f_t e xs = match e with
     Num (n) -> num n >> return
   | Var (x) -> access (Env.off_set x xs) >> return

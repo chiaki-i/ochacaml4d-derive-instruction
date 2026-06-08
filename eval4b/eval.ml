@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval4b *)
 
 (* initial continuation : v -> t -> m -> v *)
 let idc = C0
@@ -45,7 +45,7 @@ let rec run_c c v s t m = match (c, s) with
   | (CApp3 (c), v2s :: s) -> app_s v c (v2s :: s) t m
   | _ -> failwith (s_to_string s)
 
-(* run_cs : c -> v -> s -> t -> m -> v *)
+(* run_cs : c -> s -> t -> m -> v *)
 and run_cs c s t m = match (c, s) with
     (CAppS1 (e, xs, vs, c), v2s :: s) -> f e xs vs (CApp1 (c)) (v2s :: s) t m
   | (CAppS2 (e, xs, vs, c), v2s :: s) -> f e xs vs (CApp2 (c)) (v2s :: s) t m
@@ -80,7 +80,7 @@ and f e xs vs c s t m =
     end
   | Reset (e) -> f e xs vs idc [] TNil (MCons ((c, s, t), m))
 
-(* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
+(* f_t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs c s t m =
   let app_c = CApp3 (c) in
   match e with
@@ -121,7 +121,7 @@ and f_t e xs vs c s t m =
     end
   | Reset (e) -> f e xs vs idc [] TNil (MCons ((app_c, s, t), m))
 
-(* f_s : e list -> string list -> c -> s -> t -> m -> v list *)
+(* f_s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
     [] -> run_cs c ([] :: s) t m
   | e :: e2s ->

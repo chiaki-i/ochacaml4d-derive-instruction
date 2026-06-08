@@ -66,12 +66,13 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 0 test(s) failed
 ```
 
-## Which directory is for which derivation path?
+## Derivation path
 
 ### Appterm (after JSSST Journal)
 - Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
   - eval4a を廃止、eval2a から eval4b を直接導出する
   - eval4c は、引数スタックの先頭に引数を載せる。引数スタックが `v list list` 型であるため、単純な `::` 操作だとコードが長くなってしまうので便宜上 push という補助関数を導入。
+  - eval6a2 は、eval4c で引数スタックの先頭に引数を載せるのではなく、`run_c` 等が引き回している値 `v` を accumulator として捉えようとしたもの。ただし、accumulator を導入するには、四則演算や複数引数の関数適用の際に acc から arg stack へ引数を push する必要がある点に注意（で、結局 push する操作を定義するならほとんど eval4c と変わらないか、と思い、戻ってきた）
   - eval9b と eval9c は統合して eval9c に。実は Journal でも実質的にはまとめて説明されていた。
 
 ### Appterm (Journal revision)

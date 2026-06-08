@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval6a *)
 
 (* push : v -> s -> s *)
 (* 引数スタック s の中の、先頭の引数列に値を追加する *)
@@ -79,7 +79,7 @@ let rec f e xs vs c s t m =
     end
   | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((c, s, t), m))
 
-(* f_t : e -> string list -> v list -> v list -> c -> s -> t -> m -> v *)
+(* f_t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs c s t m =
   let app_c ((v :: v2s) :: s) t m = app_s v c (v2s :: s) t m in
   match e with

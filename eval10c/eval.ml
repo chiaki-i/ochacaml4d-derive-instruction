@@ -3,7 +3,7 @@ open Value
 
 let silent = ref false
 
-(* Definitional interpreter for (λ-calculus with 4 delimited continuation operations : eval1s *)
+(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval10c *)
 
 (* initial continuation : c *)
 let idc = []
