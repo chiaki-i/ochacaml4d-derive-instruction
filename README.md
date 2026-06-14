@@ -68,6 +68,9 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 
 ## Derivation path
 
+### Appterm (after JSSST Journal, `f_st` version)
+- Eval1a, 1b_{1,2,3}, 1d_{1, 2}
+
 ### Appterm (after JSSST Journal)
 - Eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
   - eval1b_3_2（f_st による別経路）・eval1c はともに廃止。eval1b_3 → eval1d を1ステップとして扱う。
