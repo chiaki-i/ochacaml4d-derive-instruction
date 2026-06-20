@@ -73,19 +73,13 @@ and run_c c s t m = match (c, s) with
         (v :: v1 :: v2s) :: s -> app v v1 vs c (v2s :: s) t m
       | _ -> failwith "IApply: unexpected s"
     end
-  | IAppterm (i) ->
-    begin match s with
-        v2s :: v2s' :: s ->
-          run_c (CSeq (i, vs, c)) ((v2s @ v2s') :: s) t m
-      | _ -> failwith "IAppterm: unexpected s"
-    end
   | IReturn ->
     begin match s with
         (v :: v2s) :: s -> app_s v vs c (v2s :: s) t m
       | _ -> failwith "IReturn: unexpected s"
     end
   | IPushmark -> run_c c ([] :: s) t m
-  | ISkip -> run_c c s t m
+  | ISkip -> begin match s with v2s' :: s -> run_c c (v2s' :: s) t m end
   | IShift (i) ->
     run_c (CSeq (i, VContS (c, s, t) :: vs, idc)) [[]] TNil m
   | IControl (i) ->
@@ -152,8 +146,7 @@ and f_t e xs = match e with
   | Op (e0, op, e1) ->
     f e1 xs >> f e0 xs >> IOp (op) >> IReturn
   | Fun (x, e) -> IGrab (f_t e (x :: xs))
-  | App (e0, e2s) ->
-    f_s e2s xs >> IAppterm (f e0 xs) >> IApply
+  | App (e0, e2s) -> f_st e2s xs >> f e0 xs >> IApply
   | Shift (x, e) -> IShift (f e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f e (x :: xs)) >> IReturn
   | Shift0 (x, e) -> IShift0 (f e (x :: xs)) >> IReturn
@@ -164,6 +157,11 @@ and f_t e xs = match e with
 and f_s e2s xs = match e2s with
     [] -> IPushmark
   | e :: e2s -> f_s e2s xs >> f e xs
+
+(* f_st : e list -> string list -> i *)
+and f_st e2s xs = match e2s with
+    [] -> ISkip
+  | e :: e2s -> f_st e2s xs >> f e xs
 
 (* f_init : e -> v *)
 let f_init expr = run_c (CSeq (f expr [], [], idc)) [[]] TNil MNil
