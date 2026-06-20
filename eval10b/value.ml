@@ -12,7 +12,7 @@ and c = (i list * v list) list
 
 and i = IPushmark
       | INum of int | IAccess of int | IOp of op
-      | IApply | IAppterm of i list | IReturn
+      | IApply | IReturn
       | ICur of i list | IGrab of i list
       | IShift of i list | IControl of i list
       | IShift0 of i list | IControl0 of i list

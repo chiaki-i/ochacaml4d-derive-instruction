@@ -89,12 +89,6 @@ and run_c c s t m =
           ^ " is not a function; it can not be applied.")
       | _ -> failwith "IApply: unexpected s"
     end
-  | ((IAppterm (i) :: is, vs) :: c, s) ->
-    begin match s with
-        v2s :: v2s' :: s ->
-        run_c ((i, vs) :: (is, vs) :: c) ((v2s @ v2s') :: s) t m
-      | _ -> failwith "IAppterm: unexpected s"
-    end
   | ((IReturn :: [], vs) :: c, s) ->
     begin match s with
         (v :: []) :: s -> run_c c (push v s) t m
@@ -167,7 +161,7 @@ and f_t e xs = match e with
     f e1 xs @ f e0 xs @ [IOp (op); IReturn]
   | Fun (x, e) -> [IGrab (f_t e (x :: xs))]
   | App (e0, e2s) ->
-    f_s e2s xs @ [IAppterm (f e0 xs); IApply]
+    f_st e2s xs @ f e0 xs @ [IApply]
   | Shift (x, e) -> [IShift (f e (x :: xs)); IReturn]
   | Control (x, e) -> [IControl (f e (x :: xs)); IReturn]
   | Shift0 (x, e) -> [IShift0 (f e (x :: xs)); IReturn]
@@ -178,6 +172,11 @@ and f_t e xs = match e with
 and f_s e2s xs = match e2s with
     [] -> [IPushmark]
   | e :: e2s -> f_s e2s xs @ f e xs
+
+(* f_st : e list -> string list -> i list *)
+and f_st e2s xs = match e2s with
+    [] -> []
+  | e :: e2s -> f_st e2s xs @ f e xs
 
 (* f_init : e -> v *)
 let f_init expr =

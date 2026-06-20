@@ -69,7 +69,12 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 ## Derivation path
 
 ### Appterm (after JSSST Journal, `f_st` version)
-- Eval1a, 1b_{1,2,3}, 1d_{1, 2}
+- Eval1a, 1b_{1,2,3}, 1d_{1,2,3}, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
+  - 1d_1 は eval1a の補題を忠実に適用しただけ（ZINC の `Appterm` の本質的なアイデア）
+  - 1d_2 は、 `v2s @ v2s'` のように2つの引数列をリスト結合する（`v2s` と `v2s'` の間に pushmark を入れたあとに 取り除く）ことと、そもそも最初から pushmark を入れないことは同じと考え、`f_st` を導入する。
+  - 1d_3 は、`app_s` を使っていたところを展開して `app` を使用する（後の `Apply` 命令の原形）
+  - 最終的には `Appterm` 命令は `f_st` が担うので命令としては消える。
+
 
 ### Appterm (after JSSST Journal)
 - Eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
