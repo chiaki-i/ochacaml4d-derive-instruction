@@ -94,12 +94,8 @@ and app_s v0 c (v2s :: s) t m = match v2s with
 let apply = fun vs c ((v :: v1 :: v2s) :: s) t m ->
   app v v1 c (v2s :: s) t m
 
-(* appterm : i -> i *)
-let appterm i = fun vs c (v2s :: v2s' :: s) t m ->
-  i vs c ((v2s @ v2s') :: s) t m
-
 (* skip : i *)
-let skip = fun vs c s t m -> c s t m
+let skip = fun vs c (v2s' :: s) t m -> c (v2s' :: s) t m
 
 (* return : i *)
 let return = fun vs c ((v :: v2s) :: s) t m ->
@@ -152,8 +148,7 @@ and f_t e xs = match e with
   | Op (e0, op, e1) ->
     f e1 xs >> f e0 xs >> operation op >> return
   | Fun (x, e) -> grab (f_t e (x :: xs))
-  | App (e0, e2s) ->
-    f_s e2s xs >> appterm (f e0 xs) >> apply
+  | App (e0, e2s) -> f_st e2s xs >> f e0 xs >> apply
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return
