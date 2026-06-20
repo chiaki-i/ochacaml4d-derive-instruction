@@ -109,11 +109,10 @@ and f_t e xs vs c s t m =
     end
   | App (e0, e2s) ->
     begin match s with v2s' :: s ->
-      f_s e2s xs vs (fun (v2s :: v2s' :: s) t m ->
+      f_st e2s xs vs (fun s t m ->
         f e0 xs vs (fun ((v :: v1 :: v2s) :: s) t m ->
-          app v v1 c (v2s :: s) t m
-          ) ((v2s @ v2s') :: s) t m
-        ) (v2s' :: s) t m
+          app v v1 c (v2s :: s) t m) s t m)
+        (v2s' :: s) t m
     end
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [[]] TNil m
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [[]] TNil m
@@ -139,6 +138,15 @@ and f_s e2s xs vs c s t m = match e2s with
       f e xs vs (fun ((v :: v2s) :: s) t m ->
         c ((v :: v2s) :: s) t m)
       s t m) s t m
+
+(* f_st : e list -> string list -> c -> s -> t -> m -> v list *)
+and f_st e2s xs vs c (v2s' :: s) t m = match e2s with
+    [] -> c (v2s' :: s) t m
+  | e :: e2s ->
+    f_st e2s xs vs (fun s t m ->
+      f e xs vs (fun ((v :: v2s) :: s) t m ->
+        c ((v :: v2s) :: s) t m)
+      s t m) (v2s' :: s) t m
 
 (* app : v -> v -> c -> s -> t -> m -> v *)
 and app v0 v1 c s t m =
