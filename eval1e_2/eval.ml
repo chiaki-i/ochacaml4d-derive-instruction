@@ -54,6 +54,8 @@ and f e xs vs c t m =
       f e0 xs vs (fun v0 t0 m0 ->
         app v0 v1 v2s c t0 m0) t2 m2) t m
   | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
+        (* c = idc とわかっているとき専用の f_id を作る。
+        f_id では、Fun の規則でクロージャを作る前に、メタ継続の構造で match して引数が残っているなら、VFun を作らず直接そこに飛んでいく *)
   | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
@@ -195,7 +197,7 @@ and app v0 v1 v2s' c t m =
     VFun (f) -> f v1 v2s' c t m
   (* | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m)) *)
   | VContS (c', t') -> c' v1 t' (MCons ((c, v2s', t), m))
-  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
+  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m (* この app_c を非関数化する *)
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
