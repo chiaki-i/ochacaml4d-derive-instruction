@@ -89,6 +89,21 @@ and run_c c s t m =
           ^ " is not a function; it can not be applied.")
       | _ -> failwith "IApply: unexpected s"
     end
+  | ((IAppterm :: [], vs) :: c, s) ->
+    begin match s with
+        (VFun (is', vs') :: v1 :: v2s) :: s ->
+        run_c ((is', (v1 :: vs')) :: c) (v2s :: s) t m
+      | (VContS (c', s', t') :: v1 :: v2s) :: s ->
+        let app_c = ([IReturn], vs) :: c in
+        run_c c' (push v1 s') t' (MCons ((app_c, (v2s :: s), t), m))
+      | (VContC (c', s', t') :: v1 :: v2s) :: s ->
+        let app_c = ([IReturn], vs) :: c in
+        run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, (v2s :: s))) t)) m
+      | (v0 :: _) :: s ->
+        failwith (to_string v0
+          ^ " is not a function; it can not be applied.")
+      | _ -> failwith "IApply: unexpected s"
+    end
   | ((IReturn :: [], vs) :: c, s) ->
     begin match s with
         (v :: []) :: s -> run_c c (push v s) t m
@@ -161,7 +176,7 @@ and f_t e xs = match e with
     f e1 xs @ f e0 xs @ [IOp (op); IReturn]
   | Fun (x, e) -> [IGrab (f_t e (x :: xs))]
   | App (e0, e2s) ->
-    f_st e2s xs @ f e0 xs @ [IApply]
+    f_st e2s xs @ f e0 xs @ [IAppterm]
   | Shift (x, e) -> [IShift (f e (x :: xs)); IReturn]
   | Control (x, e) -> [IControl (f e (x :: xs)); IReturn]
   | Shift0 (x, e) -> [IShift0 (f e (x :: xs)); IReturn]

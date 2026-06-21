@@ -12,7 +12,7 @@ and c = (i list * v list) list
 
 and i = IPushmark
       | INum of int | IAccess of int | IOp of op
-      | IApply | IReturn
+      | IApply | IAppterm | IReturn
       | ICur of i list | IGrab of i list
       | IShift of i list | IControl of i list
       | IShift0 of i list | IControl0 of i list
@@ -64,6 +64,7 @@ and i_to_string inst = match inst with
   | IAccess (n) -> "Access (" ^ string_of_int n ^ ")"
   | IOp (op) -> "Op (" ^ Syntax.op_to_string op  ^ ")"
   | IApply -> "Apply"
+  | IAppterm -> "Appterm"
   | IReturn -> "Return"
   | ICur (is) -> "Cur (" ^ i_list_to_string is ^ ")"
   | IGrab (is) -> "Grab (" ^ i_list_to_string is ^ ")"
