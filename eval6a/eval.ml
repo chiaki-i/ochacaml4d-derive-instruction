@@ -1,8 +1,6 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval6a *)
-
 (* push : v -> s -> s *)
 (* 引数スタック s の中の、先頭の引数列に値を追加する *)
 let push v s = match s with
@@ -38,7 +36,7 @@ let apnd t0 t1 = match t0 with
 let rec f e xs vs c s t m =
   match e with
     Num (n) -> c (push (VNum (n)) s) t m
-  | Var (x) -> c (push (List.nth vs (Env.off_set x xs)) s) t m
+  | Var (x) -> c (push (List.nth vs (Env.offset x xs)) s) t m
   | Op (e0, op, e1) ->
     f e1 xs vs (fun s t m ->
       f e0 xs vs (fun ((v :: v0 :: rest) :: s) t m ->
@@ -84,7 +82,7 @@ and f_t e xs vs c s t m =
   let app_c ((v :: v2s) :: s) t m = app_s v c (v2s :: s) t m in
   match e with
     Num (n) -> app_c (push (VNum (n)) s) t m
-  | Var (x) -> app_c (push (List.nth vs (Env.off_set x xs)) s) t m
+  | Var (x) -> app_c (push (List.nth vs (Env.offset x xs)) s) t m
   | Op (e0, op, e1) ->
     f e1 xs vs (fun s t m ->
       f e0 xs vs (fun ((v :: v0 :: rest) :: s) t m ->
@@ -158,7 +156,7 @@ and app v0 v1 c s t m =
   | VContC (c', s', t') ->
     c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it can't be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 c (v2s :: s) t m = match v2s with

@@ -1,8 +1,6 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval1b_2 *)
-
 (* initial continuation : v -> t -> m -> v *)
 let idc v t m = match t with
     TNil ->
@@ -27,7 +25,7 @@ let apnd t0 t1 = match t0 with
 let rec f e xs vs c t m =
   match e with
     Num (n) -> c (VNum (n)) t m
-  | Var (x) -> c (List.nth vs (Env.off_set x xs)) t m
+  | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
     f e1 xs vs (fun v1 t0 m0 ->
         f e0 xs vs (fun v0 t1 m1 ->
@@ -84,7 +82,7 @@ and app v0 v1 v2s' c t m =
   | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
   | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it can't be applied.")
 
 (* app_s : v -> v list -> c -> t -> m -> v *)
 and app_s v0 v2s c t m = match v2s with

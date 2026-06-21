@@ -1,8 +1,6 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval8a *)
-
 (* push : v -> s -> s *)
 (* 引数スタック s の中の、先頭の引数列に値を追加する *)
 let push v s = match s with
@@ -83,7 +81,7 @@ let rec app v0 v1 c s t m =
   | VContC (c', s', t') ->
     c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it can't be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 c (v2s :: s) t m = match v2s with
@@ -129,7 +127,7 @@ let reset i = fun vs c s t m ->
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
 let rec f e xs = match e with
     Num (n) -> num n
-  | Var (x) -> access (Env.off_set x xs)
+  | Var (x) -> access (Env.offset x xs)
   | Op (e0, op, e1) ->
     f e1 xs >> f e0 xs >> operation op
   | Fun (x, e) -> cur (f_t e (x :: xs))
@@ -144,7 +142,7 @@ let rec f e xs = match e with
 (* f_t : e -> string list -> i *)
 and f_t e xs = match e with
     Num (n) -> num n >> return
-  | Var (x) -> access (Env.off_set x xs) >> return
+  | Var (x) -> access (Env.offset x xs) >> return
   | Op (e0, op, e1) ->
     f e1 xs >> f e0 xs >> operation op >> return
   | Fun (x, e) -> grab (f_t e (x :: xs))

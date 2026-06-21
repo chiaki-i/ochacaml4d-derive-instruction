@@ -30,7 +30,7 @@ let apnd t0 t1 = match t0 with
 let rec f e xs vs c t m =
   match e with
     Num (n) -> c (VNum (n)) t m
-  | Var (x) -> c (List.nth vs (Env.off_set x xs)) t m
+  | Var (x) -> c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
     f e1 xs vs (fun v1 t0 m0 ->
         f e0 xs vs (fun v0 t1 m1 ->
@@ -75,7 +75,7 @@ and f_t e xs vs v2s' c t m =
   let app_c = fun v t m -> app_s v v2s' c t m in
   match e with
     Num (n) -> app_c (VNum (n)) t m
-  | Var (x) -> app_c (List.nth vs (Env.off_set x xs)) t m
+  | Var (x) -> app_c (List.nth vs (Env.offset x xs)) t m
   | Op (e0, op, e1) ->
     f e1 xs vs (fun v1 t0 m0 ->
         f e0 xs vs (fun v0 t1 m1 ->
@@ -144,7 +144,7 @@ and app v0 v1 v2s' c t m =
   | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m))
   | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it can't be applied.")
 
 (* app_s : v -> v list -> c -> t -> m -> v *)
 and app_s v0 v2s c t m = match v2s with

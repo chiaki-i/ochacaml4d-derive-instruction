@@ -1,8 +1,6 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval4c *)
-
 (* initial continuation : c *)
 let idc = C0
 
@@ -64,7 +62,7 @@ and run_cs c s t m = match (c, s) with
 and f e xs vs c s t m =
   match e with
     Num (n) -> run_c c (push (VNum (n)) s) t m
-  | Var (x) -> run_c c (push (List.nth vs (Env.off_set x xs)) s) t m
+  | Var (x) -> run_c c (push (List.nth vs (Env.offset x xs)) s) t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, c)) s t m
   | Fun (x, e) ->
     run_c c (push (VFun (fun c' ((v1 :: v2s) :: s') t' m' ->
@@ -92,7 +90,7 @@ and f_t e xs vs c s t m =
   let app_c = CApp3 (c) in
   match e with
     Num (n) -> run_c app_c (push (VNum (n)) s) t m
-  | Var (x) -> run_c app_c (push (List.nth vs (Env.off_set x xs)) s) t m
+  | Var (x) -> run_c app_c (push (List.nth vs (Env.offset x xs)) s) t m
   | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, app_c)) s t m
   | Fun (x, e) ->
     begin match s with
@@ -142,7 +140,7 @@ and app v0 v1 c s t m =
   | VContC (c', s', t') ->
     run_c c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it can't be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 c (v2s :: s) t m = match v2s with

@@ -3,7 +3,6 @@ open Value
 
 let silent = ref false
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval10c *)
 
 (* initial continuation : c *)
 let idc = []
@@ -86,7 +85,7 @@ and run_c c s t m =
         run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, (v2s :: s))) t)) m
       | (v0 :: _) :: s ->
         failwith (to_string v0
-          ^ " is not a function; it can not be applied.")
+          ^ " is not a function; it can't be applied.")
       | _ -> failwith "IApply: unexpected s"
     end
   | ((IAppterm :: [], vs) :: c, s) ->
@@ -101,7 +100,7 @@ and run_c c s t m =
         run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, (v2s :: s))) t)) m
       | (v0 :: _) :: s ->
         failwith (to_string v0
-          ^ " is not a function; it can not be applied.")
+          ^ " is not a function; it can't be applied.")
       | _ -> failwith "IApply: unexpected s"
     end
   | ((IReturn :: [], vs) :: c, s) ->
@@ -117,7 +116,7 @@ and run_c c s t m =
         run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, v2s :: s)) t)) m
       | (v0 :: _) :: s ->
         failwith (to_string v0
-          ^ " is not a function; it can not be applied.")
+          ^ " is not a function; it can't be applied.")
       | _ -> failwith "IReturn: unexpected s"
     end
   | ((IPushmark :: is, vs) :: c, s) ->
@@ -156,7 +155,7 @@ and run_c c s t m =
 (* f : e -> string list -> i list *)
 let rec f e xs = match e with
     Num (n) -> [INum (n)]
-  | Var (x) -> [IAccess (Env.off_set x xs)]
+  | Var (x) -> [IAccess (Env.offset x xs)]
   | Op (e0, op, e1) ->
     f e1 xs @ f e0 xs @ [IOp (op)]
   | Fun (x, e) -> [ICur (f_t e (x :: xs))]
@@ -171,7 +170,7 @@ let rec f e xs = match e with
 (* f_t : e -> string list -> i list *)
 and f_t e xs = match e with
     Num (n) -> [INum n; IReturn]
-  | Var (x) -> [IAccess (Env.off_set x xs); IReturn]
+  | Var (x) -> [IAccess (Env.offset x xs); IReturn]
   | Op (e0, op, e1) ->
     f e1 xs @ f e0 xs @ [IOp (op); IReturn]
   | Fun (x, e) -> [IGrab (f_t e (x :: xs))]

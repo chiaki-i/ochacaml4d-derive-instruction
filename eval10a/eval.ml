@@ -1,8 +1,6 @@
 open Syntax
 open Value
 
-(* Definitional interpreter for λ-calculus with 4 delimited continuation operations : eval10a *)
-
 (* initial continuation : c *)
 let idc = []
 
@@ -123,7 +121,7 @@ and app v0 v1 vs c s t m =
   | VContC (c', s', t') ->
     run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, s)) t)) m
   | _ -> failwith (to_string v0
-                   ^ " is not a function; it can not be applied.")
+                   ^ " is not a function; it can't be applied.")
 
 (* app_s : v -> v list -> c -> s -> t -> m -> v *)
 and app_s v0 vs c (v2s :: s) t m = match v2s with
@@ -134,7 +132,7 @@ and app_s v0 vs c (v2s :: s) t m = match v2s with
 (* f : e -> string list -> i list *)
 let rec f e xs = match e with
     Num (n) -> [INum (n)]
-  | Var (x) -> [IAccess (Env.off_set x xs)]
+  | Var (x) -> [IAccess (Env.offset x xs)]
   | Op (e0, op, e1) ->
     f e1 xs @ f e0 xs @ [IOp (op)]
   | Fun (x, e) -> [ICur (f_t e (x :: xs))]
@@ -149,7 +147,7 @@ let rec f e xs = match e with
 (* f_t : e -> string list -> i list *)
 and f_t e xs = match e with
     Num (n) -> [INum n; IReturn]
-  | Var (x) -> [IAccess (Env.off_set x xs); IReturn]
+  | Var (x) -> [IAccess (Env.offset x xs); IReturn]
   | Op (e0, op, e1) ->
     f e1 xs @ f e0 xs @ [IOp (op); IReturn]
   | Fun (x, e) -> [IGrab (f_t e (x :: xs))]
