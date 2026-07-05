@@ -7,6 +7,13 @@ open Value
 let rec cons h t = match t with
     TNil -> Trail (h)
   | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  (* h  => c, v2s *)
+  (* h' => c', v2s' *)
+  (* let app_c0 = fun v0 t0 m0 -> app_s v0 v2s c t0 m0 in
+     Trail ((fun v t' m -> app_c0 v (cons c' v2s' t') m), ??) *)
+  (* Trail ((fun v t' m -> c v (cons c' v2s' t') m), v2s) *)
+  (* 非関数化したところで、MCons のときのように Shift0/Control0 でバラさないので最適化の余地がないかも？と思ったが、
+     app 関数の中で trail に積まれる Return 命令を一つ削減することができるのでやる意味はある *)
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
@@ -121,6 +128,7 @@ and f_t e xs vs v2s' c t m =
 
 (* f_sr : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 (* copied from f, change c to app_c0 *)
+(* f_t と f_sr は順序を工夫すれば一つの関数にできるのではないか *)
 and f_sr e xs vs v2s c t m =
   let app_c0 = fun v0 t0 m0 -> app_s v0 v2s c t0 m0 in
   match e with
@@ -149,8 +157,10 @@ and f_sr e xs vs v2s c t m =
     f_s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f e0 xs vs (fun v0 t0 m0 ->
         app v0 v1 v2s app_c0 t0 m0) t2 m2) t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
+  | Shift (x, e) -> f e (x :: xs) (VContS (app_c0, t) :: vs) idc TNil m
+  (* 今までの Grab の最適化の shift 版 *)
+  (* app_c0 が 非関数化できるので、VContS (c, v2s, t) 的になる。すると app 関数の中で v2s が空かどうかで場合分けができる *)
+  | Control (x, e) -> f e (x :: xs) (VContC (app_c0, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
@@ -188,7 +198,7 @@ and app v0 v1 v2s' c t m =
     VFun (f) -> f v1 v2s' c t m
   (* | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m)) *)
   | VContS (c', t') -> c' v1 t' (MCons ((c, v2s', t), m))
-  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
+  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m (* app_c を非関数化することで、抽象機械の return 命令を削減することができるはず *)
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
