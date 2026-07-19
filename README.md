@@ -7,10 +7,44 @@
 This repository contains implementations of Delimited continuation operators' Abstract Machine (DAM).
 DAM extends the ZINC Abstract Machine instruction set with four delimited continuation operators.
 
-## Structure of this repository
-The repository contains multiple implementation versions that follow different derivation paths.
-Each implementation represents a specific stage in the development of DAM.
-The folders are organized chronologically and by feature implementation, allowing you to trace the evolution of the abstract machine design.
+## 実装方針
+
+- このリポジトリでは、先行研究の definitional interpreter を `eval1a`/`eval1s` フォルダに実装し、それに対して自明なプログラム変換を適用することで、限定継続演算子のための仮想機械 (DAM) を導出しようというものである
+- プログラム変換の適用の順番は、以下 "Derivation path" のセクションを参照すること。例えば、`eval1a` から `eval1b_1` の変換なら、一度、元となる `eval1a` のディレクトリを `eval1b_1` という名前にコピーして `make test` が通ることを確認した上で commit し、その上でプログラム変換 (`eval1b_1` の場合は継続の非関数化) を適用するという流れを取る。
+- プログラム変換の際、自明な（= 必要最小限な）変更のみを加えることで、一つ前のステップ (フォルダ) のプログラムの意味を変えていないことを示すためこのような方針をとっている。
+
+## Derivation path
+
+### Appterm (after JSSST Journal)
+- eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
+  - eval1b_3_2（f_st による別経路）・eval1c はともに廃止。eval1b_3 → eval1d を1ステップとして扱う。
+  - eval1b_3 -> eval1d の変換内容：
+    - (1) f_t App ケース：補題（eval1a に証明あり）を `app_s v0 v2s (fun v t m -> app_s v v2s' c t m)` に直接適用し `app_s v0 (v2s @ v2s') c` を導出している。
+    - (2) Grab のケース：`app_c VFun ...` を展開した形を導出
+  - eval1d の `v2s @ v2s'` の形が eval2a 以降の `IAppterm` 命令の導出に直結する。
+  - eval4a （空の引数スタックを引き回す）を廃止、eval2a から eval4b （引数スタックに、関数適用の引数を積む）を直接導出する。
+  - eval4c は、引数スタックの先頭に引数を載せる。引数スタックが `v list list` 型であるため、単純な `::` 操作だとコードが長くなってしまうので便宜上 push という補助関数を導入。
+  - eval6a2 は、eval4c で引数スタックの先頭に引数を載せるのではなく、`run_c` 等が引き回している値 `v` を accumulator として捉えようとしたもの。ただし、accumulator を導入するには、四則演算や複数引数の関数適用の際に acc から arg stack へ引数を push する必要がある点に注意（で、結局 push する操作を定義するならほとんど eval4c と変わらないか、と思い、戻ってきた）
+  - eval9b と eval9c は統合して eval9c に。実は Journal でも実質的にはまとめて説明されていた。
+
+### Appterm (Journal revision)
+- eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10{a,b,c}
+  - 1b_3_1 は、Appterm 導出しようとして f と f_t の App 規則を非関数化しようとしている（が、うまく行っていない）
+  - 1b_3_2 は Appterm はこうあるべき、という形を意図的に定義している。App のケースで、app_s ではなくて app を使用している点にも注意
+  - 6a が非関数化する前の最後の状態、10c が return 最適化後の状態
+
+### Tail interpreter revived (Journal ver.)
+- eval1s, eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1
+  - Eval1st1, 5st2 is experimental
+
+### part of c represents return stack (Jan 19-25)
+- eval1s, 2s, 4s, 5s, 5s2, 7ds, 7ds1, 7ds4 (w/o CSeq), 8s, 9s2, eval10s
+
+### With return stack, better env management (after PPL)
+- eval1s, 2s, 5sr, 7ds3v, 7ds4v, 8sv, 9sv, 10sv, 10sv2, 10sv3, 10sv4, 10sv5, 11sv
+
+### Functions with multiple arguments (PPL)
+- eval1s, 2s, 5ds2, 7ds1, 7ds3, 7ds4, 8ds, 9ds
 
 ## Installation and usage
 
@@ -66,35 +100,3 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 0 test(s) failed
 ```
 
-## Derivation path
-
-### Appterm (after JSSST Journal)
-- Eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
-  - eval1b_3_2（f_st による別経路）・eval1c はともに廃止。eval1b_3 → eval1d を1ステップとして扱う。
-  - eval1b_3 -> eval1d の変換内容：
-    - (1) f_t App ケース：補題（eval1a に証明あり）を `app_s v0 v2s (fun v t m -> app_s v v2s' c t m)` に直接適用し `app_s v0 (v2s @ v2s') c` を導出している。
-    - (2) Grab のケース：`app_c VFun ...` を展開した形を導出
-  - eval1d の `v2s @ v2s'` の形が eval2a 以降の `IAppterm` 命令の導出に直結する。
-  - eval4a （空の引数スタックを引き回す）を廃止、eval2a から eval4b （引数スタックに、関数適用の引数を積む）を直接導出する。
-  - eval4c は、引数スタックの先頭に引数を載せる。引数スタックが `v list list` 型であるため、単純な `::` 操作だとコードが長くなってしまうので便宜上 push という補助関数を導入。
-  - eval6a2 は、eval4c で引数スタックの先頭に引数を載せるのではなく、`run_c` 等が引き回している値 `v` を accumulator として捉えようとしたもの。ただし、accumulator を導入するには、四則演算や複数引数の関数適用の際に acc から arg stack へ引数を push する必要がある点に注意（で、結局 push する操作を定義するならほとんど eval4c と変わらないか、と思い、戻ってきた）
-  - eval9b と eval9c は統合して eval9c に。実は Journal でも実質的にはまとめて説明されていた。
-
-### Appterm (Journal revision)
-- Eval1a, 1b_{1,2,3}, 1b_3_2, 1c, 2a, 4{a,b,c}, 6a, 8a, 9{a,b,c}, 10{a,b,c}
-  - 1b_3_1 は、Appterm 導出しようとして f と f_t の App 規則を非関数化しようとしている（が、うまく行っていない）
-  - 1b_3_2 は Appterm はこうあるべき、という形を意図的に定義している。App のケースで、app_s ではなくて app を使用している点にも注意
-  - 6a が非関数化する前の最後の状態、10c が return 最適化後の状態
-
-### Tail interpreter revived (Journal ver.)
-- Eval1s, Eval1st, 2st, 5st (dummy VEmpty and s), 5st1 (integrate v2s into s), 7st, 7st1, 8st, 9st, 9st1, 10st, 10st1
-  - Eval1st1, 5st2 is experimental
-
-### part of c represents return stack (Jan 19-25)
-- Eval1s, 2s, 4s, 5s, 5s2, 7ds, 7ds1, 7ds4 (w/o CSeq), 8s, 9s2, eval10s
-
-### With return stack, better env management (after PPL)
-- Eval1s, 2s, 5sr, 7ds3v, 7ds4v, 8sv, 9sv, 10sv, 10sv2, 10sv3, 10sv4, 10sv5, 11sv
-
-### Functions with multiple arguments (PPL)
-- Eval1s, 2s, 5ds2, 7ds1, 7ds3, 7ds4, 8ds, 9ds
