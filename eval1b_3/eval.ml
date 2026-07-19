@@ -65,6 +65,7 @@ and f e xs vs c t m =
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
           f_t e (x :: xs) (VContC (c, t) :: vs) v2s c0 t0 m0
+          (* v2s = [] の場合は f を呼ぶのと同じこと *)
       | _ -> failwith "control0 is used without enclosing reset"
     end
   | Reset (e) -> f e xs vs idc TNil (MCons ((c, [], t), m))
@@ -100,11 +101,20 @@ and f_t e xs vs v2s' c t m =
         app_s v0 v2s (fun v t m -> app_s v v2s' c t m) t0 m0) t2 m2) t m
         (* app_s v0 v2s app_c t0 m0) t2 m2) t m *)
   | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
+    (* e が Fun で、この後は関数の値が返るだけだとわかっていたら、Grab したい *)
+    (* そこで必要になるのが f_id 的な関数ではないか？ *)
   | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
           f_t e (x :: xs) (VContS (app_c, t) :: vs) v2s c0 t0 m0
+          (* Reset 外の引数 v2s が見えるようになったので e の中で Grab できるようになる *)
+          (* Reset 外に引数がいる、かつ Reset の内側に Lambda がいる *)
+          (* (reset (1 + shift0 k -> fun x -> 2)) 3 *)
+          (* (reset (1 + shift0 k -> fun x -> (reset 2))) 3 *)
+          (* State Monad の典型的な例、これで最適化ができているということを、論文で説明できると良い *)
+          (* そのためには上述の f_id 的な関数がいずれにしても必要になる *)
+          (* (reset ((fun result -> fun x -> result) (shift k -> fun x -> k 2 (x + 1)))) 3 *)
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->
@@ -113,7 +123,10 @@ and f_t e xs vs v2s' c t m =
           f_t e (x :: xs) (VContC (app_c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((app_c, [], t), m))
+  (* | Reset (e) -> f e xs vs idc TNil (MCons ((app_c, [], t), m)) *)
+  (* eval1b_3 では先に f_t の導入だけを行う。すると f_t の Reset も app_c を持つので、それも一緒くたに非関数化すれば良い *)
+  | Reset (e) -> f e xs vs idc TNil (MCons ((c, v2s', t), m))
+
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with

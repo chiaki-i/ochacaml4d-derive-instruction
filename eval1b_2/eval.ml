@@ -58,6 +58,7 @@ let rec f e xs vs c t m =
     begin match m with
         MCons ((c0, t0), m0) ->
           f e (x :: xs) (VContS (c, t) :: vs) c0 t0 m0
+          (* 最適化前は Reset の外に引数があるかどうかはわからない *)
       | _ -> failwith "shift0 is used without enclosing reset"
     end
   | Control0 (x, e) ->

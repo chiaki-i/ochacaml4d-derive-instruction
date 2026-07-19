@@ -162,8 +162,8 @@ and f_t e xs = match e with
     f_s e2s xs >> appterm (f e0 xs) >> apply
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return
-  | Control0 (x, e) -> control0 (f e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f_t e (x :: xs)) >> return (* 本来 f_t を呼び出すべきところなので遡って直す *)
+  | Control0 (x, e) -> control0 (f_t e (x :: xs)) >> return
   | Reset (e) -> pushmark >> reset (f e xs) >> return
 
 (* f_s : e list -> string list -> i *)
