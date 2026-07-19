@@ -38,7 +38,7 @@ and run_c c s t m =
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> run_c c (push v s) t m
+          | MCons ((c0, s, t), m) -> run_c (([IReturn], []) :: c0) (push v s) t m
         end
       | Trail (h) -> run_h h v TNil m
     end
@@ -79,8 +79,9 @@ and run_c c s t m =
         (VFun (is', vs') :: v1 :: v2s) :: s ->
         run_c ((is', (v1 :: vs')) :: (is, vs) :: c) (v2s :: s) t m
       | (VContS (c', s', t') :: v1 :: v2s) :: s ->
-        let app_c = ([IReturn], vs) :: (is, vs) :: c in
-        run_c c' (push v1 s') t' (MCons ((app_c, (v2s :: s), t), m))
+        (* let app_c = ([IReturn], vs) :: (is, vs) :: c in
+        run_c c' (push v1 s') t' (MCons ((app_c, (v2s :: s), t), m)) *)
+        run_c c' (push v1 s') t' (MCons (((is, vs) :: c, (v2s :: s), t), m))
       | (VContC (c', s', t') :: v1 :: v2s) :: s ->
         let app_c = ([IReturn], vs) :: (is, vs) :: c in
         run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, (v2s :: s))) t)) m
@@ -101,8 +102,9 @@ and run_c c s t m =
       | (VFun (is', vs') :: v1 :: v2s) :: s ->
         run_c ((is', (v1 :: vs')) :: c) (v2s :: s) t m
       | (VContS (c', s', t') :: v1 :: v2s) :: s ->
-        let app_c = ([IReturn], vs) :: c in
-        run_c c' (push v1 s') t' (MCons ((app_c, v2s :: s, t), m))
+        (* let app_c = ([IReturn], vs) :: c in
+        run_c c' (push v1 s') t' (MCons ((app_c, v2s :: s, t), m)) *)
+        run_c c' (push v1 s') t' (MCons ((c, v2s :: s, t), m))
       | (VContC (c', s', t') :: v1 :: v2s) :: s ->
         let app_c = ([IReturn], vs) :: c in
         run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, v2s :: s)) t)) m
@@ -125,7 +127,7 @@ and run_c c s t m =
     begin match m with
         MCons ((c0, s0, t0), m0) ->
         run_c
-          ((i, VContS (((is, vs) :: c), s, t) :: vs) :: c0)
+          ((i, VContS (((is, vs) :: c), s, t) :: vs) :: ([IReturn], []) :: c0)
           s0 t0 m0
       | _ -> failwith "shift0 is used without enclosing reset"
     end
@@ -133,7 +135,7 @@ and run_c c s t m =
     begin match m with
         MCons ((c0, s0, t0), m0) ->
         run_c
-          ((i, VContC (((is, vs) :: c), s, t) :: vs) :: c0)
+          ((i, VContC (((is, vs) :: c), s, t) :: vs) :: ([IReturn], []) :: c0)
           s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
@@ -157,7 +159,7 @@ let rec f e xs = match e with
   | Control (x, e) -> [IControl (f e (x :: xs))]
   | Shift0 (x, e) -> [IShift0 (f e (x :: xs))]
   | Control0 (x, e) -> [IControl0 (f e (x :: xs))]
-  | Reset (e) -> [IReset (f e xs)]
+  | Reset (e) -> [IPushmark; IReset (f e xs)]
 
 (* f_t : e -> string list -> i list *)
 and f_t e xs = match e with
@@ -172,7 +174,7 @@ and f_t e xs = match e with
   | Control (x, e) -> [IControl (f e (x :: xs)); IReturn]
   | Shift0 (x, e) -> [IShift0 (f e (x :: xs)); IReturn]
   | Control0 (x, e) -> [IControl0 (f e (x :: xs)); IReturn]
-  | Reset (e) -> [IReset (f e xs); IReturn]
+  | Reset (e) -> [IPushmark; IReset (f e xs); IReturn]
 
 (* f_s : e list -> string list -> i list *)
 and f_s e2s xs = match e2s with
