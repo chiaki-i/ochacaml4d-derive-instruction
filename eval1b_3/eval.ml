@@ -113,7 +113,7 @@ and f_t e xs vs v2s' c t m =
           f_t e (x :: xs) (VContC (app_c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, v2s', t), m))
+  | Reset (e) -> f e xs vs idc TNil (MCons ((app_c, [], t), m))
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with

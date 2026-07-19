@@ -12,19 +12,6 @@ let push v s = match s with
 (* pushmark : i *)
 let pushmark = fun vs c s t m -> c ([] :: s) t m
 
-(* initial continuation : s -> t -> m -> v *)
-let idc s t m = match s with
-    (v :: []) :: s ->
-    begin match t with
-        TNil ->
-        begin match m with
-            MNil -> v
-          | MCons ((c, s, t), m) -> c (push v s) t m
-        end
-      | Trail (h) -> h v TNil m
-    end
-  | _ -> failwith "idc: stack error"
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -78,8 +65,10 @@ let rec app v0 v1 c s t m =
   let app_c ((v :: v2s) :: s) t m = app_s v c (v2s :: s) t m in
   match v0 with
     VFun (f) -> f c (push v1 s) t m
+  (* | VContS (c', s', t') ->
+    c' (push v1 s') t' (MCons ((app_c, s, t), m)) *)
   | VContS (c', s', t') ->
-    c' (push v1 s') t' (MCons ((app_c, s, t), m))
+    c' (push v1 s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
@@ -89,6 +78,21 @@ let rec app v0 v1 c s t m =
 and app_s v0 c (v2s :: s) t m = match v2s with
     [] -> c (push v0 s) t m
   | v1 :: v2s -> app v0 v1 c (v2s :: s) t m
+
+(* initial continuation : s -> t -> m -> v *)
+let idc s t m = match s with
+    (v :: []) :: s ->
+    begin match t with
+        TNil ->
+        begin match m with
+            MNil -> v
+          | MCons ((c0, s, t), m) ->
+            let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
+            app_c0 (push v s) t m
+        end
+      | Trail (h) -> h v TNil m
+    end
+  | _ -> failwith "idc: stack error"
 
 (* apply : i *)
 let apply = fun vs c ((v :: v1 :: v2s) :: s) t m ->
@@ -116,13 +120,15 @@ let control i = fun vs c s t m ->
 (* shift0 : i -> i *)
 let shift0 i = fun vs c s t m -> match m with
     MCons ((c0, s0, t0), m0) ->
-    i (VContS (c, s, t) :: vs) c0 s0 t0 m0
+    let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
+    i (VContS (c, s, t) :: vs) app_c0 s0 t0 m0
   | _ -> failwith "shift0 is used without enclosing reset"
 
 (* control0 : i -> i *)
 let control0 i = fun vs c s t m -> match m with
     MCons ((c0, s0, t0), m0) ->
-    i (VContC (c, s, t) :: vs) c0 s0 t0 m0
+    let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
+    i (VContC (c, s, t) :: vs) app_c0 s0 t0 m0
   | _ -> failwith "control0 is used without enclosing reset"
 
 (* reset : i -> i *)
@@ -143,7 +149,7 @@ let rec f e xs = match e with
   | Control (x, e) -> control (f e (x :: xs))
   | Shift0 (x, e) -> shift0 (f e (x :: xs))
   | Control0 (x, e) -> control0 (f e (x :: xs))
-  | Reset (e) -> reset (f e xs)
+  | Reset (e) -> pushmark >> reset (f e xs)
 
 (* f_t : e -> string list -> i *)
 and f_t e xs = match e with
@@ -158,7 +164,7 @@ and f_t e xs = match e with
   | Control (x, e) -> control (f e (x :: xs)) >> return
   | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return
   | Control0 (x, e) -> control0 (f e (x :: xs)) >> return
-  | Reset (e) -> reset (f e xs) >> return
+  | Reset (e) -> pushmark >> reset (f e xs) >> return
 
 (* f_s : e list -> string list -> i *)
 and f_s e2s xs = match e2s with
