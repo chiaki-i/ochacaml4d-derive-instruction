@@ -13,6 +13,10 @@
 ## macos
 *DS_Store
 
+## claude code
+# .claude/settings.json と hooks/, skills/ は共有するが、個人設定は除外
+.claude/settings.local.json
+
 ## ocaml
 # project specific files
 eval*/._*
