@@ -120,15 +120,13 @@ let control i = fun vs c s t m ->
 (* shift0 : i -> i *)
 let shift0 i = fun vs c s t m -> match m with
     MCons ((c0, s0, t0), m0) ->
-    let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
-    i (VContS (c, s, t) :: vs) app_c0 s0 t0 m0
+    i (VContS (c, s, t) :: vs) c0 s0 t0 m0
   | _ -> failwith "shift0 is used without enclosing reset"
 
 (* control0 : i -> i *)
 let control0 i = fun vs c s t m -> match m with
     MCons ((c0, s0, t0), m0) ->
-    let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
-    i (VContC (c, s, t) :: vs) app_c0 s0 t0 m0
+    i (VContC (c, s, t) :: vs) c0 s0 t0 m0
   | _ -> failwith "control0 is used without enclosing reset"
 
 (* reset : i -> i *)
@@ -147,8 +145,8 @@ let rec f e xs = match e with
     f_s e2s xs >> f e0 xs >> apply
   | Shift (x, e) -> shift (f e (x :: xs))
   | Control (x, e) -> control (f e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f e (x :: xs))
-  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f_t e (x :: xs))
+  | Control0 (x, e) -> control0 (f_t e (x :: xs))
   | Reset (e) -> pushmark >> reset (f e xs)
 
 (* f_t : e -> string list -> i *)
@@ -162,7 +160,7 @@ and f_t e xs = match e with
     f_s e2s xs >> appterm (f e0 xs) >> apply
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f_t e (x :: xs)) >> return (* 本来 f_t を呼び出すべきところなので遡って直す *)
+  | Shift0 (x, e) -> shift0 (f_t e (x :: xs)) >> return
   | Control0 (x, e) -> control0 (f_t e (x :: xs)) >> return
   | Reset (e) -> pushmark >> reset (f e xs) >> return
 
