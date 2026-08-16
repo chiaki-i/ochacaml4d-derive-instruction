@@ -138,6 +138,8 @@ and app v0 v1 v2s' c t m =
   (* | VContS (c', t') -> c' v1 t' (MCons ((app_c, t), m)) *)
   | VContS (c', t') -> c' v1 t' (MCons ((c, v2s', t), m))
   | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
+    (* 非関数化を先にやる。その後、f と f_t を コピーする形で　f_id = g と  f_id_t = g_t を入れる *)
+    (* そもそも MCons の非関数化はどのタイミングで入れた？それと同時期に Trail の方も実施したい *)
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can not be applied.")
 
