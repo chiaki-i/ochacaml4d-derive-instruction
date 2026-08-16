@@ -15,6 +15,9 @@ DAM extends the ZINC Abstract Machine instruction set with four delimited contin
 
 ## Derivation path
 
+### 限定継続の最適化 (`eval1-appterm-meta-optimize` branch)
+- eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
+
 ### Appterm (after JSSST Journal)
 - eval1a, 1b_{1,2,3}, 1d, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
   - eval1b_3_2（f_st による別経路）・eval1c はともに廃止。eval1b_3 → eval1d を1ステップとして扱う。
