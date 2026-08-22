@@ -30,7 +30,7 @@ let rec run_c c s t m = match (c, s) with
         TNil ->
         begin match m with
             MNil -> v
-          | MCons ((c, s, t), m) -> run_c c (push v s) t m
+          | MCons ((c0, s, t), m) -> run_c (CSeq (IReturn, [], c0)) (push v s) t m
         end
       | Trail (h) -> h v TNil m
     end
@@ -94,8 +94,12 @@ let rec run_c c s t m = match (c, s) with
         run_c (CSeq (i, VContC (c, s, t) :: vs, c0)) s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
+  (* 空フレームを IReset が内包するか f / f_t が IPushmark として出すかは設計の選択。
+     詳細は eval8a の reset のコメントを参照。
+     案 B: run_c (CSeq (i, vs, idc)) [[]] TNil (MCons ((c, s, t), m)) とし、
+           f / f_t 側で IPushmark >> IReset (...) と出す *)
   | IReset (i) ->
-    run_c (CSeq (i, vs, idc)) [[]] TNil (MCons ((c, s, t), m))
+    run_c (CSeq (i, vs, idc)) [[]] TNil (MCons ((c, [] :: s, t), m))
   | ISeq (i0, i1) ->
     run_c (CSeq (i0, vs, (CSeq (i1, vs, c)))) s t m
   end
@@ -107,7 +111,7 @@ and app v0 v1 vs c s t m =
   match v0 with
     VFun (f) -> f c (push v1 s) t m
   | VContS (c', s', t') ->
-    run_c c' (push v1 s') t' (MCons ((app_c, s, t), m))
+    run_c c' (push v1 s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     run_c c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v vs c s t m) t)) m
   | _ -> failwith (to_string v0
@@ -130,8 +134,9 @@ let rec f e xs = match e with
     f_s e2s xs >> f e0 xs >> IApply
   | Shift (x, e) -> IShift (f e (x :: xs))
   | Control (x, e) -> IControl (f e (x :: xs))
-  | Shift0 (x, e) -> IShift0 (f e (x :: xs))
-  | Control0 (x, e) -> IControl0 (f e (x :: xs))
+  | Shift0 (x, e) -> IShift0 (f_t e (x :: xs))
+  | Control0 (x, e) -> IControl0 (f_t e (x :: xs))
+  (* 案 B: | Reset (e) -> IPushmark >> IReset (f e xs) *)
   | Reset (e) -> IReset (f e xs)
 
 (* f_t : e -> string list -> i *)
@@ -145,8 +150,9 @@ and f_t e xs = match e with
     f_st e2s xs >> f e0 xs >> IApply
   | Shift (x, e) -> IShift (f e (x :: xs)) >> IReturn
   | Control (x, e) -> IControl (f e (x :: xs)) >> IReturn
-  | Shift0 (x, e) -> IShift0 (f e (x :: xs)) >> IReturn
-  | Control0 (x, e) -> IControl0 (f e (x :: xs)) >> IReturn
+  | Shift0 (x, e) -> IShift0 (f_t e (x :: xs)) >> IReturn
+  | Control0 (x, e) -> IControl0 (f_t e (x :: xs)) >> IReturn
+  (* 案 B: | Reset (e) -> IPushmark >> IReset (f e xs) >> IReturn *)
   | Reset (e) -> IReset (f e xs) >> IReturn
 
 (* f_s : e list -> string list -> i *)
