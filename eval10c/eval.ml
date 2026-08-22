@@ -25,7 +25,7 @@ let push v s = match s with
 
 (* run_h : h -> v -> t -> m -> v *)
 let rec run_h h v t m = match h with
-    Hold (c, s) -> run_c c (push v s) t m
+    Hold (c, s) -> run_c (([IReturn], []) :: c) (push v s) t m
   | Append (h, h') -> run_h h v (cons h' t) m
 
 (* run_c : c -> s -> t -> m -> v *)
@@ -80,8 +80,7 @@ and run_c c s t m =
       | (VContS (c', s', t') :: v1 :: v2s) :: s ->
         run_c c' (push v1 s') t' (MCons (((is, vs) :: c, (v2s :: s), t), m))
       | (VContC (c', s', t') :: v1 :: v2s) :: s ->
-        let app_c = ([IReturn], vs) :: (is, vs) :: c in
-        run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, (v2s :: s))) t)) m
+        run_c c' (push v1 s') (apnd t' (cons (Hold ((is, vs) :: c, (v2s :: s))) t)) m
       | (v0 :: _) :: s ->
         failwith (to_string v0
           ^ " is not a function; it can't be applied.")
@@ -94,8 +93,7 @@ and run_c c s t m =
       | (VContS (c', s', t') :: v1 :: v2s) :: s ->
         run_c c' (push v1 s') t' (MCons ((c, (v2s :: s), t), m))
       | (VContC (c', s', t') :: v1 :: v2s) :: s ->
-        let app_c = ([IReturn], vs) :: c in
-        run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, (v2s :: s))) t)) m
+        run_c c' (push v1 s') (apnd t' (cons (Hold (c, (v2s :: s))) t)) m
       | (v0 :: _) :: s ->
         failwith (to_string v0
           ^ " is not a function; it can't be applied.")
@@ -109,8 +107,7 @@ and run_c c s t m =
       | (VContS (c', s', t') :: v1 :: v2s) :: s ->
         run_c c' (push v1 s') t' (MCons ((c, v2s :: s, t), m))
       | (VContC (c', s', t') :: v1 :: v2s) :: s ->
-        let app_c = ([IReturn], vs) :: c in
-        run_c c' (push v1 s') (apnd t' (cons (Hold (app_c, v2s :: s)) t)) m
+        run_c c' (push v1 s') (apnd t' (cons (Hold (c, v2s :: s)) t)) m
       | (v0 :: _) :: s ->
         failwith (to_string v0
           ^ " is not a function; it can't be applied.")

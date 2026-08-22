@@ -4,10 +4,10 @@ open Value
 (* initial continuation : c *)
 let idc = C0
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
@@ -23,8 +23,13 @@ let push v s = match s with
     [] -> failwith "s must be ((_ :: _) :: _), not []"
   | fst :: rest -> (v :: fst) :: rest
 
+(* run_h : h -> v -> t -> m -> v *)
+let rec run_h h v t m = match h with
+    Hold (c, s) -> run_c (CSeq (IReturn, [], c)) (push v s) t m
+  | Append (h, h') -> run_h h v (cons h' t) m
+
 (* run_c : c -> s -> t -> m -> v *)
-let rec run_c c s t m = match (c, s) with
+and run_c c s t m = match (c, s) with
     (C0, (v :: []) :: s) ->
     begin match t with
         TNil ->
@@ -32,7 +37,7 @@ let rec run_c c s t m = match (c, s) with
             MNil -> v
           | MCons ((c0, s, t), m) -> run_c (CSeq (IReturn, [], c0)) (push v s) t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h h v TNil m
     end
   | (CSeq (i, vs, c), s) ->
     begin match i with (* CSeq starts here *)
@@ -107,13 +112,12 @@ let rec run_c c s t m = match (c, s) with
 
 (* app : v -> v -> v list -> c -> s -> t -> m -> v *)
 and app v0 v1 vs c s t m =
-  let app_c = CSeq (IReturn, vs, c) in
   match v0 with
     VFun (f) -> f c (push v1 s) t m
   | VContS (c', s', t') ->
     run_c c' (push v1 s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
-    run_c c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v vs c s t m) t)) m
+    run_c c' (push v1 s') (apnd t' (cons (Hold (c, s)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can't be applied.")
 

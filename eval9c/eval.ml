@@ -22,7 +22,7 @@ let push v s = match s with
 
 (* run_h : h -> v -> t -> m -> v *)
 let rec run_h h v t m = match h with
-    Hold (c, s) -> run_c c (push v s) t m
+    Hold (c, s) -> run_c (CSeq (IReturn, [], c)) (push v s) t m
   | Append (h, h') -> run_h h v (cons h' t) m
 
 (* run_c : c -> s -> t -> m -> v *)
@@ -94,6 +94,10 @@ and run_c c s t m = match (c, s) with
         run_c (CSeq (i, VContC (c, s, t) :: vs, c0)) s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
+  (* 空フレームを IReset が内包するか f / f_t が IPushmark として出すかは設計の選択。
+     詳細は eval8a の reset のコメントを参照。
+     案 B: run_c (CSeq (i, vs, idc)) [[]] TNil (MCons ((c, s, t), m)) とし、
+           f / f_t 側で IPushmark >> IReset (...) と出す *)
   | IReset (i) ->
     run_c (CSeq (i, vs, idc)) [[]] TNil (MCons ((c, [] :: s, t), m))
   | ISeq (i0, i1) ->
@@ -103,14 +107,13 @@ and run_c c s t m = match (c, s) with
 
 (* app : v -> v -> v list -> c -> s -> t -> m -> v *)
 and app v0 v1 vs c s t m =
-  let app_c = CSeq (IReturn, vs, c) in
   match v0 with
     VFun (i, vs') -> run_c (CSeq (i, (v1 :: vs'), c)) s t m
   | VContS (c', s', t') ->
     (* run_c c' (push v1 s') t' (MCons ((app_c, s, t), m)) *)
     run_c c' (push v1 s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
-    run_c c' (push v1 s') (apnd t' (cons (Hold (CSeq (IReturn, vs, c), s)) t)) m
+    run_c c' (push v1 s') (apnd t' (cons (Hold (c, s)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can't be applied.")
 

@@ -14,7 +14,10 @@ and i = v list -> c -> s -> t -> m -> v
 
 and s = (v list) list
 
-and t = TNil | Trail of (v -> t -> m -> v)
+and t = TNil | Trail of h
+
+and h = Hold of c * s
+      | Append of h * h
 
 and m = MNil | MCons of (c * s * t) * m
 
