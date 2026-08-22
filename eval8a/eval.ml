@@ -10,19 +10,6 @@ let push v s = match s with
 (* pushmark : i *)
 let pushmark = fun vs c s t m -> c ([] :: s) t m
 
-(* initial continuation : s -> t -> m -> v *)
-let idc s t m = match s with
-    (v :: []) :: s ->
-    begin match t with
-        TNil ->
-        begin match m with
-            MNil -> v
-          | MCons ((c, s, t), m) -> c (push v s) t m
-        end
-      | Trail (h) -> h v TNil m
-    end
-  | _ -> failwith "idc: stack error"
-
 (* cons : (v -> t -> m -> v) -> t -> t *)
 let rec cons h t = match t with
     TNil -> Trail (h)
@@ -77,7 +64,7 @@ let rec app v0 v1 c s t m =
   match v0 with
     VFun (f) -> f c (push v1 s) t m
   | VContS (c', s', t') ->
-    c' (push v1 s') t' (MCons ((app_c, s, t), m))
+    c' (push v1 s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
     c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
   | _ -> failwith (to_string v0
@@ -87,6 +74,21 @@ let rec app v0 v1 c s t m =
 and app_s v0 c (v2s :: s) t m = match v2s with
     [] -> c (push v0 s) t m
   | v1 :: v2s -> app v0 v1 c (v2s :: s) t m
+
+(* initial continuation : s -> t -> m -> v *)
+and idc s t m = match s with
+    (v :: []) :: s ->
+    begin match t with
+        TNil ->
+        begin match m with
+            MNil -> v
+          | MCons ((c0, s, t), m) ->
+            let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
+            app_c0 (push v s) t m
+        end
+      | Trail (h) -> h v TNil m
+    end
+  | _ -> failwith "idc: stack error"
 
 (* apply : i *)
 let apply = fun vs c ((v :: v1 :: v2s) :: s) t m ->
@@ -120,8 +122,24 @@ let control0 i = fun vs c s t m -> match m with
   | _ -> failwith "control0 is used without enclosing reset"
 
 (* reset : i -> i *)
+(* MCons の第 2 要素は「reset の結果に適用すべき引数列」を先頭フレームに持つ。
+   m から pop する側（idc）が app_c0 を作って必ずフレームを 1 つ消費するので、
+   非末尾の reset（f 側、適用すべき引数がない）は空フレームを 1 つ用意する必要がある。
+   末尾の reset（f_t 側）は適用すべき引数が s の先頭にすでにあるので、s のまま。
+   この空フレームを「reset が内包する」か「f / f_t が pushmark として出す」かは
+   設計の選択で、両者は同じだが、ここでは前者を採用している。
+
+   案 A（採用）: reset が内包する。f / f_t の規則が短くなる
+       let reset i = fun vs c s t m -> i vs idc [[]] TNil (MCons ((c, [] :: s, t), m))
+       f   : | Reset (e) -> reset (f e xs)
+       f_t : | Reset (e) -> reset (f e xs) >> return
+
+   案 B: f / f_t が pushmark を出す。空フレームを積むことがコード上に見える
+       let reset i = fun vs c s t m -> i vs idc [[]] TNil (MCons ((c, s, t), m))
+       f   : | Reset (e) -> pushmark >> reset (f e xs)
+       f_t : | Reset (e) -> pushmark >> reset (f e xs) >> return *)
 let reset i = fun vs c s t m ->
-  i vs idc [[]] TNil (MCons ((c, s, t), m))
+  i vs idc [[]] TNil (MCons ((c, [] :: s, t), m))
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> s -> t -> m -> v *)
@@ -135,8 +153,9 @@ let rec f e xs = match e with
     f_s e2s xs >> f e0 xs >> apply
   | Shift (x, e) -> shift (f e (x :: xs))
   | Control (x, e) -> control (f e (x :: xs))
-  | Shift0 (x, e) -> shift0 (f e (x :: xs))
-  | Control0 (x, e) -> control0 (f e (x :: xs))
+  | Shift0 (x, e) -> shift0 (f_t e (x :: xs))
+  | Control0 (x, e) -> control0 (f_t e (x :: xs))
+  (* 案 B: | Reset (e) -> pushmark >> reset (f e xs) *)
   | Reset (e) -> reset (f e xs)
 
 (* f_t : e -> string list -> i *)
@@ -149,8 +168,9 @@ and f_t e xs = match e with
   | App (e0, e2s) -> f_st e2s xs >> f e0 xs >> apply
   | Shift (x, e) -> shift (f e (x :: xs)) >> return
   | Control (x, e) -> control (f e (x :: xs)) >> return
-  | Shift0 (x, e) -> shift0 (f e (x :: xs)) >> return
-  | Control0 (x, e) -> control0 (f e (x :: xs)) >> return
+  | Shift0 (x, e) -> shift0 (f_t e (x :: xs)) >> return
+  | Control0 (x, e) -> control0 (f_t e (x :: xs)) >> return
+  (* 案 B: | Reset (e) -> pushmark >> reset (f e xs) >> return *)
   | Reset (e) -> reset (f e xs) >> return
 
 (* f_s : e list -> string list -> i *)
