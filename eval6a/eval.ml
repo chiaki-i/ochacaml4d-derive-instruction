@@ -10,18 +10,23 @@ let push v s = match s with
 (* pushmark : s -> s *)
 let pushmark s = [] :: s
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* run_h : h -> v -> t -> m -> v *)
+let rec run_h h v t m = match h with
+    Hold (c, s) -> app_s v c s t m
+  | Append (h, h') -> run_h h v (cons h' t) m
+
 (* initial continuation : s -> t -> m -> v *)
-let rec idc s t m = match s with (v :: []) :: s ->
+and idc s t m = match s with (v :: []) :: s ->
     begin match t with
         TNil ->
         begin match m with
@@ -30,7 +35,7 @@ let rec idc s t m = match s with (v :: []) :: s ->
             let app_c0 ((v :: v2s) :: s) t m = app_s v c0 (v2s :: s) t m in
             app_c0 (push v s) t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h h v TNil m
     end
 
 (* f : definitional interpreter *)
@@ -150,13 +155,12 @@ and f_st e2s xs vs c (v2s' :: s) t m = match e2s with
 
 (* app : v -> v -> c -> s -> t -> m -> v *)
 and app v0 v1 c s t m =
-  let app_c ((v :: v2s) :: s) t m = app_s v c (v2s :: s) t m in
   match v0 with
     VFun (f) -> f c (push v1 s) t m
   | VContS (c', s', t') ->
     c' (push v1 s') t' (MCons ((c, s, t), m))
   | VContC (c', s', t') ->
-    c' (push v1 s') (apnd t' (cons (fun v t m -> app_s v c s t m) t)) m
+    c' (push v1 s') (apnd t' (cons (Hold (c, s)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can't be applied.")
 

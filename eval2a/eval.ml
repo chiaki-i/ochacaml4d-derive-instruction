@@ -4,25 +4,30 @@ open Value
 (* initial continuation : v -> t -> m -> v *)
 let idc = C0
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* run_h : h -> v -> t -> m -> v *)
+let rec run_h h v t m = match h with
+    Hold (v2s, c) -> app_s v v2s c t m
+  | Append (h, h') -> run_h h v (cons h' t) m
+
 (* run_c : c -> v -> t -> m -> v *)
-let rec run_c c v t m = match c with
+and run_c c v t m = match c with
     C0 -> begin match t with
         TNil ->
         begin match m with
             MNil -> v
           | MCons ((c0, v2s, t), m) -> app_s v v2s c0 t m
         end
-      | Trail (h) -> h v TNil m
+      | Trail (h) -> run_h h v TNil m
     end
   | COp1 (e, xs, op, vs, c) -> f e xs vs (COp0 (v, op, c)) t m
   | COp0 (v0, op, c) ->
@@ -122,11 +127,10 @@ and f_st e2s xs vs v2s' c t m = match e2s with
 
 (* app : v -> v -> v list -> c -> t -> m -> v *)
 and app v0 v1 v2s' c t m =
-  let app_c = CApp3 (v2s', c) in
   match v0 with
     VFun (f) -> f v1 v2s' c t m
   | VContS (c', t') -> run_c c' v1 t' (MCons ((c, v2s', t), m))
-  | VContC (c', t') -> run_c c' v1 (apnd t' (cons (fun v t m -> app_s v v2s' c t m) t)) m
+  | VContC (c', t') -> run_c c' v1 (apnd t' (cons (Hold (v2s', c)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can't be applied.")
 
