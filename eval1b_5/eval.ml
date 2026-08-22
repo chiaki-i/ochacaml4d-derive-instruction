@@ -1,20 +1,31 @@
 open Syntax
 open Value
 
+(* defunctionalize the continuation stored in the trail : eval1b_5 *)
+(* トレイルの非関数化を行う。
+   トレイルに積まれる関数は app_c と、cons の Trail ケースが作る無名関数の 2 つだけなので、
+     h = Hold of v list * c   (app_c に対応)
+       | Append of h * h      (cons の作る無名関数に対応)
+   となり、適用は run_h が担う *)
 
-(* cons : (v -> t -> m -> v) -> t -> t *)
-let rec cons h t = match t with
+(* cons : h -> t -> t *)
+let cons h t = match t with
     TNil -> Trail (h)
-  | Trail (h') -> Trail (fun v t' m -> h v (cons h' t') m)
+  | Trail (h') -> Trail (Append (h, h'))
 
 (* apnd : t -> t -> t *)
 let apnd t0 t1 = match t0 with
     TNil -> t1
   | Trail (h) -> cons h t1
 
+(* run_h : h -> v -> t -> m -> v *)
+let rec run_h h v t m = match h with
+    Hold (v2s, c) -> app_s v v2s c t m (* 非関数化したことで app_s がこちらに移動 *)
+  | Append (h, h') -> run_h h v (cons h' t) m
+
 (* initial continuation : v -> t -> m -> v *)
 (* MCons の非関数化にあたり、ここで app_c0 を作り直す *)
-let rec idc v t m = match t with
+and idc v t m = match t with
     TNil ->
     begin match m with
         MNil -> v
@@ -22,7 +33,7 @@ let rec idc v t m = match t with
         let app_c0 = fun v0 t0 m0 -> app_s v0 v2s c0 t0 m0 in
         app_c0 v t m
     end
-  | Trail (h) -> h v TNil m
+  | Trail (h) -> run_h h v TNil m
 
 (* f : definitional interpreter *)
 (* f : e -> string list -> v list -> c -> t -> m -> v *)
@@ -126,11 +137,11 @@ and f_s e2s xs vs c t m = match e2s with
 
 (* app : v -> v -> v list -> c -> t -> m -> v *)
 and app v0 v1 v2s' c t m =
-  let app_c = fun v t m -> app_s v v2s' c t m in
   match v0 with
     VFun (f) -> f v1 v2s' c t m
   | VContS (c', t') -> c' v1 t' (MCons ((c, v2s', t), m))
-  | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m
+  (* | VContC (c', t') -> c' v1 (apnd t' (cons app_c t)) m *)
+  | VContC (c', t') -> c' v1 (apnd t' (cons (Hold (v2s', c)) t)) m
   | _ -> failwith (to_string v0
                    ^ " is not a function; it can't be applied.")
 
