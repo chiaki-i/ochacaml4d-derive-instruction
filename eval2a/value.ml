@@ -19,7 +19,7 @@ and c = C0
 
 and t = TNil | Trail of (v -> t -> m -> v)
 
-and m = MNil | MCons of (c * t) * m
+and m = MNil | MCons of (c * v list * t) * m
 
 (* to_string : v -> string *)
 let rec to_string value = match value with
