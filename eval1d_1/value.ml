@@ -10,7 +10,10 @@ type v = VNum of int
 
 and c = v -> t -> m -> v
 
-and t = TNil | Trail of (v -> t -> m -> v)
+and t = TNil | Trail of h
+
+and h = Hold of v list * c
+      | Append of h * h
 
 and m = MNil | MCons of (c * v list * t) * m
 
