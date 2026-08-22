@@ -68,6 +68,14 @@ Passed: /.../ochacaml4d-derive-instruction/test-suite/4/test4.ml
 
 ## Derivation path
 
+### 限定継続の最適化 (`eval1-appterm-f_st-meta-optimize` branch)
+- Eval1a, 1b_{1,2,3,4,5}, 1d_{1,2,3}, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
+  - main（`eval1-appterm-f_st`）の上に、メタ継続・トレイルの非関数化を実施した。これまで `app` 関数は、`VContS` と `VContC` のケースで `Return` 命令 (つまり `app_c`) を新たに追加してしまっていたので、その部分を綺麗にするための作業。
+  - 1b_4 はメタ継続の非関数化。`MCons of (c * t) * m` → `MCons of (c * v list * t) * m` とし、`idc` の m-pop で `app_c0` を作り直す。これにより `Shift0` / `Control0` が m から `v2s` を取り出せるようになるので、本体を `f` ではなく `f_t` でコンパイルする形に変わる。
+  - 1b_5 はトレイルの非関数化。データ型 `h` を導入し、`run_h` が `h` の実行をする。これで `app` から `app_c` をなくすことができる（最終的に eval10c などで `Return` 命令が入らなくなる）
+  - 8a における `Reset` 命令のデザインは今後の導出や論文での説明の際に、より良い形を検討する余地がある。
+    - 1b_4 でメタ継続の非関数化をしたことにより、インタプリタ `f` の `Reset` は「現在の reset の範囲での、残りの引数列」を `[]` にリセットする。それが伝播して、4b や 4c の `f` の `Reset` でも、引数スタック `s` は `[] :: s` という形で表現されていく。8a でも同様だが、`Reset` という命令の中に `[] :: s` という操作を入れ込むか、そうではなく `pushmark >> reset (f e xs)` という2命令で表現するかは（どちらがより ZINC の本質的なことを表しているかという意味で）検討する余地がある。
+
 ### Appterm (after JSSST Journal, `f_st` version; branch `eval1-appterm-f_st`)
 - Eval1a, 1b_{1,2,3}, 1d_{1,2,3}, 2a, 4{b,c}, 6a, 8a, 9{a,c}, 10{a,b,c}
   - 1d_1 は eval1a の補題を忠実に適用しただけ（ZINC の `Appterm` の本質的なアイデア）
