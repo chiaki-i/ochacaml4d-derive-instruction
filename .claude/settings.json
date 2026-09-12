@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Edit(**)",
+      "Write(**)",
+      "Glob",
+      "Grep",
+      "Read(//Users/chiaki/.claude/**)",
+      "Read(//Users/chiaki/Documents/git/ochacaml4d.paper/**)",
+      "Bash(make)",
+      "Bash(make *)",
+      "Bash(cd eval*)",
+      "Bash(cp -r eval*)",
+      "Bash(./interpreter)",
+      "Bash(git ls-tree *)",
+      "Bash(git rev-list *)",
+      "Bash(git merge-base *)",
+      "Bash(git branch *)",
+      "Bash(./.claude/hooks/session-context.sh)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(echo \"--- schema OK \\(exit $?\\) ---\")",
+      "Edit(/.claude/skills/derive-step/**)",
+      "Bash(git check-ignore *)",
+      "Bash(cp -r eval8a _tmp_try)",
+      "Bash(python3 -)"
+    ],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "/tmp",
+      "/Users/chiaki/Documents/git/ochacaml4d.paper"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./.claude/hooks/session-context.sh",
+            "timeout": 15,
+            "statusMessage": "derivation path を読み込み中..."
+          }
+        ]
+      }
+    ]
+  }
+}
