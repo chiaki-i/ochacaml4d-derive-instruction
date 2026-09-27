@@ -1,7 +1,7 @@
 open Syntax
 open Value
 
-(* specialize f / f_t to c = idc, introducing f_id (g_t を作らない版) : eval1b_6 *)
+(* introduce the Grab that crosses a reset, in f_id : eval1b_7 *)
 (* 限定継続 k を複数引数で呼ぶ (k e1 e2 ...) と、app の VContS / VContC ケース
      | VContS (c', t') -> c' v1 t' (MCons ((c, v2s', t), m))
    により、2 つめ以降の引数 v2s' は k の実行が終わるまで m のフレームで待つ。
@@ -10,15 +10,11 @@ open Value
    という往復が起きている。この往復を Grab 一つにまとめたい。
 
    Grab してよいのは「この式の値がそのまま一番内側の reset の値になる」とき、
-   つまり c = idc かつ t = TNil のときに限られる。そこで c = idc を静的に
-   持つ特殊版
-     f_id e xs vs m = f e xs vs idc TNil m
-   を作る。f_id の中では c が idc だと静的にわかっているので、Fun ケースで
-   m の先頭フレームを覗いて Grab してよい（その展開は次のステップで行う）。
-
-   このステップでは f_id を「f に c := idc を代入しただけ」の形で導入し、
-   f / f_t 側の f ... idc TNil M を、(f の代わりに) f_id を呼び出す形に
-   変えるところまでを行う。挙動は eval1b_5 と完全に同一である。 *)
+   つまり c = idc かつ t = TNil のときに限られる。eval1b_6 で導入した f_id は
+   この条件を静的に持つ特殊版であり、Fun ケースで m の先頭フレームを覗いて
+   Grab してよい。このステップでは、その f_id の Fun ケースをインライン展開する。
+   展開に使うのは idc / app_s / app の定義展開と β 簡約だけで、f / f_t には
+   一切手を入れない。 *)
 
 (* cons : h -> t -> t *)
 let cons h t = match t with
@@ -149,8 +145,8 @@ and f_t e xs vs v2s' c t m =
    f に c := idc, t := TNil を代入しただけのもの。c と t が引数から消える。
    「この式の値は、そのまま一番内側の reset の値になる」位置を表す。
    したがって m の先頭フレーム (c0, v2s, t0) の v2s は
-   「この reset の結果に適用されるべき引数列」であり、次のステップで Fun ケースを
-   展開すると、そこから直接 Grab できるようになる。
+   「この reset の結果に適用されるべき引数列」であり、Fun ケースを展開すると
+   そこから直接 Grab できる。
 
    各ケースは f の形をそのまま保ち、c を idc に、t を TNil に置き換えただけ。
    ただし部分式（Op の e0 / e1、App の e2s）は非末尾なので f のまま呼ぶ。
@@ -177,12 +173,32 @@ and f_id e xs vs m =
               | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
                                ^ " are not numbers")
             end) t0 m0) TNil m
-  (* このステップではまだ f の Fun ケースそのまま（c = idc, t = TNil）。
-     次のステップで idc / app_s / app を展開すると、m の先頭フレームに残っている
-     引数を closure を作らずに束縛する Grab になる。 *)
+  (* idc (VFun F) TNil m を展開する。
+
+       idc (VFun F) TNil m
+     = match m with                                      (idc の TNil ケース)
+         MNil -> VFun F
+       | MCons ((c0, v2s, t0), m0) -> app_s (VFun F) v2s c0 t0 m0
+     = match m with
+         MNil -> VFun F
+       | MCons ((c0, [], t0), m0) -> c0 (VFun F) t0 m0    (app_s の [] ケース)
+       | MCons ((c0, v1 :: v2s, t0), m0) ->
+           app (VFun F) v1 v2s c0 t0 m0                   (app_s の :: ケース)
+         = F v1 v2s c0 t0 m0                              (app の VFun ケース)
+         = f_t e (x :: xs) (v1 :: vs) v2s c0 t0 m0        (β)
+
+     最後の行が Grab である。reset の外で待っている引数 v1 を、closure を
+     作らずにそのまま x に束縛して本体に入る。
+     m が MNil のとき、および先頭フレームの引数列が空のときは、
+     これまで通り closure を作って idc に渡す。 *)
   | Fun (x, e) ->
-    idc (VFun (fun v1 v2s' c' t' m' ->
-              f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) TNil m
+    begin match m with
+        MCons ((c0, v1 :: v2s, t0), m0) ->
+          f_t e (x :: xs) (v1 :: vs) v2s c0 t0 m0
+      | _ ->
+        idc (VFun (fun v1 v2s' c' t' m' ->
+                f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) TNil m
+    end
   (* f の App ケースに c := idc を代入しただけ（f_id e xs vs m = f e xs vs idc TNil m
      という定義そのものの展開）。 *)
   | App (e0, e2s) ->
