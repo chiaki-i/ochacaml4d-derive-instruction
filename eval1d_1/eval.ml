@@ -5,6 +5,10 @@ open Value
 (* f_t's App case: transform app v0 v1 v2s app_c t0 m0 to app v0 v1 (v2s @ v2s') c t0 m0
    using the lemma (proved in eval1a):
      app_s v0 (v2s @ v2s') c t m = app_s v0 v2s (fun v t m -> app_s v v2s' c t m) t m *)
+(* eval1b_6 / eval1b_7 で導入した f_id を反映している。f_id の Fun ケース
+   （reset を跨ぐ Grab）は eval1b_7 で展開済みなので、ここで新たに加える
+   変換は f_id の App ケースへの app_s の展開だけである。これは f の App
+   ケースにかける展開と同じものを、c = idc の場合に適用したもの。 *)
 
 (* cons : h -> t -> t *)
 let cons h t = match t with
@@ -61,8 +65,11 @@ and f e xs vs c t m =
     f_s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
       f e0 xs vs (fun v0 t0 m0 ->
         app v0 v1 v2s c t0 m0) t2 m2) t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
+  (* shift / control / reset は本体を idc・TNil の下で走らせる。これは
+     f_id の定義 f_id e xs vs m = f e xs vs idc TNil m そのものなので、
+     (f の代わりに) f_id を呼び出す。 *)
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (c, t) :: vs) m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (c, t) :: vs) m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
@@ -75,7 +82,7 @@ and f e xs vs c t m =
           f_t e (x :: xs) (VContC (c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, [], t), m))
+  | Reset (e) -> f_id e xs vs (MCons ((c, [], t), m))
 
 (* f_t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f_t e xs vs v2s' c t m =
@@ -112,8 +119,9 @@ and f_t e xs vs v2s' c t m =
     f_s e2s xs vs (fun v2s t2 m2 ->
       f e0 xs vs (fun v0 t0 m0 ->
         app_s v0 (v2s @ v2s') c t0 m0) t2 m2) t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
+  (* f と同じく、f の代わりに f_id を呼び出す *)
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (app_c, t) :: vs) m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (app_c, t) :: vs) m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
@@ -126,7 +134,72 @@ and f_t e xs vs v2s' c t m =
           f_t e (x :: xs) (VContC (app_c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, v2s', t), m))
+  | Reset (e) -> f_id e xs vs (MCons ((c, v2s', t), m))
+
+(* f_id : e -> string list -> v list -> m -> v *)
+(* f_id e xs vs m = f e xs vs idc TNil m
+
+   f に c := idc, t := TNil を代入しただけのもの。c と t が引数から消える。
+   「この式の値は、そのまま一番内側の reset の値になる」位置を表す。
+   したがって m の先頭フレーム (c0, v2s, t0) の v2s は
+   「この reset の結果に適用されるべき引数列」であり、Fun ケースを展開すると
+   そこから直接 Grab できる。
+
+   各ケースは f の形をそのまま保ち、c を idc に、t を TNil に置き換えただけ。
+   ただし部分式（Op の e0 / e1、App の e2s）は非末尾なので f のまま呼ぶ。
+   非末尾から戻ってくる継続は動的な t1 / m1 を受け取るため TNil に固定できず、
+   そこでは idc をそのまま適用する。 *)
+and f_id e xs vs m =
+  match e with
+    Num (n) -> idc (VNum (n)) TNil m
+  | Var (x) -> idc (List.nth vs (Env.offset x xs)) TNil m
+  | Op (e0, op, e1) ->
+    f e1 xs vs (fun v1 t0 m0 ->
+        f e0 xs vs (fun v0 t1 m1 ->
+            begin match (v0, v1) with
+                (VNum (n0), VNum (n1)) ->
+                begin match op with
+                    (* 戻ってきた時点の t1 は TNil とは限らないので idc を適用する *)
+                    Plus -> idc (VNum (n0 + n1)) t1 m1
+                  | Minus -> idc (VNum (n0 - n1)) t1 m1
+                  | Times -> idc (VNum (n0 * n1)) t1 m1
+                  | Divide ->
+                    if n1 = 0 then failwith "Division by zero"
+                    else idc (VNum (n0 / n1)) t1 m1
+                end
+              | _ -> failwith (to_string v0 ^ " or " ^ to_string v1
+                               ^ " are not numbers")
+            end) t0 m0) TNil m
+  (* idc (VFun F) TNil m を展開する（eval1b_7 で導入した Grab、変更なし）。 *)
+  | Fun (x, e) ->
+    begin match m with
+        MCons ((c0, v1 :: v2s, t0), m0) ->
+          f_t e (x :: xs) (v1 :: vs) v2s c0 t0 m0
+      | _ ->
+        idc (VFun (fun v1 v2s' c' t' m' ->
+                f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) TNil m
+    end
+  (* f の App ケースと同じ app_s の :: ケースの展開
+     （f_id e xs vs m = f e xs vs idc TNil m という定義の展開）。 *)
+  | App (e0, e2s) ->
+    f_s e2s xs vs (fun (v1 :: v2s) t2 m2 ->
+      f e0 xs vs (fun v0 t0 m0 ->
+        app v0 v1 v2s idc t0 m0) t2 m2) TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (idc, TNil) :: vs) m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (idc, TNil) :: vs) m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          f_t e (x :: xs) (VContS (idc, TNil) :: vs) v2s c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          f_t e (x :: xs) (VContC (idc, TNil) :: vs) v2s c0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f_id e xs vs (MCons ((idc, [], TNil), m))
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with
