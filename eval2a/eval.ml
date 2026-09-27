@@ -64,8 +64,8 @@ and f e xs vs c t m =
               f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, t) :: vs) idc TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, t) :: vs) idc TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (c, t) :: vs) m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (c, t) :: vs) m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
@@ -78,7 +78,7 @@ and f e xs vs c t m =
           f_t e (x :: xs) (VContC (c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, [], t), m))
+  | Reset (e) -> f_id e xs vs (MCons ((c, [], t), m))
 
 (* f_t : e -> string list -> v list -> v list -> c -> t -> m -> v *)
 and f_t e xs vs v2s' c t m =
@@ -97,8 +97,8 @@ and f_t e xs vs v2s' c t m =
               f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) t m *)
   | App (e0, e2s) ->
     f_st e2s xs vs v2s' (CAppS1 (e0, xs, vs, c)) t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, t) :: vs) idc TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (app_c, t) :: vs) idc TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (app_c, t) :: vs) m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (app_c, t) :: vs) m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, v2s, t0), m0) ->
@@ -111,7 +111,41 @@ and f_t e xs vs v2s' c t m =
           f_t e (x :: xs) (VContC (app_c, t) :: vs) v2s c0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc TNil (MCons ((c, v2s', t), m))
+  | Reset (e) -> f_id e xs vs (MCons ((c, v2s', t), m))
+
+(* f_id : e -> string list -> v list -> m -> v *)
+(* f_id e xs vs m = f e xs vs idc TNil m。継続の非関数化を反映し、
+   c を渡す代わりに idc (= C0) を埋め込んだコンストラクタを直接使う。 *)
+and f_id e xs vs m =
+  match e with
+    Num (n) -> run_c idc (VNum (n)) TNil m
+  | Var (x) -> run_c idc (List.nth vs (Env.offset x xs)) TNil m
+  | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, idc)) TNil m
+  | Fun (x, e) ->
+    begin match m with
+        MCons ((c0, v1 :: v2s, t0), m0) ->
+          f_t e (x :: xs) (v1 :: vs) v2s c0 t0 m0
+      | _ ->
+        run_c idc (VFun (fun v1 v2s' c' t' m' ->
+                f_t e (x :: xs) (v1 :: vs) v2s' c' t' m')) TNil m
+    end
+  | App (e0, e2s) ->
+    f_s e2s xs vs (CAppS1 (e0, xs, vs, idc)) TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (idc, TNil) :: vs) m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (idc, TNil) :: vs) m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          f_t e (x :: xs) (VContS (idc, TNil) :: vs) v2s c0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, v2s, t0), m0) ->
+          f_t e (x :: xs) (VContC (idc, TNil) :: vs) v2s c0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f_id e xs vs (MCons ((idc, [], TNil), m))
 
 (* f_s : e list -> string list -> v list -> c -> t -> m -> v list *)
 and f_s e2s xs vs c t m = match e2s with
