@@ -65,8 +65,8 @@ and f e xs vs c s t m =
       f_t e (x :: xs) (v1 :: vs) c' s' t' m')) s t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) idc [] TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (c, s, t) :: vs) [] m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (c, s, t) :: vs) [] m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
@@ -79,7 +79,7 @@ and f e xs vs c s t m =
           f_t e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [] TNil (MCons ((c, [] :: s, t), m))
+  | Reset (e) -> f_id e xs vs [] (MCons ((c, [] :: s, t), m))
 
 (* f_t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs c s t m =
@@ -98,8 +98,8 @@ and f_t e xs vs c s t m =
     begin match s with v2s' :: s ->
       f_st e2s xs vs (CAppS1 (e0, xs, vs, c)) (v2s' :: s) t m
     end
-  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [] TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (app_c, s, t) :: vs) [] m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (app_c, s, t) :: vs) [] m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
@@ -112,7 +112,48 @@ and f_t e xs vs c s t m =
           f_t e (x :: xs) (VContC (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [] TNil (MCons ((c, s, t), m))
+  | Reset (e) -> f_id e xs vs [] (MCons ((c, s, t), m))
+
+(* f_id : e -> string list -> v list -> s -> m -> v *)
+(* f_id e xs vs s m = f e xs vs idc s TNil m
+
+   継続 c と trail t を idc / TNil に固定した特殊版（eval1b_6 / eval1b_7
+   由来）。引数スタック s は f のシグネチャにそのまま残る。
+
+   Fun ケース（eval1b_7 で導入した reset を跨ぐ Grab）は、m の非関数化前は
+   先頭フレームの v2s（引数列）を直接見ていた。ここでは m のフレームが
+   (c0, s0, t0) という形で s0 全体（引数スタック）を保持するので、
+   その先頭要素 s0 の head が「reset の結果に適用されるべき引数列」になる。 *)
+and f_id e xs vs s m =
+  match e with
+    Num (n) -> run_c idc (VNum (n)) s TNil m
+  | Var (x) -> run_c idc (List.nth vs (Env.offset x xs)) s TNil m
+  | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, idc)) s TNil m
+  | Fun (x, e) ->
+    begin match m with
+        MCons ((c0, (v1 :: v2s) :: s0, t0), m0) ->
+          f_t e (x :: xs) (v1 :: vs) c0 (v2s :: s0) t0 m0
+      | _ ->
+        run_c idc (VFun (fun v1 c' s' t' m' ->
+                f_t e (x :: xs) (v1 :: vs) c' s' t' m')) s TNil m
+    end
+  | App (e0, e2s) ->
+    f_s e2s xs vs (CAppS1 (e0, xs, vs, idc)) s TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (idc, s, TNil) :: vs) [] m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (idc, s, TNil) :: vs) [] m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+          f_t e (x :: xs) (VContS (idc, s, TNil) :: vs) c0 s0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+          f_t e (x :: xs) (VContC (idc, s, TNil) :: vs) c0 s0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f_id e xs vs [] (MCons ((idc, [] :: s, TNil), m))
 
 (* f_s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
