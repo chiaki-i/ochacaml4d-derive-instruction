@@ -74,8 +74,8 @@ and f e xs vs c s t m =
       f_t e (x :: xs) (v1 :: vs) c' (v2s :: s') t' m')) s) t m
   | App (e0, e2s) ->
     f_s e2s xs vs (CAppS1 (e0, xs, vs, c)) s t m
-  | Shift (x, e) -> f e (x :: xs) (VContS (c, s, t) :: vs) idc [[]] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (c, s, t) :: vs) idc [[]] TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (c, s, t) :: vs) [[]] m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (c, s, t) :: vs) [[]] m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
@@ -88,7 +88,7 @@ and f e xs vs c s t m =
           f_t e (x :: xs) (VContC (c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((c, pushmark s, t), m))
+  | Reset (e) -> f_id e xs vs [[]] (MCons ((c, pushmark s, t), m))
 
 (* f_t : e -> string list -> v list -> c -> s -> t -> m -> v *)
 and f_t e xs vs c s t m =
@@ -107,8 +107,8 @@ and f_t e xs vs c s t m =
     begin match s with v2s' :: s ->
       f_st e2s xs vs (CAppS1 (e0, xs, vs, c)) (v2s' :: s) t m
     end
-  | Shift (x, e) -> f e (x :: xs) (VContS (app_c, s, t) :: vs) idc [[]] TNil m
-  | Control (x, e) -> f e (x :: xs) (VContC (app_c, s, t) :: vs) idc [[]] TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (app_c, s, t) :: vs) [[]] m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (app_c, s, t) :: vs) [[]] m
   | Shift0 (x, e) ->
     begin match m with
         MCons ((c0, s0, t0), m0) ->
@@ -121,7 +121,49 @@ and f_t e xs vs c s t m =
           f_t e (x :: xs) (VContC (app_c, s, t) :: vs) c0 s0 t0 m0
       | _ -> failwith "control0 is used without enclosing reset"
     end
-  | Reset (e) -> f e xs vs idc [[]] TNil (MCons ((c, s, t), m))
+  | Reset (e) -> f_id e xs vs [[]] (MCons ((c, s, t), m))
+
+(* f_id : e -> string list -> v list -> s -> m -> v *)
+(* f_id e xs vs s m = f e xs vs idc s TNil m
+
+   eval4b の f_id を、計算結果をスタックで渡すスタイル（push / pushmark）に
+   合わせて書き直したもの。Shift / Control は idc [[]] TNil m で f を呼んで
+   いた形を f_id に畳み、引数スタックの初期値は eval4c 全体の規約に合わせて
+   [] ではなく [[]] にする。
+
+   Fun ケースの Grab 分岐は、m の先頭フレームが保持する引数スタック s0 の
+   先頭要素を直接見るだけで、push や VFun の型変更とは無関係なので
+   eval4b から変更しない。 *)
+and f_id e xs vs s m =
+  match e with
+    Num (n) -> run_c idc (push (VNum (n)) s) TNil m
+  | Var (x) -> run_c idc (push (List.nth vs (Env.offset x xs)) s) TNil m
+  | Op (e0, op, e1) -> f e1 xs vs (COp1 (e0, xs, op, vs, idc)) s TNil m
+  | Fun (x, e) ->
+    begin match m with
+        MCons ((c0, (v1 :: v2s) :: s0, t0), m0) ->
+          f_t e (x :: xs) (v1 :: vs) c0 (v2s :: s0) t0 m0
+      | _ ->
+        run_c idc (push (VFun (fun c' ((v1 :: v2s) :: s') t' m' ->
+                f_t e (x :: xs) (v1 :: vs) c' (v2s :: s') t' m')) s) TNil m
+    end
+  | App (e0, e2s) ->
+    f_s e2s xs vs (CAppS1 (e0, xs, vs, idc)) s TNil m
+  | Shift (x, e) -> f_id e (x :: xs) (VContS (idc, s, TNil) :: vs) [[]] m
+  | Control (x, e) -> f_id e (x :: xs) (VContC (idc, s, TNil) :: vs) [[]] m
+  | Shift0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+          f_t e (x :: xs) (VContS (idc, s, TNil) :: vs) c0 s0 t0 m0
+      | _ -> failwith "shift0 is used without enclosing reset"
+    end
+  | Control0 (x, e) ->
+    begin match m with
+        MCons ((c0, s0, t0), m0) ->
+          f_t e (x :: xs) (VContC (idc, s, TNil) :: vs) c0 s0 t0 m0
+      | _ -> failwith "control0 is used without enclosing reset"
+    end
+  | Reset (e) -> f_id e xs vs [[]] (MCons ((idc, pushmark s, TNil), m))
 
 (* f_s : e list -> string list -> v list -> c -> s -> t -> m -> v list *)
 and f_s e2s xs vs c s t m = match e2s with
